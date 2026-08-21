@@ -1,0 +1,22 @@
+{
+  "name": "tesouro-tracker-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rastreador de títulos do Tesouro Direto — hoje NTN-B (Tesouro IPCA+): taxa real, PU e duration por vencimento",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "verificar": "node scripts/verificar.mjs",
+    "coletar": "node .github/scripts/coletar-tesouro.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.10"
+  }
+}

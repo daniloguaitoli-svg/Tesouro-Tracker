@@ -1,0 +1,7 @@
+{
+ "atualizadoEm": null,
+ "fonte": "Tesouro Nacional — Tesouro Transparente",
+ "desde": null,
+ "nota": "Semente. O job .github/workflows/coletar-tesouro.yml substitui este arquivo na primeira execução. `serie` mapeia data ISO -> [taxa % a.a., PU em reais].",
+ "titulos": {}
+}

@@ -1,0 +1,65 @@
+# Coleta agendada da série oficial do Tesouro Direto.
+#
+# POR QUE ESTE JOB EXISTE: o CSV do Tesouro Transparente tem dezenas de MB e o
+# histórico inteiro desde 2002 — grande demais para ser varrido dentro de uma
+# função serverless a cada request. Aqui ele é lido uma vez por dia, destilado
+# em dados/historico.json (a série que o app usa) e em dados/ntnb.json +
+# dados/ntnb.md (o retrato do dia, com duration).
+#
+# Efeito colateral desejado, e o principal: como o repositório é público, esses
+# dois arquivos ficam legíveis por raw.githubusercontent.com SEM TOKEN. É a
+# ponte para qualquer ferramenta que não alcance a fonte original.
+#
+# Cada execução que muda os arquivos gera um commit, que dispara um deploy novo
+# na Vercel — é assim que o dado novo chega ao ar.
+#
+# ATENÇÃO: o GitHub suspende workflows agendados após 60 dias sem atividade no
+# repositório. Se a coleta parar sozinha, reative na aba Actions.
+
+name: Coletar Tesouro
+
+on:
+  schedule:
+    # 13:00 e 22:00 UTC = 10h e 19h de Brasília, em dias úteis: uma leitura de
+    # manhã (quando a ANBIMA já publicou o secundário) e outra após o fechamento.
+    - cron: "0 13,22 * * 1-5"
+  workflow_dispatch:
+  # Numa branch de trabalho o job roda em DRY-RUN: baixa, parseia e relata, sem
+  # gravar nem commitar. É como se confere que os parsers ainda batem com o
+  # formato real das fontes antes de o código chegar ao main.
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coletar-tesouro
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Coletar e gravar (main)
+        if: github.ref == 'refs/heads/main'
+        run: node .github/scripts/coletar-tesouro.mjs
+
+      - name: Conferir os parsers contra as fontes reais (dry-run)
+        if: github.ref != 'refs/heads/main'
+        run: node .github/scripts/coletar-tesouro.mjs --dry-run
+
+      - name: Commitar os dados atualizados
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dados/historico.json dados/ntnb.json dados/ntnb.md
+          git diff --staged --quiet || git commit -m "Dados: coleta automatica das NTN-B"
+          git push
