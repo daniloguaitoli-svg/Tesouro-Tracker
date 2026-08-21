@@ -39,6 +39,14 @@ tools that cannot reach `tesourotransparente.gov.br` can reach the raw file.
 **Do not make this repo private** without also telling the user the bridge stops
 working anonymously.
 
+The collector writes on the repository's **default branch**, whatever it is
+called — the workflow compares `github.ref` against
+`github.event.repository.default_branch` rather than hardcoding `main`. Do not
+"simplify" that back to `refs/heads/main`: this repo's default branch has not
+always been named `main`, and a hardcoded name makes the job run, succeed, and
+silently never commit. The raw URLs in the README do assume `main`, so keep the
+two in step if the default branch is ever renamed.
+
 Never hand-edit `dados/` — the bot owns it. Expect frequent
 `github-actions[bot]` commits titled "Dados: coleta automatica das NTN-B".
 

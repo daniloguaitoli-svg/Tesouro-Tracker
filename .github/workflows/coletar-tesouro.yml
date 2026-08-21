@@ -24,9 +24,9 @@ on:
     # manhã (quando a ANBIMA já publicou o secundário) e outra após o fechamento.
     - cron: "0 13,22 * * 1-5"
   workflow_dispatch:
-  # Numa branch de trabalho o job roda em DRY-RUN: baixa, parseia e relata, sem
-  # gravar nem commitar. É como se confere que os parsers ainda batem com o
-  # formato real das fontes antes de o código chegar ao main.
+  # Numa branch de trabalho que NÃO seja a padrão, o job roda em DRY-RUN: baixa,
+  # parseia e relata, sem gravar nem commitar. É como se confere que os parsers
+  # ainda batem com o formato real das fontes antes de o código virar oficial.
   push:
     branches: ["claude/**"]
 
@@ -47,16 +47,28 @@ jobs:
         with:
           node-version: 20
 
-      - name: Coletar e gravar (main)
-        if: github.ref == 'refs/heads/main'
+      # A condição segue a branch PADRÃO do repositório, não um nome fixo.
+      #
+      # Por quê: gravar só em "refs/heads/main" parece seguro até o repositório
+      # ter outro nome de branch padrão — aí o coletor roda, acerta tudo, e
+      # nunca grava nada, silenciosamente. Comparar com
+      # github.event.repository.default_branch faz a regra ser "a branch oficial
+      # deste repositório", que é o que se queria dizer desde o começo, e
+      # continua valendo se um dia ela for renomeada para main.
+      #
+      # `github.event_name != 'push'` cobre schedule e workflow_dispatch, onde o
+      # payload não traz repository.default_branch — e onde gravar é sempre a
+      # intenção (o agendamento só dispara na própria branch padrão).
+      - name: Coletar e gravar (branch padrão)
+        if: github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: node .github/scripts/coletar-tesouro.mjs
 
       - name: Conferir os parsers contra as fontes reais (dry-run)
-        if: github.ref != 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
         run: node .github/scripts/coletar-tesouro.mjs --dry-run
 
       - name: Commitar os dados atualizados
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

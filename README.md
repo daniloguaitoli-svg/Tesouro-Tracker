@@ -38,6 +38,13 @@ https://raw.githubusercontent.com/daniloguaitoli-svg/Tesouro-Tracker/main/dados/
 https://raw.githubusercontent.com/daniloguaitoli-svg/Tesouro-Tracker/main/dados/historico.json
 ```
 
+> O trecho depois do nome do repositório é a **branch padrão**. As URLs acima
+> supõem que ela se chame `main`. Se a padrão tiver outro nome, troque `main`
+> por ele — ou renomeie a branch padrão para `main` (página *Branches* do
+> repositório, ícone de lápis) e as URLs acima passam a valer como estão. O
+> coletor não depende disso: ele grava na branch padrão, qualquer que seja o
+> nome dela.
+
 Formato de `ntnb.json` (um objeto por vencimento, dentro de `titulos`):
 
 ```json
