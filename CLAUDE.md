@@ -168,6 +168,12 @@ Why: the set of offered bonds changes with every auction. A hard-coded list
 would go stale and hide real maturities. A maturity outside the catalogue shows
 with a generic label — **never with invented data**.
 
+The `ENTRADAS` list is **sourced, not guessed**: it is exactly the live IPCA+
+maturities present in the official file on `CATALOGO_EM` (2026-08-21). Do not
+invent entries. When the collector logs a maturity as "fora do catálogo", that
+is the signal to add one. `verificar.mjs` fails if a `destaque` has matured and
+warns if any other entry has.
+
 ### The bond math lives in `server/util.js`
 
 This is the part where a bug means the app lies about risk, so it is checked by
@@ -197,11 +203,32 @@ header**, not by position — so a reordered or slightly renamed column keeps
 working. If an essential column disappears it **throws with the header it got**,
 rather than silently reading the wrong number. Keep that property.
 
-The same principle governs `providers/anbima.js`, whose exact file format could
-not be verified from the authoring environment (egress blocked). It returns
+The same principle governs `providers/anbima.js`. **Confirmed on 2026-08-21 by a
+real collection run: the historic path `/informacoes/merc-sec/arqs/ms{ddmmyy}.txt`
+returns 404** — ANBIMA's public-bond tooling moved to the ANBIMA Data platform
+(`data.anbima.com.br`). No replacement URL was guessed. The URL is a template
+overridable by `ANBIMA_MS_URL` (marker `{ddmmyy}`), so pointing it at the right
+endpoint is a workflow env change, not a code change. The parser returns
 `{ ok: false, amostra }` with the start of the file instead of guessing, and the
-collector logs that sample — one workflow run confirms the format. **The app
-works entirely without this source; it is enrichment, never a requirement.**
+collector logs that sample — one run confirms the format of any new URL. **The
+app works entirely without this source; it is enrichment, never a requirement.**
+
+### Already-matured bonds are excluded
+
+The Tesouro file keeps bonds long after they mature. Their last published rate is
+computed over a term approaching zero, which yields nonsense — the first real
+collection returned an NTN-B 2026 at **13.32%** and a 2019 at **−0.94%**, plus a
+row with `PU 0,00`. So:
+
+- `server/ponte.js` `montarTitulos()` drops `vencimento <= hoje` — nothing
+  matured reaches `dados/ntnb.json`, which an external tool reads as truth.
+- `datalayer.getTitulos()` filters them out of the screens.
+- They stay in `dados/historico.json` (that is where they have value) and
+  `/api/detalhe` still opens them by slug.
+- `providers/tesouro.js` maps a PU of `0` or less to `null` — zero is an empty
+  field, not a price.
+
+`verificar.mjs` guards all of it.
 
 ### Constants duplicated on purpose
 

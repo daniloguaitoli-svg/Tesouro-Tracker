@@ -88,6 +88,12 @@ export function linhaParaPonto(cels, idx, desdeISO) {
   if (desdeISO && data < desdeISO) return null;
 
   const n = (campo) => (idx[campo] == null ? null : parseNumBR(cels[idx[campo]]));
+  // Um PU zerado (ou negativo) não é preço: é campo vazio do arquivo. Aparece
+  // em títulos já vencidos e viraria "R$ 0,00" na tela se passasse adiante.
+  const pu = (campo) => {
+    const v = n(campo);
+    return v != null && v > 0 ? v : null;
+  };
 
   return {
     slug: slugDe(classe.tipo, vencimento),
@@ -98,9 +104,9 @@ export function linhaParaPonto(cels, idx, desdeISO) {
     // Taxas em % ao ano (ex.: 7,05 -> 7.05). PU em reais.
     taxaCompra: n("taxaCompra"),
     taxaVenda: n("taxaVenda"),
-    puCompra: n("puCompra"),
-    puVenda: n("puVenda"),
-    puBase: n("puBase"),
+    puCompra: pu("puCompra"),
+    puVenda: pu("puVenda"),
+    puBase: pu("puBase"),
   };
 }
 

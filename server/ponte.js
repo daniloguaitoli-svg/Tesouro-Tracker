@@ -15,8 +15,16 @@ import { porSlug, rotuloGenerico } from "./catalogo.js";
 export const arred = (v, casas) => (v == null || !Number.isFinite(v) ? null : Number(v.toFixed(casas)));
 
 // Séries cruas -> um item por vencimento, já com duration.
+//
+// Títulos JÁ VENCIDOS ficam de fora. Eles continuam no arquivo do Tesouro (e no
+// histórico, que é onde têm valor), mas cotar um título vencido não significa
+// nada: a última taxa publicada é calculada sobre um prazo que tende a zero, o
+// que produz números absurdos — a coleta real trouxe uma NTN-B 2026 a 13,32% e
+// uma 2019 a −0,94%. Num arquivo que outra ferramenta vai ler como verdade,
+// isso é pior do que ausência.
 export function montarTitulos({ ordenados, secPorSlug = {}, hoje }) {
-  return ordenados.map(([slug, dados]) => {
+  const vivos = ordenados.filter(([, d]) => d.vencimento > hoje);
+  return vivos.map(([slug, dados]) => {
     const u = dados.ultimo;
     const doCatalogo = porSlug[slug] || null;
     const taxa = u ? (u.taxaCompra ?? u.taxaVenda) : null;

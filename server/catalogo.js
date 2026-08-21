@@ -33,10 +33,15 @@ export const CATEGORIAS = [
 ];
 
 // `vencimento` em ISO; `destaque` marca as posições acompanhadas de perto.
+//
+// ESTA LISTA É SOURCED, NÃO CHUTADA: são exatamente os vencimentos IPCA+ vivos
+// no arquivo do Tesouro Transparente lido em 21/08/2026. Não invente entradas
+// aqui — se um vencimento novo aparecer, o coletor o lista no log como "fora do
+// catálogo" e aí sim se acrescenta. Uma entrada para um título que não existe
+// nunca quebra nada (some da tela), mas engana quem lê o arquivo.
 const ENTRADAS = [
   // --- Zero-cupom (NTN-B Principal) ---
   { tipo: "ipca", vencimento: "2029-05-15" },
-  { tipo: "ipca", vencimento: "2030-08-15" },
   { tipo: "ipca", vencimento: "2032-08-15" },
   { tipo: "ipca", vencimento: "2035-05-15", destaque: true },
   { tipo: "ipca", vencimento: "2040-08-15" },
@@ -44,14 +49,19 @@ const ENTRADAS = [
   { tipo: "ipca", vencimento: "2050-08-15" },
 
   // --- Com juros semestrais (NTN-B) ---
+  { tipo: "ipca-juros", vencimento: "2030-08-15" },
   { tipo: "ipca-juros", vencimento: "2032-08-15", destaque: true },
   { tipo: "ipca-juros", vencimento: "2035-05-15", destaque: true },
+  { tipo: "ipca-juros", vencimento: "2037-05-15" },
   { tipo: "ipca-juros", vencimento: "2040-08-15" },
   { tipo: "ipca-juros", vencimento: "2045-05-15" },
   { tipo: "ipca-juros", vencimento: "2050-08-15" },
   { tipo: "ipca-juros", vencimento: "2055-05-15" },
   { tipo: "ipca-juros", vencimento: "2060-08-15" },
 ];
+
+// Data da observação do arquivo oficial que gerou a lista acima.
+export const CATALOGO_EM = "2026-08-21";
 
 const rotulo = (tipo, vencimento) => {
   const ano = String(vencimento).slice(0, 4);

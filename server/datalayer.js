@@ -135,8 +135,14 @@ function montarItem(slug, { comSerie = false } = {}) {
 // ---------- /api/titulos ----------
 
 export async function getTitulos() {
+  const hoje = hojeISO();
   const todos = cache
     .titulos()
+    // Vencidos saem da lista pelo mesmo motivo que saem do arquivo-ponte: a
+    // última taxa de um título que já venceu é ruído, não cotação. O histórico
+    // deles continua em dados/historico.json, e /api/detalhe ainda abre por
+    // slug para quem tiver o link.
+    .filter((t) => t.vencimento > hoje)
     .map((t) => montarItem(t.slug))
     .filter(Boolean)
     // Vencimento mais curto primeiro: é a ordem em que a curva se lê.

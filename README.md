@@ -72,6 +72,13 @@ não uma tela. As taxas são **reais** (ao ano, acima do IPCA).
 
 **Nenhuma chave de API é necessária.** Todas as fontes são gratuitas e abertas.
 
+Duas variáveis opcionais, nenhuma delas segredo:
+
+| Variável | Onde | Efeito |
+|---|---|---|
+| `TESOURO_DESDE` | coletor | data inicial da série (padrão `2019-01-01`) |
+| `ANBIMA_MS_URL` | coletor | molde da URL do arquivo do secundário, com `{ddmmyy}` |
+
 ### Sobre a API do ANBIMA Feed
 
 O `mercado-secundario-TPF` com OAuth2 (`client_credentials`) **não** é usado
@@ -82,13 +89,20 @@ como os irmãos. A via pública entrega o essencial (taxa indicativa, compra e
 venda por título). Se um dia houver credencial, o lugar de plugar é
 `server/providers/anbima.js` — a interface para o datalayer não muda.
 
-> **Nota honesta sobre o parser da ANBIMA:** o formato exato do arquivo diário
-> não pôde ser conferido no ambiente onde este código foi escrito (o proxy de
-> saída bloqueia `anbima.com.br`). Por isso o parser detecta separador e acha as
-> colunas por regex no cabeçalho, e **devolve uma amostra do arquivo em vez de
-> inventar número** quando não reconhece o formato. O coletor registra essa
-> amostra no log — uma execução do workflow basta para confirmar. **O app
-> funciona inteiro sem essa fonte.**
+> **Estado real da fonte ANBIMA (conferido em 21/08/2026):** o caminho histórico
+> `/informacoes/merc-sec/arqs/ms{ddmmyy}.txt` responde **404**. As ferramentas de
+> títulos públicos da ANBIMA migraram para a plataforma **ANBIMA Data**
+> (`data.anbima.com.br`), e o arquivo diário antigo saiu do ar nesse formato.
+>
+> **Nenhuma URL nova foi chutada no lugar.** Em vez disso, o endereço é
+> configurável: defina `ANBIMA_MS_URL` (com o marcador `{ddmmyy}`) no workflow
+> quando souber o caminho certo, e o provider passa a funcionar sem mudança de
+> código. O parser é tolerante — detecta separador, acha colunas por regex no
+> cabeçalho e **devolve uma amostra do arquivo em vez de inventar número** —
+> então uma execução basta para confirmar o formato de qualquer URL nova.
+>
+> **O app funciona inteiro sem essa fonte:** ela é enriquecimento (a taxa
+> indicativa do secundário), nunca requisito.
 
 ---
 
@@ -204,5 +218,11 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
 - **Vencimentos são descobertos do arquivo**, não de uma lista chutada. Um
   vencimento que não esteja no catálogo aparece com rótulo genérico — nunca com
   dado inventado.
+- **Títulos já vencidos ficam fora das telas e do arquivo-ponte.** Eles
+  continuam no arquivo do Tesouro e no histórico, mas cotar um título vencido
+  não significa nada: a taxa é calculada sobre um prazo que tende a zero, o que
+  produz números absurdos (a coleta real trouxe uma NTN-B 2026 a 13,32% e uma
+  2019 a −0,94%). Num arquivo que outra ferramenta lê como verdade, isso é pior
+  do que ausência.
 
 **Uso informativo. Não é recomendação de investimento.**

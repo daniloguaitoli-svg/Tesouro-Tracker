@@ -91,7 +91,11 @@ try {
 if (secundario.ok) {
   console.log(`\nANBIMA: ${secundario.titulos.length} NTN-B lidas de ${secundario.url}`);
 } else {
-  console.log(`\nANBIMA indisponível (o app funciona sem): ${(secundario.erros || []).slice(0, 3).join(" | ")}`);
+  console.log(
+    `\nANBIMA sem dados (esperado: o arquivo diário migrou para o ANBIMA Data; ` +
+      `defina ANBIMA_MS_URL quando souber o endereço novo). O app funciona sem.`
+  );
+  console.log(`  ${(secundario.erros || []).slice(0, 3).join("\n  ")}`);
   // A amostra é o que permite confirmar o formato do arquivo numa execução só.
   if (secundario.amostra) console.log(`amostra do arquivo:\n${secundario.amostra}`);
 }

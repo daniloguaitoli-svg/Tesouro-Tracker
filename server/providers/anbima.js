@@ -15,14 +15,23 @@
 // balcão do varejo, com spread próprio), e vencimentos que não estão à venda no
 // Tesouro Direto.
 //
-// PARSING DEFENSIVO — LEIA ANTES DE MEXER: o formato exato deste arquivo não
-// pôde ser conferido de dentro do ambiente onde ele foi escrito (o proxy de
-// saída bloqueia anbima.com.br). Então o parser não assume posição de coluna
-// nem separador: detecta o separador, acha as colunas por regex no cabeçalho e,
-// se não reconhecer nada, devolve `{ ok: false, amostra }` com o começo do
-// arquivo em vez de inventar número. O coletor registra essa amostra no log —
-// uma execução do workflow basta para confirmar o formato. Enquanto isso, o app
-// funciona inteiro sem esta fonte: ela é ENRIQUECIMENTO, nunca requisito.
+// ESTADO ATUAL (conferido em 21/08/2026, na coleta real): o caminho histórico
+// /informacoes/merc-sec/arqs/ms{ddmmyy}.txt responde **404**. As ferramentas de
+// títulos públicos da ANBIMA migraram para a plataforma ANBIMA Data
+// (data.anbima.com.br), e o arquivo diário antigo saiu do ar nesse formato.
+//
+// NÃO SE CHUTOU UMA URL NOVA no lugar. Inventar um caminho que "parece certo" é
+// como se erra em dado financeiro. Em vez disso: a URL é configurável por
+// ANBIMA_MS_URL (com o marcador {ddmmyy}), então, no dia em que o endereço
+// correto for conhecido, basta setar a variável no workflow — sem tocar em
+// código. Enquanto isso o provider falha limpo e o app segue inteiro: esta
+// fonte é ENRIQUECIMENTO, nunca requisito.
+//
+// PARSING DEFENSIVO — LEIA ANTES DE MEXER: o parser não assume posição de
+// coluna nem separador: detecta o separador, acha as colunas por regex no
+// cabeçalho e, se não reconhecer nada, devolve `{ ok: false, amostra }` com o
+// começo do arquivo em vez de inventar número. O coletor registra essa amostra
+// no log — uma execução basta para confirmar o formato de qualquer URL nova.
 
 import { parseNumBR, isoDeBR, classificarTitulo, normalizar, slugDe } from "../util.js";
 
@@ -43,8 +52,13 @@ function ddmmyy(d) {
   return `${p(d.getUTCDate())}${p(d.getUTCMonth() + 1)}${String(d.getUTCFullYear()).slice(-2)}`;
 }
 
+// Molde da URL. ANBIMA_MS_URL permite apontar para o endereço novo sem mexer no
+// código; {ddmmyy} é substituído pela data do arquivo.
+const MOLDE_URL =
+  process.env.ANBIMA_MS_URL || "https://www.anbima.com.br/informacoes/merc-sec/arqs/ms{ddmmyy}.txt";
+
 export function urlDoDia(d) {
-  return `https://www.anbima.com.br/informacoes/merc-sec/arqs/ms${ddmmyy(d)}.txt`;
+  return MOLDE_URL.replace("{ddmmyy}", ddmmyy(d));
 }
 
 // Aceita "15/05/2035" e "20350515" — as duas grafias aparecem em arquivos
@@ -113,7 +127,7 @@ export function extrairNTNB(texto) {
 
 // Busca o arquivo mais recente, andando para trás até `tentativas` dias.
 // Nunca lança: uma fonte de enriquecimento indisponível não pode derrubar o app.
-export async function getSecundario({ tentativas = 6 } = {}) {
+export async function getSecundario({ tentativas = 3 } = {}) {
   if (cache && Date.now() - cache.ts < TTL_MS) return cache.resultado;
 
   const erros = [];

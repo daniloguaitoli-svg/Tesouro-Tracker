@@ -29,6 +29,9 @@ const falhar = (msg) => {
   falhas++;
 };
 const conferir = (cond, msg) => (cond ? ok(msg) : falhar(msg));
+// Aviso não derruba o CI: serve para o que envelhece sozinho com o tempo
+// (um vencimento que passou), onde falhar seria punir ninguém por nada.
+const avisar = (msg) => console.log(`  aviso ${msg}`);
 const perto = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol;
 
 // ---------------------------------------------------------------
@@ -69,6 +72,16 @@ for (const c of CATALOGO) {
 }
 ok("campos obrigatórios, tipos, ISO dos vencimentos e coerência dos slugs");
 conferir(DESTAQUES.every((d) => porSlug[d.slug]), "todo destaque existe no catálogo");
+
+// Um catálogo com título vencido engana quem o lê. Em destaque é erro (o Painel
+// avisaria sobre um título morto); fora do destaque é só sinal de faxina.
+const hojeReal = util.hojeISO();
+for (const d of DESTAQUES) {
+  if (d.vencimento <= hojeReal) falhar(`destaque ${d.slug} já venceu — troque por um vivo`);
+}
+const vencidos = CATALOGO.filter((c) => c.vencimento <= hojeReal);
+if (vencidos.length) avisar(`${vencidos.length} entrada(s) do catálogo já venceram: ${vencidos.map((c) => c.slug).join(", ")}`);
+else ok("nenhum vencimento do catálogo já venceu");
 conferir(MACRO.every((m) => m.id && m.serie && m.nome), "séries macro têm id, código SGS e nome");
 
 // ---------------------------------------------------------------
@@ -135,6 +148,14 @@ conferir(
   tesouro.linhaParaPonto("Tesouro Prefixado;01/01/2031;20/08/2026;13,1;13,2;600,1;599,0;600,0".split(";"), idx, null) === null,
   "títulos que não são IPCA+ são descartados"
 );
+// A coleta real trouxe uma linha com PU 0,00 (campo vazio de título vencido).
+// Zero não é preço — passaria adiante como "R$ 0,00".
+const puZero = tesouro.linhaParaPonto(
+  "Tesouro IPCA+ com Juros Semestrais;15/08/2020;14/08/2020;-1,78;0;0,00;0,00;0,00".split(";"),
+  idx,
+  null
+);
+conferir(puZero?.puCompra === null, "PU zerado vira null (não R$ 0,00)");
 conferir(tesouro.mapearColunas("Data Base;Tipo Titulo;Data Vencimento", ";").tipo === 1, "colunas achadas por nome, não por posição");
 let estourou = false;
 try {
@@ -185,6 +206,29 @@ const amostraSerie = [
 ];
 const montados = ponteMod.montarTitulos({ ordenados: amostraSerie, secPorSlug: {}, hoje: HOJE });
 conferir(montados.length === 2, "montarTitulos devolve um item por vencimento");
+
+// A coleta real trouxe NTN-B de 2019, 2020, 2024 e 2026 ainda no arquivo, com
+// taxas absurdas (13,32% e −0,94%) porque o prazo tende a zero. Num arquivo que
+// outra ferramenta lê como verdade, isso é pior do que ausência.
+const comVencido = ponteMod.montarTitulos({
+  ordenados: [
+    ...amostraSerie,
+    [
+      "ipca-2019-05-15",
+      {
+        tipo: "ipca",
+        vencimento: "2019-05-15",
+        comCupom: false,
+        serie: { "2019-05-14": [-0.94, 3224.89] },
+        ultimo: { data: "2019-05-14", taxaCompra: -0.94, puCompra: 3224.89 },
+      },
+    ],
+  ],
+  secPorSlug: {},
+  hoje: HOJE,
+});
+conferir(comVencido.length === 2, "títulos já vencidos ficam fora do retrato do dia");
+conferir(!comVencido.some((t) => t.vencimento <= HOJE), "nenhum vencimento passado sobra no arquivo-ponte");
 conferir(montados[0].duration.macaulayAnos > 0, "item montado traz duration numérica");
 conferir(montados[1].taxaVenda === null, "campo ausente vira null (não 0, não some)");
 conferir(montados[0].destaque === true, "destaque do catálogo chega ao item");
