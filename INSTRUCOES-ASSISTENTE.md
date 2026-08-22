@@ -37,11 +37,12 @@ coleta pode ter falhado.
 ### O que tem dentro
 
 Os números abaixo são um retrato **real** de 22/08/2026, só para mostrar o
-formato — leia sempre os valores do arquivo, nunca deste exemplo.
+formato — leia sempre os valores do arquivo, nunca deste exemplo. Estão aqui
+dois dos quatro acompanhados de propósito: um com duration e um sem.
 
 ```jsonc
 {
-  "atualizadoEm": "2026-08-22T19:37:55.637Z",
+  "atualizadoEm": "2026-08-22T19:48:54.060Z",
   "acompanhados": [            // vencimentos em destaque
     {
       "slug": "ipca-2035-05-15",
@@ -58,6 +59,25 @@ formato — leia sempre os valores do arquivo, nunca deste exemplo.
         "convexidade": 73.136,
         "variacaoPrecoMais1pp": -7.74,  // % no preço se a taxa subir 1 p.p.
         "variacaoPrecoMenos1pp": 8.47
+      }
+    },
+    {
+      "slug": "selic-2031-03-01",
+      "nome": "Tesouro Selic 2031",
+      "vencimento": "2031-03-01",
+      "comCupom": false,
+      "taxa": 0.07,
+      "taxaSignifica": "ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo)",
+      "pu": 19657.17,
+      "data": "2026-08-21",
+      // Pós-fixada: duration toda null DE PROPÓSITO, não por falta de dado.
+      // Não a trate como 0 nem diga que o título "não tem risco de juros".
+      "duration": {
+        "macaulayAnos": null,
+        "modificada": null,
+        "convexidade": null,
+        "variacaoPrecoMais1pp": null,
+        "variacaoPrecoMenos1pp": null
       }
     }
   ],
@@ -88,6 +108,11 @@ formato — leia sempre os valores do arquivo, nunca deste exemplo.
   data da reunião do Copom, que costuma ser 1–2 dias antes.
 - **Variações de 12 meses e 1 semana** comparam com o último pregão *em ou
   antes* do alvo, porque o mercado não abre em fim de semana nem feriado.
+- **Tesouro Selic (LFT) é o caso especial.** A `taxa` dele é ágio/deságio
+  sobre a Selic, não uma taxa cheia — 0,07% não quer dizer "rende 0,07% ao
+  ano", quer dizer "rende a Selic mais 0,07%". E a `duration` vem toda `null`
+  por decisão, não por falta de dado: sendo pós-fixado, o preço quase não
+  reage a juros de mercado. Não converta isso em zero nem em "sem risco".
 - **`null` ou campo ausente significa dado indisponível.** Nunca substitua por
   zero, nem estime, nem preencha com conhecimento próprio. Diga que não está
   disponível.
