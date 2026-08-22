@@ -1,5 +1,109 @@
 {
- "atualizadoEm": null,
- "nota": "Semente. O job coletar-tesouro.yml substitui este arquivo na primeira execução com os Tesouro Selic (LFT). A `taxa` é ágio/deságio sobre a Selic; `duration` é null por construção.",
- "titulos": []
+ "atualizadoEm": "2026-08-22T08:31:25.902Z",
+ "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
+ "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
+ "fontes": {
+  "tesouro": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
+  "anbima": null
+ },
+ "convencao": "Taxas em % ao ano sobre o IPCA (taxa real). PU em reais. Duration em anos, calculada em dias corridos/365 (a convenção oficial da ANBIMA é dias úteis/252; a diferença é desprezível para duration). variacaoPrecoMais1pp = variação % estimada do preço se a taxa real subir 1 ponto percentual, já com convexidade.",
+ "aviso": "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
+ "titulos": [
+  {
+   "slug": "selic-2027-03-01",
+   "nome": "Tesouro Selic 2027",
+   "tipo": "selic",
+   "vencimento": "2027-03-01",
+   "comCupom": false,
+   "destaque": false,
+   "data": "2026-08-20",
+   "anosAteVencer": 0.523,
+   "taxa": 0,
+   "taxaCompra": 0,
+   "taxaVenda": 0.01,
+   "pu": 19712.03,
+   "puCompra": 19712.03,
+   "puVenda": 19700.77,
+   "duration": {
+    "macaulayAnos": null,
+    "modificada": null,
+    "convexidade": null,
+    "variacaoPrecoMais1pp": null,
+    "variacaoPrecoMenos1pp": null
+   },
+   "pontosNaSerie": 1381
+  },
+  {
+   "slug": "selic-2028-03-01",
+   "nome": "Tesouro Selic 2028",
+   "tipo": "selic",
+   "vencimento": "2028-03-01",
+   "comCupom": false,
+   "destaque": false,
+   "data": "2026-08-20",
+   "anosAteVencer": 1.526,
+   "taxa": 0.01,
+   "taxaCompra": 0.01,
+   "taxaVenda": 0.02,
+   "pu": 19708.5,
+   "puCompra": 19708.5,
+   "puVenda": 19695.26,
+   "duration": {
+    "macaulayAnos": null,
+    "modificada": null,
+    "convexidade": null,
+    "variacaoPrecoMais1pp": null,
+    "variacaoPrecoMenos1pp": null
+   },
+   "pontosNaSerie": 387
+  },
+  {
+   "slug": "selic-2029-03-01",
+   "nome": "Tesouro Selic 2029",
+   "tipo": "selic",
+   "vencimento": "2029-03-01",
+   "comCupom": false,
+   "destaque": false,
+   "data": "2026-08-20",
+   "anosAteVencer": 2.526,
+   "taxa": 0.03,
+   "taxaCompra": 0.03,
+   "taxaVenda": 0.04,
+   "pu": 19697.85,
+   "puCompra": 19697.85,
+   "puVenda": 19682.67,
+   "duration": {
+    "macaulayAnos": null,
+    "modificada": null,
+    "convexidade": null,
+    "variacaoPrecoMais1pp": null,
+    "variacaoPrecoMenos1pp": null
+   },
+   "pontosNaSerie": 903
+  },
+  {
+   "slug": "selic-2031-03-01",
+   "nome": "Tesouro Selic 2031",
+   "tipo": "selic",
+   "vencimento": "2031-03-01",
+   "comCupom": false,
+   "destaque": false,
+   "data": "2026-08-20",
+   "anosAteVencer": 4.526,
+   "taxa": 0.07,
+   "taxaCompra": 0.07,
+   "taxaVenda": 0.08,
+   "pu": 19647.06,
+   "puCompra": 19647.06,
+   "puVenda": 19627.98,
+   "duration": {
+    "macaulayAnos": null,
+    "modificada": null,
+    "convexidade": null,
+    "variacaoPrecoMais1pp": null,
+    "variacaoPrecoMenos1pp": null
+   },
+   "pontosNaSerie": 387
+  }
+ ]
 }

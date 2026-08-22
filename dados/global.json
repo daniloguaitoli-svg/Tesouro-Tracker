@@ -1,6 +1,28 @@
 {
- "atualizadoEm": null,
- "nota": "Semente. O job coletar-tesouro.yml substitui este arquivo: taxas de política monetária do Fed (FRED) e do BCE (ECB Data Portal), com a data de vigência da última decisão.",
- "fed": null,
- "bce": null
+ "atualizadoEm": "2026-08-22T08:31:24.737Z",
+ "fontes": {
+  "fed": "FRED / St. Louis Fed (fredgraph.csv, DFEDTARU + DFEDTARL)",
+  "bce": "ECB Data Portal (FM.B.U2.EUR.4F.KR.DFR/MRR_FR.LEV)"
+ },
+ "nota": "vigenteDesde é a data em que a taxa nova passou a valer (derivada da série), não a data da reunião.",
+ "fed": {
+  "nome": "Federal Reserve (EUA)",
+  "indicador": "Meta dos Fed Funds",
+  "limiteSuperior": 3.75,
+  "limiteInferior": 3.5,
+  "vigenteDesde": "2025-12-11",
+  "variacaoPP": -0.25,
+  "data": "2026-08-21",
+  "fonte": "FRED / St. Louis Fed (DFEDTARU, DFEDTARL)"
+ },
+ "bce": {
+  "nome": "Banco Central Europeu",
+  "indicador": "Taxa de depósito (e refi)",
+  "deposito": 2.25,
+  "refi": 2.4,
+  "vigenteDesde": "2026-06-17",
+  "variacaoPP": 0.25,
+  "data": "2026-06-17",
+  "fonte": "ECB Data Portal (DFR, MRR)"
+ }
 }
