@@ -57,12 +57,6 @@ export const CATEGORIAS = [
 
 // `vencimento` em ISO; `destaque` marca as posições acompanhadas de perto.
 //
-// As famílias Prefixado (LTN/NTN-F) e Selic (LFT) NÃO têm entradas aqui de
-// propósito: a lista de vencimentos delas não pôde ser observada no ambiente
-// desta mudança, e o catálogo não inventa. A descoberta do coletor cobre tudo
-// (aparecem com o rótulo genérico, que já é bom); quando o log da coleta
-// listar os vencimentos reais, aí sim se acrescentam entradas — sourced.
-//
 // ESTA LISTA É SOURCED, NÃO CHUTADA: são exatamente os vencimentos IPCA+ vivos
 // no arquivo do Tesouro Transparente lido em 21/08/2026. Não invente entradas
 // aqui — se um vencimento novo aparecer, o coletor o lista no log como "fora do
@@ -87,10 +81,31 @@ const ENTRADAS = [
   { tipo: "ipca-juros", vencimento: "2050-08-15" },
   { tipo: "ipca-juros", vencimento: "2055-05-15" },
   { tipo: "ipca-juros", vencimento: "2060-08-15" },
+
+  // --- Prefixados (LTN) — vencem em 01/01 ---
+  { tipo: "prefixado", vencimento: "2027-01-01" },
+  { tipo: "prefixado", vencimento: "2028-01-01" },
+  { tipo: "prefixado", vencimento: "2029-01-01" },
+  { tipo: "prefixado", vencimento: "2031-01-01" },
+  { tipo: "prefixado", vencimento: "2032-01-01" },
+
+  // --- Prefixados com juros semestrais (NTN-F) — vencem em 01/01 ---
+  { tipo: "prefixado-juros", vencimento: "2027-01-01" },
+  { tipo: "prefixado-juros", vencimento: "2029-01-01" },
+  { tipo: "prefixado-juros", vencimento: "2031-01-01" },
+  { tipo: "prefixado-juros", vencimento: "2033-01-01" },
+  { tipo: "prefixado-juros", vencimento: "2035-01-01" },
+  { tipo: "prefixado-juros", vencimento: "2037-01-01" },
+
+  // --- Tesouro Selic (LFT) — vencem em 01/03 ---
+  { tipo: "selic", vencimento: "2027-03-01" },
+  { tipo: "selic", vencimento: "2028-03-01" },
+  { tipo: "selic", vencimento: "2029-03-01" },
+  { tipo: "selic", vencimento: "2031-03-01" },
 ];
 
 // Data da observação do arquivo oficial que gerou a lista acima.
-export const CATALOGO_EM = "2026-08-21";
+export const CATALOGO_EM = "2026-08-22"; // NTN-B em 21/08; Prefixado/Selic do log da coleta de 22/08
 
 const rotulo = (tipo, vencimento) => {
   const ano = String(vencimento).slice(0, 4);

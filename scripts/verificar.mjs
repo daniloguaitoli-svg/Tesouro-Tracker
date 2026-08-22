@@ -67,10 +67,17 @@ for (const c of CATALOGO) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(c.vencimento)) falhar(`${c.slug}: vencimento fora do ISO (${c.vencimento})`);
   if (c.slug !== util.slugDe(c.tipo, c.vencimento)) falhar(`${c.slug}: slug não bate com slugDe()`);
   if (c.comCupom !== (c.tipo === "ipca-juros")) falhar(`${c.slug}: comCupom incoerente com o tipo`);
-  // NTN-B vence em 15/05 ou 15/08. A regra vale só para as famílias ipca —
-  // prefixados vencem dia 01 e LFTs em 01/03 ou 01/09.
+  // Dias de vencimento por família (sourced dos arquivos reais): NTN-B em
+  // 15/05 ou 15/08; LTN/NTN-F em 01/01; LFT em 01/03. Fora disso é quase
+  // certamente erro de digitação no catálogo.
   if (c.tipo.startsWith("ipca") && !/-(05|08)-15$/.test(c.vencimento)) {
     falhar(`${c.slug}: NTN-B vence em 15/05 ou 15/08 — confira ${c.vencimento}`);
+  }
+  if (c.tipo.startsWith("prefixado") && !/-01-01$/.test(c.vencimento)) {
+    falhar(`${c.slug}: LTN/NTN-F vencem em 01/01 — confira ${c.vencimento}`);
+  }
+  if (c.tipo === "selic" && !/-03-01$/.test(c.vencimento)) {
+    falhar(`${c.slug}: LFT vence em 01/03 — confira ${c.vencimento}`);
   }
 }
 ok("campos obrigatórios, tipos, ISO dos vencimentos e coerência dos slugs");

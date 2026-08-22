@@ -35,7 +35,10 @@ export const REGIOES = [
   {
     id: "europa",
     nome: "Europa",
-    url: "https://news.google.com/rss/search?q=%22European%20markets%22%20OR%20ECB%20OR%20eurozone%20when:2d&hl=en-GB&gl=GB&ceid=GB:en",
+    // "ECB" sozinho NÃO: com localização britânica, ECB é o England and
+    // Wales Cricket Board — a primeira sonda real trouxe manchete de críquete.
+    // Sempre o nome por extenso, e termos inequívocos de mercado.
+    url: "https://news.google.com/rss/search?q=%22European%20Central%20Bank%22%20OR%20eurozone%20OR%20%22European%20stocks%22%20OR%20DAX%20when:2d&hl=en-GB&gl=GB&ceid=GB:en",
   },
 ];
 
