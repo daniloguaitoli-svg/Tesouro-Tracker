@@ -116,6 +116,35 @@ body {
 .row .rowprice .sub { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .spark { display: block; }
 
+/* ---------- Estrela de "acompanhar no Painel" ---------- */
+/* A linha vira uma div com dois botões: o de abrir (ocupa o espaço todo) e a
+   estrela. Botão dentro de botão seria HTML inválido. */
+.row-sel { cursor: default; gap: var(--s2); padding-right: var(--s2); }
+/* Com a estrela disputando largura, cortar o nome em "IPCA+ 203…" esconde
+   justamente o ano — que é como se identifica um vencimento. Melhor quebrar
+   em duas linhas do que truncar. */
+.row-sel .rowname { white-space: normal; }
+.row-sel.marcado { border-color: var(--accent-2); }
+.rowabrir {
+  display: flex; align-items: center; gap: var(--s3);
+  flex: 1; min-width: 0;
+  appearance: none; border: 0; background: transparent; padding: 0;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.estrela {
+  appearance: none; border: 0; background: transparent;
+  color: var(--muted); cursor: pointer;
+  font-size: 19px; line-height: 1;
+  padding: var(--s2) var(--s1); border-radius: 8px;
+  flex: 0 0 auto;
+  transition: color .15s;
+}
+.estrela:hover { color: var(--accent); }
+.estrela[aria-pressed="true"] { color: var(--accent); }
+.estrela:focus-visible, .rowabrir:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+
 /* ---------- Controles ---------- */
 .controls { display: flex; gap: var(--s2); margin: var(--s4) 0 var(--s2); flex-wrap: wrap; }
 .input, .select {

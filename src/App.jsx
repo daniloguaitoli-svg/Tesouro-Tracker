@@ -1,12 +1,17 @@
 // App.jsx — moldura do app. Topo com marca + IPCA, abas, e as telas. Um
 // vencimento selecionado abre o Detalhe em tela cheia (sobre as abas).
 //
+// A escolha de "acompanhados de perto" também mora aqui, e não dentro de uma
+// tela: quem marca é a aba Títulos e quem exibe é o Painel, então o estado tem
+// de ser comum às duas. Fica no localStorage (ver src/destaques.js).
+//
 // `getTitulos()` é carregado UMA vez aqui e passado para baixo: Painel, Títulos,
 // Calculadora e Alertas leem do mesmo payload. Só Curva e Detalhe buscam os
 // próprios endpoints. Assim, um campo novo em /api/titulos chega a quatro telas
 // de graça — e o app faz uma requisição, não quatro.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getTitulos } from "./api.js";
+import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque } from "./destaques.js";
 import { Tabs } from "./components/Tabs.jsx";
 import { Painel } from "./components/Painel.jsx";
 import { Titulos } from "./components/Titulos.jsx";
@@ -35,6 +40,8 @@ export default function App() {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   const [carregando, setCarregando] = useState(true);
+  // null = nunca escolheu (cai nos padrões do catálogo); array = escolha feita.
+  const [escolha, setEscolha] = useState(carregarDestaques);
 
   const carregar = () => {
     setCarregando(true);
@@ -47,6 +54,20 @@ export default function App() {
   useEffect(carregar, []);
 
   const ipca12 = dados?.macro?.indicadores?.ipca?.acumulado12m;
+
+  const todos = useMemo(() => (dados?.categorias || []).flatMap((c) => c.itens), [dados]);
+  const marcados = useMemo(() => resolverDestaques(escolha, todos), [escolha, todos]);
+  // Mantém a ordem das categorias (família, depois vencimento) em vez da ordem
+  // em que a pessoa foi clicando — o Painel fica estável entre visitas.
+  const itensDestaque = useMemo(() => todos.filter((t) => marcados.has(t.slug)), [todos, marcados]);
+
+  const alternar = (slug) => {
+    setEscolha((atual) => {
+      const proxima = alternarDestaque(atual, todos, slug);
+      salvarDestaques(proxima);
+      return proxima;
+    });
+  };
 
   return (
     <div className="app">
@@ -77,9 +98,13 @@ export default function App() {
 
           {dados && (
             <main>
-              {tab === "painel" && <Painel dados={dados} onOpen={setSlug} />}
-              {tab === "titulos" && <Titulos dados={dados} onOpen={setSlug} />}
-              {tab === "curva" && <Curva />}
+              {tab === "painel" && (
+                <Painel dados={dados} itens={itensDestaque} onOpen={setSlug} onIrParaTitulos={() => setTab("titulos")} />
+              )}
+              {tab === "titulos" && (
+                <Titulos dados={dados} onOpen={setSlug} marcados={marcados} onAlternar={alternar} />
+              )}
+              {tab === "curva" && <Curva marcados={marcados} />}
               {tab === "mercado" && <Mercado />}
               {tab === "noticias" && <Noticias />}
               {tab === "calculadora" && <Calculadora dados={dados} />}

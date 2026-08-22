@@ -378,6 +378,22 @@ for (const [nome, valorServidor] of [
   else conferir(perto(Number(m[1]), valorServidor, 5e-7), `${nome}: util.js ${valorServidor.toFixed(6)} = Calculadora.jsx ${m[1]}`);
 }
 
+// Estado por dispositivo: duas chaves de localStorage escritas por arquivos
+// diferentes. Se colidirem (copiar-colar de uma para a outra), alertas e
+// destaques passam a sobrescrever um ao outro — falha silenciosa e chata de
+// diagnosticar, porque só aparece depois que o usuário mexe nos dois.
+console.log("\nchaves de localStorage");
+const alertasSrc = await ler("src/components/Alertas.jsx");
+const destaquesSrc = await ler("src/destaques.js");
+const chaveAlertas = alertasSrc.match(/CHAVE\s*=\s*"([^"]+)"/)?.[1];
+const chaveDestaques = destaquesSrc.match(/CHAVE\s*=\s*"([^"]+)"/)?.[1];
+conferir(!!chaveAlertas && !!chaveDestaques, "as duas chaves de localStorage foram encontradas");
+conferir(chaveAlertas !== chaveDestaques, `chaves distintas (${chaveAlertas} != ${chaveDestaques})`);
+const doc = await ler("CLAUDE.md");
+for (const [nome, chave] of [["alertas", chaveAlertas], ["destaques", chaveDestaques]]) {
+  conferir(chave && doc.includes(chave), `CLAUDE.md documenta a chave de ${nome} (${chave})`);
+}
+
 const { PERIODICIDADE } = await import("../src/format.js");
 const mesmasChaves =
   Object.keys(util.ROTULO_PERIODICIDADE).length === Object.keys(PERIODICIDADE).length &&

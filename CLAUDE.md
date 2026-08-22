@@ -102,6 +102,7 @@ src/
   App.jsx             frame: topbar (brand + IPCA 12m), 5 tabs, full-screen Detalhe
   api.js              the only data import for the UI — thin fetch wrappers over /api
   format.js           pt-BR formatting (num, taxa, pct, pp, anos, reais, dataBR, …)
+  destaques.js        which maturities the user follows (localStorage, per device)
   components/         Painel, Titulos, Curva, Calculadora, Alertas, Detalhe + widgets
   styles.css          design tokens at the top, then components
 server/
@@ -264,6 +265,39 @@ changed in both places**:
 
 `verificar.mjs` compares both sides.
 
+## Who chooses the Painel's "Acompanhados de perto"
+
+**The user does**, via the star on each row of the Títulos tab. The choice is
+per-device (`localStorage`, see `src/destaques.js`) and never leaves the
+browser.
+
+The state lives in `App.jsx`, not in a screen: Títulos writes it and Painel
+reads it, so it has to be common to both. `App` resolves it once and passes
+`marcados` (a Set) plus the ready-made `itensDestaque` down.
+
+Three states, and the last two are **not** the same thing:
+
+| Stored | Meaning | Painel shows |
+|---|---|---|
+| absent (`null`) | never chose | the catalogue's `destaque` entries, so a fresh install isn't empty |
+| `[...]` | chose these | those |
+| `[]` | un-starred everything | the invitation to choose — **not** the defaults resurrected |
+
+That last distinction matters: reviving defaults someone just removed would
+read as the app ignoring them.
+
+Two things deliberately follow the **user's** choice rather than the
+catalogue's: the Painel's stale-price banner (warning about a bond nobody
+tracks is noise; staying quiet about a tracked one is worse) and the ⭐ on the
+Curva screen (otherwise the app would mark different bonds in two places).
+
+The ⭐ in **`dados/ntnb.json` stays catalogue-driven** — that file is public and
+a personal watchlist must not leak into it. Don't "unify" the two.
+
+A Títulos row is a `<div>` with two buttons inside (open detail, toggle star),
+not a single `<button>`: a button inside a button is invalid HTML and browsers
+disagree on it — clicking the star would also open the detail.
+
 ## Family semantics (the thing that breaks if you're careless)
 
 The same number means three different things across families:
@@ -371,13 +405,18 @@ implying more precision than free data supports.
   "modernise" it to `readFile`, or the function ships without its data.
 - The service worker (`public/sw.js`) is **network-first for navigation**,
   **cache-first for hashed `/assets/*`**, and never caches `/api/*`. `CACHE` is
-  the version string to bump (`"ntnb-tracker-v1"`); `SHELL` is the precached
+  the version string to bump (`"tesouro-tracker-v1"`); `SHELL` is the precached
   list. (Same naming as Cana-Tracker, inverse of ETF Tracker.)
 - `src/main.jsx` registers that worker in production, checks hourly, and reloads
   **once** when a new version installs over an existing controller.
-- Alerts live per device in `localStorage` under `ntnb-tracker-alertas`, read and
-  written directly in `components/Alertas.jsx` (no store module). Keep user
-  positions out of the repo — it is public.
+- **Per-device user state lives in `localStorage`, never in the repo** — it is
+  public, and what someone tracks reveals what they hold. Two keys, and they
+  must stay distinct (`verificar.mjs` checks that):
+
+  | Key | Written by | What |
+  |---|---|---|
+  | `tesouro-tracker-alertas` | `components/Alertas.jsx` (inline, no module) | rate alerts |
+  | `tesouro-tracker-destaques` | `src/destaques.js` | which maturities show in the Painel |
 - A broken change fails the Vercel build and the previous deploy stays live;
   `npm run build` locally is still the right pre-push check.
 

@@ -1,6 +1,11 @@
 // components/Painel.jsx — a primeira tela: os vencimentos acompanhados de
 // perto, a moldura macro e o aviso de dado velho.
 //
+// QUEM aparece aqui é escolha do usuário, feita na aba Títulos (a estrela) e
+// guardada neste aparelho — ver src/destaques.js. O App resolve a lista e passa
+// pronta em `itens`; numa instalação nova ela nasce com os `destaque` do
+// catálogo, para a tela não abrir vazia.
+//
 // A escolha de destaque é deliberada: a taxa real grande, e logo abaixo a
 // duration e o "±1 p.p.". Só a taxa não diz o que uma mudança de juros faz com
 // a posição — é a duration que responde isso, e é ela que interessa em um
@@ -90,17 +95,21 @@ function Macro({ macro }) {
   );
 }
 
-export function Painel({ dados, onOpen }) {
+export function Painel({ dados, itens, onOpen, onIrParaTitulos }) {
   if (dados.pendente) return <AguardandoColeta />;
-  const destaques = dados.destaques || [];
+  const destaques = itens || [];
+  // O aviso de preço velho segue a ESCOLHA do usuário, não a lista do catálogo
+  // que o servidor mandou: avisar sobre um vencimento que a pessoa não
+  // acompanha é ruído, e calar sobre um que ela acompanha é pior.
+  const desatualizados = destaques.filter((t) => t.desatualizado).map((t) => t.nome);
 
   return (
     <div>
-      {dados.desatualizados?.length > 0 && (
+      {desatualizados.length > 0 && (
         <div className="stale-banner" role="status">
           <span aria-hidden="true">⚠</span>
           <span>
-            <b>Cotações desatualizadas:</b> {dados.desatualizados.join(", ")}. O arquivo do
+            <b>Cotações desatualizadas:</b> {desatualizados.join(", ")}. O arquivo do
             Tesouro é diário e só sai em dia útil — se persistir, confira o job de coleta.
           </span>
         </div>
@@ -108,10 +117,18 @@ export function Painel({ dados, onOpen }) {
 
       <div className="section-title">Acompanhados de perto</div>
       {destaques.length === 0 ? (
-        <p className="section-sub">
-          Nenhum vencimento marcado como destaque foi encontrado no arquivo. Marque os que
-          interessam em <code>server/catalogo.js</code>.
-        </p>
+        <div className="note">
+          Nenhum vencimento acompanhado no momento. Abra a aba <strong>Títulos</strong> e
+          toque na estrela (☆) dos que você quer ver aqui — a escolha fica só neste
+          aparelho.
+          {onIrParaTitulos && (
+            <div style={{ marginTop: "var(--s3)" }}>
+              <button className="btn btn-primary" onClick={onIrParaTitulos}>
+                Escolher vencimentos
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="grid grid-2" style={{ marginTop: 0 }}>
           {destaques.map((t) => (

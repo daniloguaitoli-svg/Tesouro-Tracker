@@ -10,7 +10,7 @@ import { CurvaChart } from "./CurvaChart.jsx";
 import { taxa, anos, dataBR } from "../format.js";
 import { ErroBox, Skeletons, AguardandoColeta } from "./States.jsx";
 
-export function Curva() {
+export function Curva({ marcados }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   const [tentativa, setTentativa] = useState(0);
@@ -31,9 +31,16 @@ export function Curva() {
   if (!dados) return <Skeletons n={3} />;
   if (dados.pendente) return <AguardandoColeta />;
 
+  // O ⭐ segue a escolha do usuário (aba Títulos), não o `destaque` do catálogo
+  // que veio do servidor — senão a curva marcaria vencimentos diferentes dos
+  // que o Painel mostra, e o app se contradiria na cara de quem usa.
+  const meu = (p) => ({ ...p, destaque: marcados ? marcados.has(p.slug) : p.destaque });
+
   // Só oferece famílias que têm pontos (a prefixada fica vazia até a primeira
   // coleta que inclua LTN/NTN-F).
-  const disponiveis = (dados.curvas || []).filter((c) => c.agora.length > 0);
+  const disponiveis = (dados.curvas || [])
+    .filter((c) => c.agora.length > 0)
+    .map((c) => ({ ...c, agora: c.agora.map(meu) }));
   const curva = disponiveis.find((c) => c.id === familiaId) || disponiveis[0];
   if (!curva) return <AguardandoColeta />;
 

@@ -124,6 +124,18 @@ venda por título). Se um dia houver credencial, o lugar de plugar é
 
 ---
 
+## Escolhendo o que aparece no Painel
+
+A seção **Acompanhados de perto** mostra os vencimentos que *você* escolher: na
+aba **Títulos**, toque na estrela (☆) de cada um. A escolha fica guardada só
+naquele aparelho (`localStorage`) — nada disso sobe para o repositório, que é
+público. Numa instalação nova, o Painel nasce com os vencimentos marcados no
+catálogo, para não abrir vazio; a partir da primeira estrela, quem manda é você.
+
+O aviso de "cotações desatualizadas" e o ⭐ da aba Curva seguem a mesma escolha.
+Já o ⭐ do arquivo `dados/ntnb.json` continua vindo do catálogo — aquele arquivo
+é público e não carrega preferência pessoal.
+
 ## Duration: por que ela está aqui
 
 Duas NTN-B com a mesma taxa não são o mesmo investimento. A **duration** é o
