@@ -62,10 +62,21 @@ export const CATEGORIAS = [
 // aqui — se um vencimento novo aparecer, o coletor o lista no log como "fora do
 // catálogo" e aí sim se acrescenta. Uma entrada para um título que não existe
 // nunca quebra nada (some da tela), mas engana quem lê o arquivo.
+//
+// OS `destaque` ESPELHAM AS ESTRELAS DO APARELHO, conferidas em 22/08/2026:
+// IPCA+ 2032, IPCA+ 2035 (ambos zero-cupom), Prefixado 2029 (LTN) e Selic
+// 2031. A estrela de verdade mora no localStorage do celular e o servidor
+// não a enxerga; esta lista é a cópia dela que o arquivo-ponte publica, para
+// o assistente ler as mesmas quatro linhas que aparecem no Painel. Se a
+// seleção mudar no celular, mude aqui também — senão a ponte fica contando
+// outra história.
+//
+// A LFT entra de propósito mesmo sem duration (é pós-fixada): a ponte a
+// publica com duration null, que é o honesto, e não com um zero.
 const ENTRADAS = [
   // --- Zero-cupom (NTN-B Principal) ---
   { tipo: "ipca", vencimento: "2029-05-15" },
-  { tipo: "ipca", vencimento: "2032-08-15" },
+  { tipo: "ipca", vencimento: "2032-08-15", destaque: true },
   { tipo: "ipca", vencimento: "2035-05-15", destaque: true },
   { tipo: "ipca", vencimento: "2040-08-15" },
   { tipo: "ipca", vencimento: "2045-05-15" },
@@ -73,8 +84,8 @@ const ENTRADAS = [
 
   // --- Com juros semestrais (NTN-B) ---
   { tipo: "ipca-juros", vencimento: "2030-08-15" },
-  { tipo: "ipca-juros", vencimento: "2032-08-15", destaque: true },
-  { tipo: "ipca-juros", vencimento: "2035-05-15", destaque: true },
+  { tipo: "ipca-juros", vencimento: "2032-08-15" },
+  { tipo: "ipca-juros", vencimento: "2035-05-15" },
   { tipo: "ipca-juros", vencimento: "2037-05-15" },
   { tipo: "ipca-juros", vencimento: "2040-08-15" },
   { tipo: "ipca-juros", vencimento: "2045-05-15" },
@@ -85,7 +96,7 @@ const ENTRADAS = [
   // --- Prefixados (LTN) — vencem em 01/01 ---
   { tipo: "prefixado", vencimento: "2027-01-01" },
   { tipo: "prefixado", vencimento: "2028-01-01" },
-  { tipo: "prefixado", vencimento: "2029-01-01" },
+  { tipo: "prefixado", vencimento: "2029-01-01", destaque: true },
   { tipo: "prefixado", vencimento: "2031-01-01" },
   { tipo: "prefixado", vencimento: "2032-01-01" },
 
@@ -101,7 +112,7 @@ const ENTRADAS = [
   { tipo: "selic", vencimento: "2027-03-01" },
   { tipo: "selic", vencimento: "2028-03-01" },
   { tipo: "selic", vencimento: "2029-03-01" },
-  { tipo: "selic", vencimento: "2031-03-01" },
+  { tipo: "selic", vencimento: "2031-03-01", destaque: true },
 ];
 
 // Data da observação do arquivo oficial que gerou a lista acima.
@@ -129,7 +140,7 @@ export const CATALOGO = ENTRADAS.map((e) => ({
   slug: slugDe(e.tipo, e.vencimento),
   tipo: e.tipo,
   vencimento: e.vencimento,
-  comCupom: e.tipo === "ipca-juros",
+  comCupom: e.tipo === "ipca-juros" || e.tipo === "prefixado-juros",
   nome: rotulo(e.tipo, e.vencimento),
   destaque: e.destaque === true,
   periodicidade: "diaria",

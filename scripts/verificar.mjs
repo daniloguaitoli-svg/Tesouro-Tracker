@@ -66,7 +66,15 @@ for (const c of CATALOGO) {
   if (!TIPOS.includes(c.tipo)) falhar(`${c.slug}: tipo desconhecido ${c.tipo}`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(c.vencimento)) falhar(`${c.slug}: vencimento fora do ISO (${c.vencimento})`);
   if (c.slug !== util.slugDe(c.tipo, c.vencimento)) falhar(`${c.slug}: slug não bate com slugDe()`);
-  if (c.comCupom !== (c.tipo === "ipca-juros")) falhar(`${c.slug}: comCupom incoerente com o tipo`);
+  // O rótulo do catálogo, passado pelo classificador REAL, tem de devolver o
+  // mesmo tipo e o mesmo comCupom que o catálogo declara. Amarrar as duas
+  // pontas assim evita a versão anterior desta checagem, que codificava a
+  // regra à mão como `comCupom === (tipo === "ipca-juros")` e por isso
+  // afirmava que NTN-F não paga cupom — errado, e errado dos dois lados.
+  const classe = util.classificarTitulo(c.nome);
+  if (!classe) falhar(`${c.slug}: classificarTitulo() não reconhece o rótulo "${c.nome}"`);
+  else if (classe.tipo !== c.tipo) falhar(`${c.slug}: rótulo classifica como ${classe.tipo}, catálogo diz ${c.tipo}`);
+  else if (classe.comCupom !== c.comCupom) falhar(`${c.slug}: comCupom incoerente com o rótulo`);
   // Dias de vencimento por família (sourced dos arquivos reais): NTN-B em
   // 15/05 ou 15/08; LTN/NTN-F em 01/01; LFT em 01/03. Fora disso é quase
   // certamente erro de digitação no catálogo.
@@ -364,7 +372,23 @@ conferir(ponteMod.filtrarFamilias(comLft, ["ipca", "ipca-juros"]).length === 2, 
 conferir(ponteMod.filtrarFamilias(comLft, ["selic"]).length === 1, "filtro de famílias isola a LFT para o selic.json");
 conferir(montados[0].duration.macaulayAnos > 0, "item montado traz duration numérica");
 conferir(montados[1].taxaVenda === null, "campo ausente vira null (não 0, não some)");
-conferir(montados[0].destaque === true, "destaque do catálogo chega ao item");
+// Relacional de propósito, não fixado num slug: os destaques espelham as
+// estrelas do celular e mudam quando a seleção muda. Fixar "montados[0] é
+// destaque" fazia o verificar quebrar a cada troca de estrela — ruído, não
+// defeito. O que importa é que o item repita o que o catálogo diz.
+conferir(
+  montados.every((t) => t.destaque === (porSlug[t.slug]?.destaque === true)),
+  "destaque do catálogo chega ao item"
+);
+const foraDoCatalogo = ponteMod.montarTitulos({
+  ordenados: [
+    ["ipca-2099-05-15", { tipo: "ipca", vencimento: "2099-05-15", comCupom: false,
+      serie: { "2026-08-20": [7.0, 100] }, ultimo: { data: "2026-08-20", taxaCompra: 7.0, puCompra: 100 } }],
+  ],
+  secPorSlug: {},
+  hoje: HOJE,
+});
+conferir(foraDoCatalogo[0].destaque === false, "vencimento fora do catálogo nunca sai como destaque");
 
 const jsonPonte = ponteMod.montarPonte({ titulos: montados, agora: "2026-08-21T00:00:00.000Z", urlCsv: "x" });
 conferir(JSON.parse(JSON.stringify(jsonPonte)).titulos.length === 2, "ntnb.json serializa e volta inteiro");
