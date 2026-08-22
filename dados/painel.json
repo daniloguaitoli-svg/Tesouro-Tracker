@@ -1,6 +1,108 @@
 {
- "atualizadoEm": null,
- "nota": "Semente. O job .github/workflows/coletar-tesouro.yml substitui este arquivo na primeira execução com o retrato da aba Painel: títulos em destaque + moldura macro (IPCA, Ibovespa, câmbio, CDI, Selic).",
- "acompanhados": [],
- "moldura": null
+ "atualizadoEm": "2026-08-22T19:37:55.637Z",
+ "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
+ "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
+ "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
+ "convencao": "Taxas em % ao ano; veja `taxaSignifica` em cada título, porque o mesmo número quer dizer coisas diferentes por família. Duration em anos (dias corridos/365, aproximação da convenção oficial de dias úteis/252). variacaoPrecoMais1pp = variação % estimada do preço se a taxa subir 1 ponto percentual, já com convexidade. Variações de 12 meses e 1 semana comparam com o último pregão EM OU ANTES do alvo (mercado não abre em fim de semana); `desde` diz de que data a comparação parte. Campo ausente ou null = dado indisponível, nunca estimado.",
+ "aviso": "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
+ "fontes": {
+  "titulos": "Tesouro Nacional — Tesouro Transparente",
+  "ipca": "BCB/SGS 433",
+  "cdi": "BCB/SGS 4389",
+  "selic": "BCB/SGS 432",
+  "cambio": "BCB/SGS 1 (USD) e 21619 (EUR), PTAX venda",
+  "ibovespa": "Yahoo Finance ^BVSP",
+  "repositorio": "https://github.com/daniloguaitoli-svg/Tesouro-Tracker"
+ },
+ "acompanhados": [
+  {
+   "slug": "ipca-juros-2032-08-15",
+   "nome": "Tesouro IPCA+ 2032 (juros semestrais)",
+   "vencimento": "2032-08-15",
+   "comCupom": true,
+   "taxa": 7.96,
+   "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
+   "pu": 4334.52,
+   "data": "2026-08-21",
+   "duration": {
+    "macaulayAnos": 5.074,
+    "modificada": 4.699,
+    "convexidade": 28.832,
+    "variacaoPrecoMais1pp": -4.56,
+    "variacaoPrecoMenos1pp": 4.84
+   }
+  },
+  {
+   "slug": "ipca-juros-2035-05-15",
+   "nome": "Tesouro IPCA+ 2035 (juros semestrais)",
+   "vencimento": "2035-05-15",
+   "comCupom": true,
+   "taxa": 7.84,
+   "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
+   "pu": 4302.87,
+   "data": "2026-08-21",
+   "duration": {
+    "macaulayAnos": 6.7,
+    "modificada": 6.213,
+    "convexidade": 51.546,
+    "variacaoPrecoMais1pp": -5.96,
+    "variacaoPrecoMenos1pp": 6.47
+   }
+  },
+  {
+   "slug": "ipca-2035-05-15",
+   "nome": "Tesouro IPCA+ 2035",
+   "vencimento": "2035-05-15",
+   "comCupom": false,
+   "taxa": 7.82,
+   "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
+   "pu": 2468.95,
+   "data": "2026-08-21",
+   "duration": {
+    "macaulayAnos": 8.734,
+    "modificada": 8.101,
+    "convexidade": 73.136,
+    "variacaoPrecoMais1pp": -7.74,
+    "variacaoPrecoMenos1pp": 8.47
+   }
+  }
+ ],
+ "moldura": {
+  "ipca": {
+   "acumulado12mPct": 4.44,
+   "ultimoMesPct": 0.07,
+   "data": "2026-07-01"
+  },
+  "ibovespa": {
+   "pontos": 171032,
+   "var12mPct": 23.96,
+   "var12mDesde": "2025-08-22",
+   "var1semPct": 2.45,
+   "data": "2026-08-22"
+  },
+  "eurbrl": {
+   "valor": 6.0319,
+   "varDiaPct": -0.41,
+   "var12mPct": -5.2,
+   "var1semPct": -0.3,
+   "data": "2026-08-21"
+  },
+  "usdbrl": {
+   "valor": 5.1625,
+   "varDiaPct": -0.46,
+   "var12mPct": -5.84,
+   "var1semPct": -1.17,
+   "data": "2026-08-21"
+  },
+  "cdi": {
+   "pctAoAno": 13.9,
+   "data": "2026-08-20"
+  },
+  "selic": {
+   "metaPctAoAno": 14,
+   "vigenteDesde": "2026-08-06",
+   "ultimaVariacaoPP": -0.25,
+   "data": "2026-08-22"
+  }
+ }
 }
