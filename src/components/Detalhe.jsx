@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { getDetalhe } from "../api.js";
 import { AreaChart } from "./AreaChart.jsx";
 import { ErroBox, Loading } from "./States.jsx";
-import { taxa, pct, pp, anos, reais, dataBR, num, sinal, sinalTaxa } from "../format.js";
+import { taxa, pct, pp, anos, reais, dataBR, num, sinal, sinalTaxa, unidadeTaxa } from "../format.js";
 
 export function Detalhe({ slug, onBack }) {
   const [tf, setTf] = useState("1A");
@@ -59,9 +59,9 @@ export function Detalhe({ slug, onBack }) {
       <div className="detail-head">
         <div style={{ flex: 1 }}>
           <div className="label muted">{t.nome}</div>
-          <div className="price">{taxa(t.taxa)}</div>
+          <div className="price">{taxa(t.taxa, t.tipo === "selic" ? 4 : 2)}</div>
           <div className="label">
-            ao ano <strong>acima do IPCA</strong> · PU {reais(t.pu)}
+            <strong>{unidadeTaxa(t.tipo)}</strong> · PU {reais(t.pu)}
           </div>
           <div className={`label ${sinalTaxa(t.taxaVarPP)}`}>
             {pp(t.taxaVarPP)} na taxa{" "}
@@ -69,7 +69,9 @@ export function Detalhe({ slug, onBack }) {
           </div>
           <div>
             <span className="pill">vence {dataBR(t.vencimento)}</span>
-            <span className="pill">{t.comCupom ? "juros semestrais" : "sem cupom"}</span>
+            <span className="pill">
+              {t.tipo === "selic" ? "pós-fixado (Selic)" : t.comCupom ? "juros semestrais" : "sem cupom"}
+            </span>
             {t.secundario?.taxaIndicativa != null && (
               <span className="pill">ANBIMA {taxa(t.secundario.taxaIndicativa)}</span>
             )}
@@ -107,6 +109,16 @@ export function Detalhe({ slug, onBack }) {
         </div>
       )}
 
+      {t.tipo === "selic" && (
+        <div className="note">
+          <strong>Por que não há duration aqui.</strong> A LFT é pós-fixada: rende a Selic
+          diária até o resgate, então o preço quase não reage a juros de mercado. A taxa
+          cotada acima é o pequeno ágio ou deságio sobre a Selic — não uma taxa cheia — e
+          pode até ser negativa.
+        </div>
+      )}
+
+      {d.macaulay != null && (<>
       <div className="section-title">Sensibilidade a juros</div>
       <div className="statgrid">
         <div className="stat">
@@ -131,6 +143,7 @@ export function Detalhe({ slug, onBack }) {
         percentual de taxa. As duas pontas não são simétricas por causa da convexidade
         ({num(d.convexidade, 1)}).
       </div>
+      </>)}
 
       {fluxos.length > 0 && (
         <>

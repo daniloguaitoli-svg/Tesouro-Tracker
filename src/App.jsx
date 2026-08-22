@@ -11,6 +11,8 @@ import { Tabs } from "./components/Tabs.jsx";
 import { Painel } from "./components/Painel.jsx";
 import { Titulos } from "./components/Titulos.jsx";
 import { Curva } from "./components/Curva.jsx";
+import { Mercado } from "./components/Mercado.jsx";
+import { Noticias } from "./components/Noticias.jsx";
 import { Calculadora } from "./components/Calculadora.jsx";
 import { Alertas } from "./components/Alertas.jsx";
 import { Detalhe } from "./components/Detalhe.jsx";
@@ -21,7 +23,9 @@ const TABS = [
   { id: "painel", label: "Painel" },
   { id: "titulos", label: "Títulos" },
   { id: "curva", label: "Curva" },
+  { id: "mercado", label: "Mercado" },
   { id: "calculadora", label: "Calculadora" },
+  { id: "noticias", label: "Notícias" },
   { id: "alertas", label: "Alertas" },
 ];
 
@@ -51,7 +55,7 @@ export default function App() {
           <span className="selo" aria-hidden="true">🏛️</span>
           <span>
             Tesouro
-            <small>NTN-B · Tesouro IPCA+ · taxa real e duration</small>
+            <small>títulos do Tesouro Direto · taxas e duration</small>
           </span>
         </div>
         {ipca12 != null && (
@@ -76,6 +80,8 @@ export default function App() {
               {tab === "painel" && <Painel dados={dados} onOpen={setSlug} />}
               {tab === "titulos" && <Titulos dados={dados} onOpen={setSlug} />}
               {tab === "curva" && <Curva />}
+              {tab === "mercado" && <Mercado />}
+              {tab === "noticias" && <Noticias />}
               {tab === "calculadora" && <Calculadora dados={dados} />}
               {tab === "alertas" && <Alertas dados={dados} />}
             </main>

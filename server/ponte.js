@@ -9,7 +9,7 @@
 // crase solta dentro do template do markdown apareceu: ele quebrava o arquivo
 // inteiro e só dava as caras na hora de gravar.
 
-import { calcularDuration, anosEntre, brDeISO } from "./util.js";
+import { calcularDuration, anosEntre, brDeISO, temDuration } from "./util.js";
 import { porSlug, rotuloGenerico } from "./catalogo.js";
 
 export const arred = (v, casas) => (v == null || !Number.isFinite(v) ? null : Number(v.toFixed(casas)));
@@ -28,12 +28,19 @@ export function montarTitulos({ ordenados, secPorSlug = {}, hoje }) {
     const u = dados.ultimo;
     const doCatalogo = porSlug[slug] || null;
     const taxa = u ? (u.taxaCompra ?? u.taxaVenda) : null;
-    const d = calcularDuration({
-      vencimentoISO: dados.vencimento,
-      comCupom: dados.comCupom,
-      taxaReal: taxa == null ? null : taxa / 100,
-      hojeISO: hoje,
-    });
+    // LFT fica sem duration DE PROPÓSITO: é pós-fixada e a taxa cotada é
+    // ágio/deságio sobre a Selic — calcular duration sobre esse spread daria um
+    // número com cara de análise e valor de nada. Para prefixados a taxa é
+    // NOMINAL (não "sobre o IPCA"); a matemática é a mesma, o rótulo não.
+    const d = temDuration(dados.tipo)
+      ? calcularDuration({
+          vencimentoISO: dados.vencimento,
+          comCupom: dados.comCupom,
+          cupomAnual: dados.cupomAnual ?? undefined,
+          taxaReal: taxa == null ? null : taxa / 100,
+          hojeISO: hoje,
+        })
+      : { macaulay: null, modificada: null, convexidade: null, variacaoPor1pp: null, variacaoMenos1pp: null };
     const item = {
       slug,
       nome: doCatalogo?.nome || rotuloGenerico(dados.tipo, dados.vencimento),
@@ -74,9 +81,17 @@ export function montarTitulos({ ordenados, secPorSlug = {}, hoje }) {
   });
 }
 
-export function montarPonte({ titulos, agora, urlCsv, urlAnbima = null }) {
+// `familias` filtra quais tipos entram neste arquivo-ponte (ex.: só os IPCA+
+// em dados/ntnb.json). Cada família nova ganha um arquivo IRMÃO em vez de
+// mudar o formato de um existente — quem já consome a URL antiga não quebra.
+export function filtrarFamilias(titulos, familias) {
+  return titulos.filter((t) => familias.includes(t.tipo));
+}
+
+export function montarPonte({ titulos, agora, urlCsv, urlAnbima = null, nota = null }) {
   return {
     atualizadoEm: agora,
+    ...(nota ? { nota } : {}),
     geradoPor: "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
     fontes: { tesouro: urlCsv, anbima: urlAnbima },
     convencao:
@@ -102,6 +117,7 @@ export function montarHistorico({ ordenados, agora, urlCsv, desde }) {
           tipo: d.tipo,
           vencimento: d.vencimento,
           comCupom: d.comCupom,
+          cupomAnual: d.cupomAnual ?? null,
           serie: Object.fromEntries(Object.keys(d.serie).sort().map((k) => [k, d.serie[k]])),
         },
       ])

@@ -42,9 +42,9 @@ const cat = await import("../server/catalogo.js");
 const tesouro = await import("../server/providers/tesouro.js");
 const anbima = await import("../server/providers/anbima.js");
 
-const ROTAS = ["getTitulos", "getDetalhe", "getCurva", "getMacro"];
+const ROTAS = ["getTitulos", "getDetalhe", "getCurva", "getMacro", "getMercado", "getNoticias"];
 for (const nome of ROTAS) conferir(typeof datalayer[nome] === "function", `datalayer exporta ${nome}()`);
-for (const rel of ["tesouro", "anbima", "bcb"]) {
+for (const rel of ["tesouro", "anbima", "bcb", "globais", "noticias"]) {
   await import(`../server/providers/${rel}.js`);
   ok(`provider ${rel} carrega`);
 }
@@ -67,8 +67,11 @@ for (const c of CATALOGO) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(c.vencimento)) falhar(`${c.slug}: vencimento fora do ISO (${c.vencimento})`);
   if (c.slug !== util.slugDe(c.tipo, c.vencimento)) falhar(`${c.slug}: slug não bate com slugDe()`);
   if (c.comCupom !== (c.tipo === "ipca-juros")) falhar(`${c.slug}: comCupom incoerente com o tipo`);
-  // NTN-B vence em 15/05 ou 15/08. Um vencimento fora disso é quase certamente erro de digitação.
-  if (!/-(05|08)-15$/.test(c.vencimento)) falhar(`${c.slug}: NTN-B vence em 15/05 ou 15/08 — confira ${c.vencimento}`);
+  // NTN-B vence em 15/05 ou 15/08. A regra vale só para as famílias ipca —
+  // prefixados vencem dia 01 e LFTs em 01/03 ou 01/09.
+  if (c.tipo.startsWith("ipca") && !/-(05|08)-15$/.test(c.vencimento)) {
+    falhar(`${c.slug}: NTN-B vence em 15/05 ou 15/08 — confira ${c.vencimento}`);
+  }
 }
 ok("campos obrigatórios, tipos, ISO dos vencimentos e coerência dos slugs");
 conferir(DESTAQUES.every((d) => porSlug[d.slug]), "todo destaque existe no catálogo");
@@ -125,6 +128,33 @@ conferir(zero.variacaoPor1pp < 0 && zero.variacaoMenos1pp > 0, "taxa sobe -> pre
 const par = util.precoPor100({ vencimentoISO: "2035-05-15", comCupom: true, taxaReal: 0.06, hojeISO: HOJE });
 conferir(Math.abs(par - 100) < 1.5, `com cupom a 6% precificado a 6% vale ~100 (deu ${par.toFixed(2)})`);
 
+// NTN-F: mesmo desconto, cupom de 10%. Cupom maior devolve dinheiro mais cedo,
+// então, com a MESMA taxa e o MESMO prazo, a duration tem de ser menor que a
+// de um título de cupom 6%.
+conferir(
+  perto(util.CUPOM_SEMESTRAL_NTNF, Math.pow(1.10, 0.5) - 1, 1e-12),
+  "cupom semestral NTN-F = (1,10)^(1/2) − 1"
+);
+const cupom6 = util.calcularDuration({ vencimentoISO: "2035-01-01", comCupom: true, cupomAnual: 0.06, taxaReal: 0.10, hojeISO: HOJE });
+const cupom10 = util.calcularDuration({ vencimentoISO: "2035-01-01", comCupom: true, cupomAnual: 0.10, taxaReal: 0.10, hojeISO: HOJE });
+conferir(cupom10.macaulay < cupom6.macaulay, "cupom 10% (NTN-F) tem duration menor que cupom 6%, mesma taxa e prazo");
+
+// LFT: pós-fixada, fora da matemática de duration por decisão.
+conferir(util.temDuration("ipca") && util.temDuration("prefixado-juros") && !util.temDuration("selic"),
+  "temDuration: todas as famílias menos a LFT");
+
+console.log("\nclassificador de títulos");
+const cls = (n) => util.classificarTitulo(n);
+conferir(cls("Tesouro Prefixado")?.tipo === "prefixado", "LTN por extenso -> prefixado");
+conferir(cls("Tesouro Prefixado com Juros Semestrais")?.tipo === "prefixado-juros", "NTN-F por extenso -> prefixado-juros");
+conferir(cls("Tesouro Selic")?.tipo === "selic", "LFT por extenso -> selic");
+conferir(cls("LTN")?.tipo === "prefixado" && cls("NTN-F")?.tipo === "prefixado-juros" && cls("LFT")?.tipo === "selic",
+  "siglas da ANBIMA reconhecidas (LTN, NTN-F, LFT)");
+conferir(cls("NTN-B")?.tipo === "ipca-juros" && cls("NTN-B Principal")?.tipo === "ipca", "NTN-B e NTN-B Principal seguem certos");
+conferir(cls("Tesouro RendA+ Aposentadoria Extra") === null && cls("Tesouro Educa+") === null,
+  "RendA+ e Educa+ ficam fora (amortização mensal, régua diferente)");
+conferir(cls("Tesouro Prefixado com Juros Semestrais")?.cupomAnual === 0.10, "NTN-F carrega cupom de 10%");
+
 // Sem taxa não há duration — e o app renderiza "—" em vez de inventar zero.
 const semTaxa = util.calcularDuration({ vencimentoISO: "2035-05-15", comCupom: false, taxaReal: null });
 conferir(semTaxa.macaulay === null, "sem taxa, duration é null (nunca 0)");
@@ -144,9 +174,11 @@ const p = tesouro.linhaParaPonto(
 conferir(p?.slug === "ipca-juros-2032-08-15", "linha de exemplo vira o slug esperado");
 conferir(p?.taxaCompra === 7.05 && p?.puCompra === 4312.45, "números pt-BR convertidos (vírgula decimal, ponto de milhar)");
 conferir(p?.comCupom === true, "'com Juros Semestrais' reconhecido como título com cupom");
+const pLtn = tesouro.linhaParaPonto("Tesouro Prefixado;01/01/2031;20/08/2026;13,1;13,2;600,1;599,0;600,0".split(";"), idx, null);
+conferir(pLtn?.slug === "prefixado-2031-01-01", "LTN agora entra, com o slug prefixado-*");
 conferir(
-  tesouro.linhaParaPonto("Tesouro Prefixado;01/01/2031;20/08/2026;13,1;13,2;600,1;599,0;600,0".split(";"), idx, null) === null,
-  "títulos que não são IPCA+ são descartados"
+  tesouro.linhaParaPonto("Tesouro RendA+ Aposentadoria Extra;15/12/2065;20/08/2026;6,1;6,2;100,1;99,0;100,0".split(";"), idx, null) === null,
+  "RendA+/Educa+ continuam descartados (amortização mensal, régua diferente)"
 );
 // A coleta real trouxe uma linha com PU 0,00 (campo vazio de título vencido).
 // Zero não é preço — passaria adiante como "R$ 0,00".
@@ -165,16 +197,43 @@ try {
 }
 conferir(estourou, "cabeçalho irreconhecível falha alto (em vez de ler número errado calado)");
 
+console.log("\nparsers do Fed e do BCE");
+const globais = await import("../server/providers/globais.js");
+const fredFix = "observation_date,DFEDTARU\n2026-06-01,4.50\n2026-08-18,4.25\n2026-08-20,4.25";
+const fredR = globais.parseCsvFred(fredFix);
+conferir(fredR.ok && fredR.pontos.length === 3, "CSV do FRED parseia (cabeçalho observation_date)");
+conferir(globais.parseCsvFred("DATE,DFEDTARU\n2026-08-18,4.25").ok, "CSV do FRED parseia (cabeçalho DATE antigo)");
+const dec = globais.ultimaDecisao(fredR.pontos);
+conferir(dec.taxa === 4.25 && dec.vigenteDesde === "2026-08-18" && dec.variacaoPP === -0.25,
+  "última decisão derivada da série (taxa, vigência e variação)");
+const bceFix = "KEY,FREQ,TIME_PERIOD,OBS_VALUE\nx,B,2026-06-10,2.15\nx,B,2026-08-19,2.00";
+conferir(globais.parseCsvBce(bceFix).ok, "csvdata do BCE parseia (TIME_PERIOD/OBS_VALUE por nome)");
+conferir(globais.parseCsvFred("lixo").ok === false && globais.parseCsvBce("lixo").ok === false,
+  "formato irreconhecível devolve ok:false com amostra (nunca chute)");
+
+console.log("\nparser de RSS (notícias)");
+const noticias = await import("../server/providers/noticias.js");
+const rssFix = `<rss><channel><item><title>Manchete A - Fonte X</title><link>https://t/1</link><pubDate>Fri, 21 Aug 2026 12:00:00 GMT</pubDate><source url="x">Fonte X</source></item><item><title><![CDATA[B &amp; C]]></title><link>https://t/2</link></item><item><title></title><link>https://t/3</link></item></channel></rss>`;
+const itensRss = noticias.extrairItens(rssFix);
+conferir(itensRss.length === 2, "itens extraídos; sem título são descartados");
+conferir(itensRss[0].titulo === "Manchete A" && itensRss[0].fonte === "Fonte X", "sufixo da fonte removido do título");
+conferir(itensRss[1].titulo === "B & C", "CDATA e entidades decodificados");
+conferir(noticias.extrairItens("nada").length === 0, "XML irreconhecível devolve lista vazia (a tela explica)");
+conferir(noticias.REGIOES.length === 3, "três regiões configuradas");
+
 console.log("\nparser da ANBIMA");
 const amostra = [
   "Titulo@Data Referencia@Codigo SELIC@Data Base/Emissao@Data Vencimento@Taxa Compra@Taxa Venda@Taxa Indicativa@PU",
   "NTN-B@20260820@760199@15/07/2000@15/05/2035@7,0512@7,0112@7,0312@4.123,456789",
   "LTN@20260820@100000@01/01/2020@01/01/2031@13,10@13,00@13,05@600,10",
 ].join("\n");
-const ext = anbima.extrairNTNB(amostra);
-conferir(ext.ok && ext.titulos.length === 1, "extrai a NTN-B e ignora a LTN");
+const ext = anbima.extrairTitulos(amostra);
+// Com o classificador ampliado, a LTN da amostra também é reconhecida — o que
+// é o comportamento desejado agora que o app cobre prefixados.
+conferir(ext.ok && ext.titulos.length === 2, "extrai a NTN-B e agora também a LTN");
+conferir(ext.titulos.some((t) => t.slug === "prefixado-2031-01-01"), "a LTN sai com slug prefixado-*");
 conferir(ext.titulos[0]?.taxaIndicativa === 7.0312, "taxa indicativa lida");
-conferir(anbima.extrairNTNB("lixo").ok === false, "arquivo irreconhecível devolve ok:false com amostra (nunca chute)");
+conferir(anbima.extrairTitulos("lixo").ok === false, "arquivo irreconhecível devolve ok:false com amostra (nunca chute)");
 
 // ---------------------------------------------------------------
 // A montagem dos arquivos-ponte é o produto do repositório: se ela quebrar, o
@@ -229,6 +288,22 @@ const comVencido = ponteMod.montarTitulos({
 });
 conferir(comVencido.length === 2, "títulos já vencidos ficam fora do retrato do dia");
 conferir(!comVencido.some((t) => t.vencimento <= HOJE), "nenhum vencimento passado sobra no arquivo-ponte");
+
+// Uma LFT montada não pode sair com duration; e os filtros por família são o
+// que mantém o ntnb.json com o formato de sempre.
+const comLft = ponteMod.montarTitulos({
+  ordenados: [
+    ...amostraSerie,
+    ["selic-2029-03-01", { tipo: "selic", vencimento: "2029-03-01", comCupom: false, cupomAnual: null,
+      serie: { "2026-08-20": [0.04, 16712.9] }, ultimo: { data: "2026-08-20", taxaCompra: 0.04, puCompra: 16712.9 } }],
+  ],
+  secPorSlug: {},
+  hoje: HOJE,
+});
+const lft = comLft.find((t) => t.tipo === "selic");
+conferir(lft && lft.duration.macaulayAnos === null, "LFT montada sai sem duration (null, não zero)");
+conferir(ponteMod.filtrarFamilias(comLft, ["ipca", "ipca-juros"]).length === 2, "filtro de famílias isola os IPCA+ para o ntnb.json");
+conferir(ponteMod.filtrarFamilias(comLft, ["selic"]).length === 1, "filtro de famílias isola a LFT para o selic.json");
 conferir(montados[0].duration.macaulayAnos > 0, "item montado traz duration numérica");
 conferir(montados[1].taxaVenda === null, "campo ausente vira null (não 0, não some)");
 conferir(montados[0].destaque === true, "destaque do catálogo chega ao item");
@@ -287,13 +362,14 @@ ok("todo slug do histórico é coerente com tipo+vencimento (histórico não ór
 // arquivos percebe quando um lado muda sozinho.
 console.log("\nconstantes duplicadas entre server/ e src/");
 const calc = await ler("src/components/Calculadora.jsx");
-const m = calc.match(/CUPOM_SEMESTRAL_NTNB\s*=\s*([\d.]+)/);
-if (!m) falhar("CUPOM_SEMESTRAL_NTNB não encontrado em Calculadora.jsx");
-else
-  conferir(
-    perto(Number(m[1]), util.CUPOM_SEMESTRAL_NTNB, 5e-7),
-    `CUPOM_SEMESTRAL_NTNB: util.js ${util.CUPOM_SEMESTRAL_NTNB.toFixed(6)} = Calculadora.jsx ${m[1]}`
-  );
+for (const [nome, valorServidor] of [
+  ["CUPOM_SEMESTRAL_NTNB", util.CUPOM_SEMESTRAL_NTNB],
+  ["CUPOM_SEMESTRAL_NTNF", util.CUPOM_SEMESTRAL_NTNF],
+]) {
+  const m = calc.match(new RegExp(`${nome}\\s*=\\s*([\\d.]+)`));
+  if (!m) falhar(`${nome} não encontrado em Calculadora.jsx`);
+  else conferir(perto(Number(m[1]), valorServidor, 5e-7), `${nome}: util.js ${valorServidor.toFixed(6)} = Calculadora.jsx ${m[1]}`);
+}
 
 const { PERIODICIDADE } = await import("../src/format.js");
 const mesmasChaves =

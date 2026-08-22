@@ -31,19 +31,34 @@ export function Curva() {
   if (!dados) return <Skeletons n={3} />;
   if (dados.pendente) return <AguardandoColeta />;
 
+  // Só oferece famílias que têm pontos (a prefixada fica vazia até a primeira
+  // coleta que inclua LTN/NTN-F).
+  const disponiveis = (dados.curvas || []).filter((c) => c.agora.length > 0);
+  const curva = disponiveis.find((c) => c.id === familiaId) || disponiveis[0];
+  if (!curva) return <AguardandoColeta />;
+
   const series = [
-    { id: "1a", pontos: dados.umAnoAtras, cor: "var(--muted)", tracejado: true },
-    { id: "1m", pontos: dados.umMesAtras, cor: "var(--accent-2)" },
-    { id: "agora", pontos: dados.agora, cor: "var(--accent)", forte: true },
+    { id: "1a", pontos: curva.umAnoAtras, cor: "var(--muted)", tracejado: true },
+    { id: "1m", pontos: curva.umMesAtras, cor: "var(--accent-2)" },
+    { id: "agora", pontos: curva.agora, cor: "var(--accent)", forte: true },
   ];
 
   return (
     <div>
-      <div className="section-title">Curva de juros reais</div>
+      <div className="section-title">Curva de juros</div>
       <p className="section-sub">
-        Taxa real ao ano por prazo até o vencimento. Cada ponto é um vencimento; os maiores
-        são os acompanhados de perto.
+        Taxa por prazo até o vencimento. As duas curvas não se comparam ponto a ponto: a
+        diferença entre a nominal e a real é a inflação que o mercado embute.
       </p>
+      {disponiveis.length > 1 && (
+        <div className="chips" style={{ marginBottom: 8 }}>
+          {disponiveis.map((c) => (
+            <button key={c.id} className="chip" aria-pressed={curva.id === c.id} onClick={() => setFamiliaId(c.id)}>
+              {c.nome}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <CurvaChart series={series} />
@@ -61,11 +76,11 @@ export function Curva() {
             <tr>
               <th>Vencimento</th>
               <th className="rt">Prazo</th>
-              <th className="rt">Taxa real</th>
+              <th className="rt">Taxa ({curva.sufixo})</th>
             </tr>
           </thead>
           <tbody>
-            {dados.agora.map((p) => (
+            {curva.agora.map((p) => (
               <tr key={p.slug}>
                 <td>
                   {p.nome} {p.destaque && <span aria-label="acompanhado de perto">⭐</span>}
@@ -81,8 +96,8 @@ export function Curva() {
       </div>
 
       <div className="note">
-        A curva mistura títulos com e sem cupom. Dois pontos no mesmo prazo podem ter taxas
-        diferentes por isso — e as durations serão bem diferentes. {dados.aviso}
+        Cada curva mistura títulos com e sem cupom: dois pontos no mesmo prazo podem ter
+        taxas diferentes por isso — e as durations serão bem diferentes. {dados.aviso}
       </div>
     </div>
   );

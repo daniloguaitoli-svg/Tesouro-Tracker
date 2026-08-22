@@ -83,9 +83,9 @@ function detectarSeparador(linha) {
   return melhor;
 }
 
-// Extrai as NTN-B de um arquivo já baixado. Exportada para poder ser testada
+// Extrai os títulos reconhecidos (todas as famílias) de um arquivo já baixado. Exportada para poder ser testada
 // sem rede.
-export function extrairNTNB(texto) {
+export function extrairTitulos(texto) {
   const linhas = String(texto ?? "").split(/\r?\n/);
   const iCab = linhas.findIndex((l) => /vencimento/.test(normalizar(l)));
   if (iCab < 0) {
@@ -143,7 +143,7 @@ export async function getSecundario({ tentativas = 3 } = {}) {
         continue;
       }
       const texto = await r.text();
-      const extraido = extrairNTNB(texto);
+      const extraido = extrairTitulos(texto);
       if (!extraido.ok) {
         erros.push(`${url} -> ${extraido.motivo}`);
         // Guarda a amostra do primeiro arquivo que baixou mas não deu para ler:

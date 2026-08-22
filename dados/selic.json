@@ -1,0 +1,5 @@
+{
+ "atualizadoEm": null,
+ "nota": "Semente. O job coletar-tesouro.yml substitui este arquivo na primeira execução com os Tesouro Selic (LFT). A `taxa` é ágio/deságio sobre a Selic; `duration` é null por construção.",
+ "titulos": []
+}

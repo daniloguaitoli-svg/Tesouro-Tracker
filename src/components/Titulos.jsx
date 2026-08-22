@@ -4,7 +4,7 @@
 // decisão. Duas NTN-B com a mesma taxa e durations diferentes não são o mesmo
 // investimento.
 import { useMemo, useState } from "react";
-import { taxa, pp, anos, reais, dataBR, sinalTaxa, normalizarBusca } from "../format.js";
+import { taxa, pp, anos, reais, dataBR, sinalTaxa, normalizarBusca, unidadeTaxa } from "../format.js";
 import { Sparkline } from "./Sparkline.jsx";
 import { AguardandoColeta, Vazio } from "./States.jsx";
 
@@ -16,13 +16,15 @@ function Linha({ t, onOpen }) {
           {t.nome} {!t.noCatalogo && <span className="muted" title="Vencimento presente no arquivo mas ainda sem entrada no catálogo">·</span>}
         </div>
         <div className="rowsub">
-          vence {dataBR(t.vencimento)} · duration {anos(t.duration?.macaulay)}
+          vence {dataBR(t.vencimento)}
+          {t.duration?.macaulay != null && <> · duration {anos(t.duration.macaulay)}</>}
           {t.desatualizado && <span className="stale" style={{ marginLeft: 6 }}>desatualizado</span>}
         </div>
       </div>
       <Sparkline points={t.spark} inverter />
       <div className="rowprice">
-        <div className="p">{taxa(t.taxa)}</div>
+        <div className="p">{taxa(t.taxa, t.tipo === "selic" ? 4 : 2)}</div>
+        <div className="sub">{unidadeTaxa(t.tipo)}</div>
         <div className={`d ${sinalTaxa(t.taxaVarPP)}`}>{pp(t.taxaVarPP)}</div>
         <div className="sub">{reais(t.pu)}</div>
       </div>
@@ -66,7 +68,7 @@ export function Titulos({ dados, onOpen }) {
         </button>
         {categorias.map((c) => (
           <button key={c.id} className="chip" aria-pressed={familia === c.id} onClick={() => setFamilia(c.id)}>
-            {c.id === "ipca-juros" ? "com juros" : "sem cupom"}
+            {c.curto || c.nome}
           </button>
         ))}
       </div>

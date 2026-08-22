@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { getTitulos, getDetalhe, getCurva, getMacro } from "./server/datalayer.js";
+import { getTitulos, getDetalhe, getCurva, getMacro, getMercado, getNoticias } from "./server/datalayer.js";
 
 // API só de desenvolvimento: serve /api/* a partir da MESMA camada de dados que
 // roda em produção como funções serverless da Vercel (api/*.js). Assim
@@ -21,6 +21,8 @@ function devApi() {
           if (url.pathname === "/api/titulos") return send(200, await getTitulos());
           if (url.pathname === "/api/curva") return send(200, await getCurva());
           if (url.pathname === "/api/macro") return send(200, await getMacro());
+          if (url.pathname === "/api/mercado") return send(200, await getMercado());
+          if (url.pathname === "/api/noticias") return send(200, await getNoticias());
           if (url.pathname === "/api/detalhe") {
             const slug = url.searchParams.get("slug");
             if (!slug) return send(400, { error: "Faltou o parâmetro slug" });

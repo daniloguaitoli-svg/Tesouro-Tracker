@@ -99,6 +99,7 @@ export function linhaParaPonto(cels, idx, desdeISO) {
     slug: slugDe(classe.tipo, vencimento),
     tipo: classe.tipo,
     comCupom: classe.comCupom,
+    cupomAnual: classe.cupomAnual ?? null,
     vencimento,
     data,
     // Taxas em % ao ano (ex.: 7,05 -> 7.05). PU em reais.
@@ -138,10 +139,10 @@ export async function varrerSerie({ desdeISO = null, aoLer, sinal } = {}) {
       return;
     }
     linhas++;
-    // Atalho barato: 9 de cada 10 linhas do arquivo são de outros títulos
-    // (Prefixado, Selic). Testar a string crua evita fatiar o que vai ser
-    // descartado — é o que mantém a varredura rápida num arquivo desse tamanho.
-    if (!/ipca|ntn-?b/i.test(linha)) return;
+    // Atalho barato: descarta pela string crua o que o classificador vai
+    // recusar de qualquer jeito (RendA+, Educa+, lixo de formatação), sem
+    // fatiar a linha. Cobre todas as famílias rastreadas.
+    if (!/ipca|prefixado|tesouro selic|ntn-?[bf]|\bltn\b|\blft\b/i.test(linha)) return;
     const ponto = linhaParaPonto(linha.split(sep), idx, desdeISO);
     if (!ponto) return;
     pontos++;

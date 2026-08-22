@@ -19,7 +19,6 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-console.error("[debug] cache.js url =", import.meta.url);
 
 function carregar(caminho, vazio) {
   try {
@@ -33,6 +32,7 @@ function carregar(caminho, vazio) {
 
 const HISTORICO = carregar("../dados/historico.json", { atualizadoEm: null, desde: null, titulos: {} });
 const PONTE = carregar("../dados/ntnb.json", { atualizadoEm: null, titulos: [] });
+const GLOBAL = carregar("../dados/global.json", { atualizadoEm: null, fed: null, bce: null });
 
 export function historico() {
   return HISTORICO;
@@ -40,6 +40,11 @@ export function historico() {
 
 export function ponte() {
   return PONTE;
+}
+
+// Fed e BCE, coletados duas vezes ao dia pelo job (dados/global.json).
+export function globais() {
+  return GLOBAL;
 }
 
 // Todos os vencimentos conhecidos, com metadados e o último ponto da série.
@@ -54,6 +59,7 @@ export function titulos() {
       tipo: dados.tipo,
       vencimento: dados.vencimento,
       comCupom: dados.comCupom === true,
+      cupomAnual: dados.cupomAnual ?? null,
       data: ultima,
       // A série guarda [taxa, pu] por dia — taxa em % a.a., PU em reais.
       taxa: par ? par[0] : null,

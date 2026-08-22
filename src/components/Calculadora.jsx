@@ -14,15 +14,21 @@ import { useMemo, useState } from "react";
 import { reais, pct, num, taxa, anos, pp } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
 
-// DUPLICADO DE PROPÓSITO: espelha CUPOM_SEMESTRAL_NTNB em server/util.js.
-// server/ e src/ nunca se importam, então este valor é copiado à mão e
-// scripts/verificar.mjs confere que os dois lados continuam iguais.
+// DUPLICADOS DE PROPÓSITO: espelham CUPOM_SEMESTRAL_NTNB e _NTNF em
+// server/util.js. server/ e src/ nunca se importam, então estes valores são
+// copiados à mão e scripts/verificar.mjs confere que os lados continuam iguais.
 const CUPOM_SEMESTRAL_NTNB = 0.029563;
+const CUPOM_SEMESTRAL_NTNF = 0.048809;
 
 const DELTAS = [-2, -1, -0.5, 0.5, 1, 2];
 
 export function Calculadora({ dados }) {
-  const todos = useMemo(() => (dados.categorias || []).flatMap((c) => c.itens), [dados]);
+  // A LFT fica fora da calculadora: pós-fixada, sem duration — a pergunta
+  // "e se a taxa mexer?" não se aplica a ela nesta régua.
+  const todos = useMemo(
+    () => (dados.categorias || []).flatMap((c) => c.itens).filter((t) => t.tipo !== "selic"),
+    [dados]
+  );
   const [slug, setSlug] = useState(() => (dados.destaques?.[0] || todos[0])?.slug || "");
   const [valor, setValor] = useState("10000");
   const [delta, setDelta] = useState(1);
@@ -43,9 +49,10 @@ export function Calculadora({ dados }) {
     const variacaoPct = (-dmod * dy + 0.5 * (conv ?? 0) * dy * dy) * 100;
     const impacto = v * (variacaoPct / 100);
 
-    // Valor no vencimento em PODER DE COMPRA DE HOJE: a correção pelo IPCA vem
-    // por cima disso, então projetar em reais nominais exigiria adivinhar a
-    // inflação futura — coisa que este app não faz.
+    // Para os IPCA+ o valor no vencimento sai em PODER DE COMPRA DE HOJE (a
+    // correção pelo IPCA vem por cima). Para os prefixados a taxa é NOMINAL:
+    // o valor projetado é em reais correntes do futuro, e a inflação do
+    // período corre por conta do investidor — o rótulo na tela muda junto.
     const y = t.taxa / 100;
     const futuroReal = v * Math.pow(1 + y, t.anosAteVencer);
 
@@ -62,6 +69,8 @@ export function Calculadora({ dados }) {
 
   if (dados.pendente) return <AguardandoColeta />;
   if (!todos.length) return <AguardandoColeta />;
+
+  const ehPrefixado = t?.tipo === "prefixado" || t?.tipo === "prefixado-juros";
 
   return (
     <div>
@@ -125,9 +134,13 @@ export function Calculadora({ dados }) {
           <div className="section-title">Até o vencimento</div>
           <div className="grid grid-2" style={{ marginTop: 0 }}>
             <div className="card">
-              <div className="label">Valor em {anos(t.anosAteVencer)}, a preços de hoje</div>
+              <div className="label">
+                Valor em {anos(t.anosAteVencer)}, {ehPrefixado ? "em reais nominais" : "a preços de hoje"}
+              </div>
               <div className="big">{reais(conta.futuroReal)}</div>
-              <div className="label up">{pct((conta.ganhoReal / (conta.v || 1)) * 100)} de ganho real</div>
+              <div className="label up">
+                {pct((conta.ganhoReal / (conta.v || 1)) * 100)} de ganho {ehPrefixado ? "nominal" : "real"}
+              </div>
               {eurbrl && (
                 <div className="label" style={{ marginTop: 4 }}>
                   ≈ € {num(conta.futuroReal / eurbrl)} ao câmbio de hoje
@@ -139,16 +152,23 @@ export function Calculadora({ dados }) {
               <div className="big">{t.comCupom ? reais(conta.rendaCupomAno) : "1"}</div>
               <div className="label">
                 {t.comCupom
-                  ? `${num(t.rendaCupomAnualPct)}% sobre o investido · cupom de 6% a.a. (${num(CUPOM_SEMESTRAL_NTNB * 100, 4)}% por semestre)`
+                  ? `${num(t.rendaCupomAnualPct)}% sobre o investido · cupom de ${ehPrefixado ? "10" : "6"}% a.a. (${num((ehPrefixado ? CUPOM_SEMESTRAL_NTNF : CUPOM_SEMESTRAL_NTNB) * 100, 4)}% por semestre)`
                   : "pagamento único no vencimento — nada entra antes"}
               </div>
             </div>
           </div>
 
           <div className="note">
-            <strong>O que esta conta não sabe.</strong> O valor no vencimento está em poder de
-            compra de hoje: a correção pelo IPCA vem <em>por cima</em> disso, e projetar em
-            reais nominais exigiria adivinhar a inflação futura. Os números são brutos de
+            <strong>O que esta conta não sabe.</strong>{" "}
+            {ehPrefixado ? (
+              <>O valor no vencimento está em <em>reais nominais</em>: a taxa prefixada é cheia,
+              e quanto dela a inflação vai comer ninguém sabe hoje — esse é exatamente o risco
+              do prefixado.</>
+            ) : (
+              <>O valor no vencimento está em poder de compra de hoje: a correção pelo IPCA vem{" "}
+              <em>por cima</em> disso, e projetar em reais nominais exigiria adivinhar a
+              inflação futura.</>
+            )} Os números são brutos de
             imposto de renda e de taxa de custódia. Para os títulos com cupom, o valor final
             supõe que os cupons sejam reinvestidos à mesma taxa real — na prática eles caem na
             conta e podem render outra coisa. E a sensibilidade é uma aproximação de segunda

@@ -5,7 +5,7 @@
 // duration e o "±1 p.p.". Só a taxa não diz o que uma mudança de juros faz com
 // a posição — é a duration que responde isso, e é ela que interessa em um
 // horizonte longo.
-import { taxa, pct, pp, anos, reais, dataBR, sinal, sinalTaxa, num } from "../format.js";
+import { taxa, pct, pp, anos, reais, dataBR, sinal, sinalTaxa, num, unidadeTaxa } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
 
 function CartaoTitulo({ t, onOpen }) {
@@ -13,7 +13,7 @@ function CartaoTitulo({ t, onOpen }) {
     <button className="card" onClick={() => onOpen(t.slug)} style={{ textAlign: "left", cursor: "pointer", font: "inherit", color: "inherit" }}>
       <div className="label">{t.nome}</div>
       <div className="big">
-        {taxa(t.taxa)} <span className="unit">a.a. + IPCA</span>
+        {taxa(t.taxa)} <span className="unit">{unidadeTaxa(t.tipo)}</span>
       </div>
       <div className={`delta ${sinalTaxa(t.taxaVarPP)}`}>
         {pp(t.taxaVarPP)} na taxa {t.puVarPct != null && <span className={sinal(t.puVarPct)}>· {pct(t.puVarPct)} no preço</span>}
@@ -62,6 +62,13 @@ function Macro({ macro }) {
             <div className="label">Selic meta</div>
             <div className="big">{num(selic.valor)}%</div>
             <div className="label">a.a. · {dataBR(selic.data)}</div>
+          </div>
+        )}
+        {ind.cdi && (
+          <div className="card">
+            <div className="label">CDI</div>
+            <div className="big">{num(ind.cdi.valor)}%</div>
+            <div className="label">a.a. · {dataBR(ind.cdi.data)}</div>
           </div>
         )}
         {usd && (

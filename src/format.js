@@ -92,3 +92,31 @@ export function normalizarBusca(txt) {
     .toLowerCase()
     .trim();
 }
+
+// Rótulo da taxa por família. A MESMA porcentagem significa coisas diferentes:
+// na NTN-B é real (acima do IPCA), no Prefixado é nominal cheia, e na LFT nem
+// é taxa — é o ágio/deságio sobre a Selic. Mostrar o número sem esse rótulo é
+// induzir a comparação errada.
+export const UNIDADE_TAXA = {
+  ipca: "a.a. + IPCA",
+  "ipca-juros": "a.a. + IPCA",
+  prefixado: "a.a. (nominal)",
+  "prefixado-juros": "a.a. (nominal)",
+  selic: "sobre a Selic",
+};
+
+export function unidadeTaxa(tipo) {
+  return UNIDADE_TAXA[tipo] || "a.a.";
+}
+
+// "há 2 h", "ontem", "20/08" — para manchetes.
+export function relativoBR(iso) {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return dataCurtaBR(iso);
+  const h = ms / 36e5;
+  if (h < 1) return `há ${Math.max(1, Math.round(ms / 6e4))} min`;
+  if (h < 24) return `há ${Math.round(h)} h`;
+  if (h < 48) return "ontem";
+  return dataCurtaBR(iso);
+}

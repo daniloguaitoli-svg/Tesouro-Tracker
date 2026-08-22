@@ -17,10 +17,12 @@
 import { CATALOGO, CATEGORIAS, porSlug, DESTAQUES, MACRO, rotuloGenerico } from "./catalogo.js";
 import * as cache from "./cache.js";
 import * as bcb from "./providers/bcb.js";
+import * as bcglobais from "./providers/globais.js";
+import { REGIOES, manchetes } from "./providers/noticias.js";
 import {
   calcularDuration,
   precoPor100,
-  CUPOM_SEMESTRAL_NTNB,
+  temDuration,
   anosEntre,
   diasUteisEntre,
   hojeISO,
@@ -73,14 +75,20 @@ function montarItem(slug, { comSerie = false } = {}) {
   const tipo = meta.tipo;
   const vencimento = meta.vencimento;
   const comCupom = meta.comCupom === true;
+  const cupomAnual = meta.cupomAnual ?? undefined;
   const taxa = ultimo?.taxa ?? null;
 
-  // A taxa vem em % a.a. no arquivo; a matemática do título trabalha em decimal.
-  const duration = calcularDuration({
-    vencimentoISO: vencimento,
-    comCupom,
-    taxaReal: taxa == null ? null : taxa / 100,
-  });
+  // A taxa vem em % a.a. no arquivo; a matemática do título trabalha em
+  // decimal. LFT fica sem duration de propósito (pós-fixada; a taxa cotada é
+  // ágio/deságio sobre a Selic) — null, nunca um zero com cara de análise.
+  const duration = temDuration(tipo)
+    ? calcularDuration({
+        vencimentoISO: vencimento,
+        comCupom,
+        cupomAnual,
+        taxaReal: taxa == null ? null : taxa / 100,
+      })
+    : { macaulay: null, modificada: null, convexidade: null, variacaoPor1pp: null, variacaoMenos1pp: null };
 
   const item = {
     slug,
@@ -88,6 +96,7 @@ function montarItem(slug, { comSerie = false } = {}) {
     vencimento,
     comCupom,
     nome: doCatalogo?.nome || rotuloGenerico(tipo, vencimento),
+    cupomAnual: meta.cupomAnual ?? null,
     noCatalogo: !!doCatalogo,
     destaque: doCatalogo?.destaque === true,
     periodicidade: "diaria",
@@ -116,9 +125,9 @@ function montarItem(slug, { comSerie = false } = {}) {
   // cupom de 6% comprado com deságio rende mais que 6% sobre o que se pagou —
   // é essa a taxa que responde "quanto isso me paga por ano". A conta é do
   // servidor porque exige descontar todo o fluxo; o componente só multiplica.
-  if (comCupom && taxa != null) {
-    const preco100 = precoPor100({ vencimentoISO: vencimento, comCupom: true, taxaReal: taxa / 100 });
-    const cupomAnualPor100 = 200 * CUPOM_SEMESTRAL_NTNB;
+  if (comCupom && taxa != null && meta.cupomAnual != null) {
+    const preco100 = precoPor100({ vencimentoISO: vencimento, comCupom: true, cupomAnual: meta.cupomAnual, taxaReal: taxa / 100 });
+    const cupomAnualPor100 = 200 * (Math.pow(1 + meta.cupomAnual, 1 / 2) - 1);
     item.rendaCupomAnualPct = preco100 ? (cupomAnualPor100 / preco100) * 100 : null;
   } else {
     item.rendaCupomAnualPct = null;
@@ -151,6 +160,7 @@ export async function getTitulos() {
   const categorias = CATEGORIAS.map((c) => ({
     id: c.id,
     nome: c.nome,
+    curto: c.curto,
     resumo: c.resumo,
     itens: todos.filter((t) => t.tipo === c.id),
   })).filter((c) => c.itens.length > 0);
@@ -201,12 +211,16 @@ export async function getDetalhe(slug, tf = "1A") {
     : null;
 
   // O fluxo de caixa futuro, que é o que explica a duration de um título com
-  // cupom: dá para ver o dinheiro voltando antes do vencimento.
-  const duration = calcularDuration({
-    vencimentoISO: item.vencimento,
-    comCupom: item.comCupom,
-    taxaReal: item.taxa == null ? null : item.taxa / 100,
-  });
+  // cupom: dá para ver o dinheiro voltando antes do vencimento. A LFT não tem
+  // fluxo a mostrar nessa régua — ela rende Selic diária até o resgate.
+  const duration = temDuration(item.tipo)
+    ? calcularDuration({
+        vencimentoISO: item.vencimento,
+        comCupom: item.comCupom,
+        cupomAnual: item.cupomAnual ?? undefined,
+        taxaReal: item.taxa == null ? null : item.taxa / 100,
+      })
+    : { fluxos: [] };
 
   const { serie, ...semSerie } = item;
   return {
@@ -227,50 +241,62 @@ export async function getDetalhe(slug, tf = "1A") {
 
 // ---------- /api/curva ----------
 
-// A curva de juros reais: taxa por prazo. É a leitura que a lista de títulos
-// não dá — onde o mercado está pagando mais por ano de risco de duração.
+// Curvas de juros: taxa por prazo. Duas famílias, DE PROPÓSITO em curvas
+// separadas: a curva real (IPCA+) e a nominal (Prefixado) não são comparáveis
+// ponto a ponto — a diferença entre elas é a inflação implícita. A LFT fica
+// fora das duas: o "preço" dela é um spread sobre a Selic, não um ponto de
+// curva.
+const FAMILIAS_CURVA = [
+  { id: "real", nome: "Real (IPCA+)", tipos: ["ipca", "ipca-juros"], sufixo: "a.a. + IPCA" },
+  { id: "prefixada", nome: "Prefixada (nominal)", tipos: ["prefixado", "prefixado-juros"], sufixo: "a.a." },
+];
+
 export async function getCurva() {
   const hoje = hojeISO();
-  const pontos = cache
-    .titulos()
-    .filter((t) => t.taxa != null)
-    .map((t) => {
-      const doCatalogo = porSlug[t.slug] || null;
-      return {
-        slug: t.slug,
-        tipo: t.tipo,
-        nome: doCatalogo?.nome || rotuloGenerico(t.tipo, t.vencimento),
-        vencimento: t.vencimento,
-        anos: anosEntre(hoje, t.vencimento),
-        taxa: t.taxa,
-        data: t.data,
-        destaque: doCatalogo?.destaque === true,
-      };
-    })
-    .filter((p) => p.anos > 0)
-    .sort((a, b) => a.anos - b.anos);
+  const todosVivos = cache.titulos().filter((t) => t.vencimento > hoje && t.taxa != null);
 
-  // A mesma curva no passado, para ver se ela subiu, caiu ou mudou de formato.
-  const curvaEm = (diasAtras) => {
-    const alvo = new Date(Date.now() - diasAtras * 864e5).toISOString().slice(0, 10);
-    return pontos
-      .map((p) => {
-        const serie = cache.serieDe(p.slug).filter((x) => x.date <= alvo);
-        const ult = serie[serie.length - 1];
-        return ult?.taxa == null ? null : { anos: anosEntre(alvo, p.vencimento), taxa: ult.taxa, slug: p.slug };
+  const montarCurva = (tipos) => {
+    const pontos = todosVivos
+      .filter((t) => tipos.includes(t.tipo))
+      .map((t) => {
+        const doCatalogo = porSlug[t.slug] || null;
+        return {
+          slug: t.slug,
+          tipo: t.tipo,
+          nome: doCatalogo?.nome || rotuloGenerico(t.tipo, t.vencimento),
+          vencimento: t.vencimento,
+          anos: anosEntre(hoje, t.vencimento),
+          taxa: t.taxa,
+          data: t.data,
+          destaque: doCatalogo?.destaque === true,
+        };
       })
-      .filter(Boolean)
       .filter((p) => p.anos > 0)
       .sort((a, b) => a.anos - b.anos);
+
+    const curvaEm = (diasAtras) => {
+      const alvo = new Date(Date.now() - diasAtras * 864e5).toISOString().slice(0, 10);
+      return pontos
+        .map((p) => {
+          const serie = cache.serieDe(p.slug).filter((x) => x.date <= alvo);
+          const ult = serie[serie.length - 1];
+          return ult?.taxa == null ? null : { anos: anosEntre(alvo, p.vencimento), taxa: ult.taxa, slug: p.slug };
+        })
+        .filter(Boolean)
+        .filter((p) => p.anos > 0)
+        .sort((a, b) => a.anos - b.anos);
+    };
+
+    return { agora: pontos, umMesAtras: curvaEm(30), umAnoAtras: curvaEm(365) };
   };
+
+  const curvas = FAMILIAS_CURVA.map((f) => ({ id: f.id, nome: f.nome, sufixo: f.sufixo, ...montarCurva(f.tipos) }));
 
   return {
     fetchedAt: new Date().toISOString(),
     atualizadoEm: cache.historico().atualizadoEm,
-    pendente: pontos.length === 0,
-    agora: pontos,
-    umMesAtras: curvaEm(30),
-    umAnoAtras: curvaEm(365),
+    pendente: curvas.every((c) => c.agora.length === 0),
+    curvas,
     aviso: AVISO,
   };
 }
@@ -304,6 +330,64 @@ export async function getMacro() {
     if (meta.id === "ipca") {
       saida.indicadores.ipca.acumulado12m = bcb.acumular(dado.pontos, 12);
     }
+    // A última decisão do Copom mora dentro da própria série da meta: o dia em
+    // que o valor mudou. É data de VIGÊNCIA, não da reunião — a UI diz isso.
+    if (meta.id === "selic") {
+      saida.indicadores.selic.decisao = bcglobais.ultimaDecisao(dado.pontos);
+    }
   }
   return saida;
+}
+
+// ---------- /api/mercado ----------
+
+// O quadro de juros e câmbio: as três decisões de política monetária (Copom ao
+// vivo pelo BCB; Fed e BCE do arquivo versionado dados/global.json, coletado
+// duas vezes ao dia), o câmbio PTAX e o par CDI × Selic.
+export async function getMercado() {
+  const macro = await getMacro().catch(() => ({ indicadores: {} }));
+  const ind = macro.indicadores || {};
+  const g = cache.globais();
+
+  const copom = ind.selic
+    ? {
+        nome: "Copom (Banco Central do Brasil)",
+        indicador: "Meta da Selic",
+        taxa: ind.selic.valor,
+        vigenteDesde: ind.selic.decisao?.vigenteDesde ?? null,
+        variacaoPP: ind.selic.decisao?.variacaoPP ?? null,
+        data: ind.selic.data,
+        fonte: "BCB / SGS (série 432)",
+      }
+    : null;
+
+  return {
+    fetchedAt: new Date().toISOString(),
+    decisoes: { copom, fed: g.fed, bce: g.bce },
+    globaisAtualizadosEm: g.atualizadoEm,
+    cambio: { usd: ind.usdbrl ?? null, eur: ind.eurbrl ?? null },
+    juros: { cdi: ind.cdi ?? null, selic: ind.selic ?? null },
+    aviso: AVISO,
+  };
+}
+
+// ---------- /api/noticias ----------
+
+// Manchetes por região, melhor esforço: cada região é independente e uma fora
+// do ar não derruba as outras. Manchete é contexto, não dado de decisão.
+export async function getNoticias() {
+  const resultados = await Promise.allSettled(REGIOES.map((r) => manchetes(r)));
+  const regioes = REGIOES.map((r, i) => ({
+    id: r.id,
+    nome: r.nome,
+    itens: resultados[i].status === "fulfilled" ? resultados[i].value : [],
+    erro: resultados[i].status === "rejected" ? String(resultados[i].reason?.message || resultados[i].reason) : null,
+  }));
+  return {
+    fetchedAt: new Date().toISOString(),
+    regioes,
+    pendente: regioes.every((x) => x.itens.length === 0),
+    fonte: "Manchetes via RSS do Google News; cada link leva à fonte original.",
+    aviso: AVISO,
+  };
 }

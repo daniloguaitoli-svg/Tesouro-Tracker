@@ -21,18 +21,47 @@ export const CATEGORIAS = [
   {
     id: "ipca",
     nome: "Tesouro IPCA+ (sem cupom)",
+    curto: "IPCA+",
     resumo:
-      "Zero-cupom: um único pagamento no vencimento. A duration é igual ao prazo, então é o formato mais sensível a juros — e o mais previsível se levado até o fim.",
+      "Zero-cupom indexado ao IPCA: um único pagamento no vencimento. A duration é igual ao prazo, então é o formato mais sensível a juros — e o mais previsível se levado até o fim.",
   },
   {
     id: "ipca-juros",
     nome: "Tesouro IPCA+ com Juros Semestrais",
+    curto: "IPCA+ juros",
     resumo:
       "Paga cupom de 6% a.a. em duas parcelas por ano (15/02 e 15/08, ou 15/05 e 15/11, conforme o vencimento). Como parte do dinheiro volta antes, a duration é bem menor que o prazo.",
+  },
+  {
+    id: "prefixado",
+    nome: "Tesouro Prefixado (LTN)",
+    curto: "Prefixado",
+    resumo:
+      "Zero-cupom NOMINAL: a taxa é cheia, sem correção pela inflação. Rende exatamente a taxa contratada se levado ao vencimento — em reais nominais; a inflação do período corre por conta do investidor.",
+  },
+  {
+    id: "prefixado-juros",
+    nome: "Tesouro Prefixado com Juros Semestrais (NTN-F)",
+    curto: "Prefixado juros",
+    resumo:
+      "Prefixado que paga cupom de 10% a.a. em duas parcelas por ano (01/01 e 01/07). Taxa nominal; o cupom alto encurta bastante a duration em relação ao prazo.",
+  },
+  {
+    id: "selic",
+    nome: "Tesouro Selic (LFT)",
+    curto: "Selic",
+    resumo:
+      "Pós-fixado: acompanha a Selic diária. A \"taxa\" cotada é um pequeno ágio ou deságio sobre a Selic, não uma taxa cheia — e a sensibilidade a juros de mercado é praticamente nula, por isso não há duration aqui.",
   },
 ];
 
 // `vencimento` em ISO; `destaque` marca as posições acompanhadas de perto.
+//
+// As famílias Prefixado (LTN/NTN-F) e Selic (LFT) NÃO têm entradas aqui de
+// propósito: a lista de vencimentos delas não pôde ser observada no ambiente
+// desta mudança, e o catálogo não inventa. A descoberta do coletor cobre tudo
+// (aparecem com o rótulo genérico, que já é bom); quando o log da coleta
+// listar os vencimentos reais, aí sim se acrescentam entradas — sourced.
 //
 // ESTA LISTA É SOURCED, NÃO CHUTADA: são exatamente os vencimentos IPCA+ vivos
 // no arquivo do Tesouro Transparente lido em 21/08/2026. Não invente entradas
@@ -65,7 +94,20 @@ export const CATALOGO_EM = "2026-08-21";
 
 const rotulo = (tipo, vencimento) => {
   const ano = String(vencimento).slice(0, 4);
-  return tipo === "ipca-juros" ? `Tesouro IPCA+ ${ano} (juros semestrais)` : `Tesouro IPCA+ ${ano}`;
+  switch (tipo) {
+    case "ipca-juros":
+      return `Tesouro IPCA+ ${ano} (juros semestrais)`;
+    case "ipca":
+      return `Tesouro IPCA+ ${ano}`;
+    case "prefixado-juros":
+      return `Tesouro Prefixado ${ano} (juros semestrais)`;
+    case "prefixado":
+      return `Tesouro Prefixado ${ano}`;
+    case "selic":
+      return `Tesouro Selic ${ano}`;
+    default:
+      return `Tesouro ${ano}`;
+  }
 };
 
 export const CATALOGO = ENTRADAS.map((e) => ({
@@ -96,6 +138,7 @@ export function rotuloGenerico(tipo, vencimentoISO) {
 export const MACRO = [
   { id: "ipca", serie: 433, nome: "IPCA", descricao: "Variação mensal do IPCA (IBGE), série 433 do SGS.", unidade: "%_MES", periodicidade: "mensal" },
   { id: "selic", serie: 432, nome: "Selic meta", descricao: "Meta da taxa Selic definida pelo Copom, série 432 do SGS.", unidade: "%_ANO", periodicidade: "diaria" },
+  { id: "cdi", serie: 4389, nome: "CDI", descricao: "Taxa DI anualizada (base 252), série 4389 do SGS.", unidade: "%_ANO", periodicidade: "diaria" },
   { id: "usdbrl", serie: 1, nome: "USD/BRL", descricao: "Dólar PTAX (venda), série 1 do SGS.", unidade: "BRL", periodicidade: "diaria" },
   { id: "eurbrl", serie: 21619, nome: "EUR/BRL", descricao: "Euro PTAX (venda), série 21619 do SGS.", unidade: "BRL", periodicidade: "diaria" },
 ];

@@ -10,5 +10,7 @@ async function getJSON(url) {
 export const getTitulos = () => getJSON("/api/titulos");
 export const getCurva = () => getJSON("/api/curva");
 export const getMacro = () => getJSON("/api/macro");
+export const getMercado = () => getJSON("/api/mercado");
+export const getNoticias = () => getJSON("/api/noticias");
 export const getDetalhe = (slug, tf = "1A") =>
   getJSON(`/api/detalhe?slug=${encodeURIComponent(slug)}&tf=${encodeURIComponent(tf)}`);

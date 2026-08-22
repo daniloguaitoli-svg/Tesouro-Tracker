@@ -3,10 +3,12 @@
 Acompanha títulos do **Tesouro Direto** a partir de fontes públicas e gratuitas.
 PWA em React + Vite, instalável no celular, usável em qualquer navegador.
 
-**Escopo de hoje: NTN-B (Tesouro IPCA+)** — taxa real, preço unitário e
-**duration** por vencimento, a curva de juros reais e a moldura macro. O nome é
-guarda-chuva de propósito: o Prefixado (LTN/NTN-F) e o Selic (LFT) cabem na
-mesma arquitetura sem reescrita — veja [Ampliando o escopo](#ampliando-o-escopo).
+**Escopo: as três famílias clássicas do Tesouro Direto** — Tesouro IPCA+
+(NTN-B, com e sem cupom), Tesouro Prefixado (LTN e NTN-F) e Tesouro Selic
+(LFT) — com taxa, preço unitário e **duration** por vencimento, as curvas de
+juros (real e nominal), as decisões de política monetária do Copom, do Fed e do
+BCE, câmbio PTAX, CDI × Selic e manchetes de mercado por região.
+(Tesouro RendA+ e Educa+ ficam fora: amortização mensal pede outra régua.)
 
 Irmão do ETF Tracker, do Cana & Etanol Tracker, do Soja Tracker e do Café
 Tracker — mesma arquitetura, mesma disciplina de fontes.
@@ -26,9 +28,15 @@ pequenos, versionados neste repositório**:
 
 | Arquivo | Para quê |
 |---|---|
-| [`dados/ntnb.json`](dados/ntnb.json) | retrato do dia, com duration — consumo por máquina |
+| [`dados/ntnb.json`](dados/ntnb.json) | NTN-B: retrato do dia com duration — consumo por máquina |
 | [`dados/ntnb.md`](dados/ntnb.md) | o mesmo retrato em tabela — leitura humana |
-| [`dados/historico.json`](dados/historico.json) | a série diária por vencimento — o que o app usa |
+| [`dados/prefixado.json`](dados/prefixado.json) | LTN e NTN-F: taxas **nominais**, com duration |
+| [`dados/selic.json`](dados/selic.json) | LFT: ágio/deságio sobre a Selic (sem duration, por construção) |
+| [`dados/global.json`](dados/global.json) | Fed e BCE: taxa vigente e última decisão |
+| [`dados/historico.json`](dados/historico.json) | a série diária por vencimento, todas as famílias — o que o app usa |
+
+O `ntnb.json` mantém o formato de sempre: cada família nova ganhou um arquivo
+**irmão**, nunca uma mudança no que já era consumido.
 
 Como o repositório é público, eles ficam legíveis **sem token nenhum**:
 
@@ -74,8 +82,11 @@ não uma tela. As taxas são **reais** (ao ano, acima do IPCA).
 | Fonte | O que dá | Como |
 |---|---|---|
 | **Tesouro Transparente** | preço e taxa de compra e venda, por título e por dia, desde 2002 | CSV público, sem chave — lido pelo job agendado |
+| **Banco Central (SGS)** | IPCA, Selic meta, CDI, PTAX USD e EUR — e a última decisão do Copom, derivada da série da meta | API pública, sem chave |
+| **FRED (St. Louis Fed)** | meta dos Fed Funds (teto e piso) e a data de vigência da última decisão | CSV público `fredgraph.csv`, sem chave — lido pelo job agendado |
+| **ECB Data Portal** | taxas de depósito e de refinanciamento do BCE | API pública em CSV, sem chave — lido pelo job agendado |
+| **Google News (RSS)** | manchetes de mercado (Brasil, EUA, Europa), com link para a fonte original | RSS público, sem chave — melhor esforço |
 | **ANBIMA** (mercado secundário) | taxa indicativa e bid/ask do secundário | arquivo diário público — enriquecimento, nunca requisito |
-| **Banco Central (SGS)** | IPCA, Selic meta, PTAX USD e EUR | API pública, sem chave |
 
 **Nenhuma chave de API é necessária.** Todas as fontes são gratuitas e abertas.
 
@@ -175,29 +186,19 @@ com o formato real das fontes antes de o código chegar ao `main`.
 
 ## Ampliando o escopo
 
-O repositório já está montado para crescer, e o caminho é curto porque nada
-depende de "ser NTN-B":
+A ampliação para Prefixado e Selic seguiu os seams descritos desde o primeiro
+commit — `classificarTitulo()` em `server/util.js` é o único lugar que conhece
+os nomes das famílias, os slugs são prefixados por tipo, o catálogo só rotula e
+os arquivos-ponte crescem por irmãos. Se um dia entrar outra família:
 
-1. **`server/util.js` → `classificarTitulo()`** — hoje devolve `null` para tudo
-   que não é IPCA+. Ensine-a a reconhecer "Tesouro Prefixado" (LTN),
-   "Tesouro Prefixado com Juros Semestrais" (NTN-F) e "Tesouro Selic" (LFT),
-   devolvendo novos `tipo`s. Os slugs já são prefixados por tipo
-   (`ipca-`, `ipca-juros-`), então `prefixado-2031-01-01` entra sem colisão e
-   sem quebrar histórico.
-2. **`server/catalogo.js` → `CATEGORIAS`** — uma entrada por família nova. A
-   lista de vencimentos continua sendo *descoberta* do arquivo; o catálogo só
-   rotula.
-3. **A matemática** — LTN e NTN-F são as mesmas contas com outro fluxo (a LTN é
-   zero-cupom com valor de face 1.000; a NTN-F paga cupom de 10% a.a.). A LFT é
-   diferente e merece tratamento próprio: é pós-fixada, com duration
-   efetivamente nula, e a "taxa" é ágio/deságio sobre a Selic — **não** taxa
-   real. Não force a régua da NTN-B nela.
-4. **Os arquivos-ponte** — `dados/ntnb.json` fica como está. Uma família nova
-   ganha um arquivo irmão (`dados/prefixado.json`, `dados/selic.json`), para que
-   quem já consome a URL da NTN-B não seja quebrado por uma mudança de formato.
+1. ensine `classificarTitulo()` a reconhecê-la (e decida se ela tem duration);
+2. acrescente a categoria em `server/catalogo.js`;
+3. dê a ela um arquivo-ponte irmão no coletor — nunca mude o formato de um
+   arquivo que alguém já consome.
 
-O coletor, o parser tolerante, o cache versionado, a moldura macro e as telas
-não precisam mudar de forma para nada disso.
+RendA+ e Educa+ continuam fora **de propósito**: são títulos com amortização
+mensal, e mostrá-los na régua de duration destes seria régua errada com cara de
+análise.
 
 ## Ressalvas honestas
 
@@ -231,5 +232,17 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   produz números absurdos (a coleta real trouxe uma NTN-B 2026 a 13,32% e uma
   2019 a −0,94%). Num arquivo que outra ferramenta lê como verdade, isso é pior
   do que ausência.
+
+- **Prefixado é nominal.** As taxas de LTN/NTN-F são cheias, sem correção pela
+  inflação — não compare com as taxas reais das NTN-B; a diferença entre as
+  duas curvas é a inflação implícita.
+- **LFT não tem duration** por construção: é pós-fixada e a "taxa" cotada é
+  ágio/deságio sobre a Selic (pode ser negativa).
+- **"Vigente desde", não "decidido em".** As datas de Copom/Fed/BCE são o dia
+  em que a taxa nova passou a valer, derivado das séries — não a data da
+  reunião.
+- **Manchetes são contexto, não dado.** Vêm por RSS (Google News), a seleção é
+  do agregador, cada link leva à fonte original, e uma região fora do ar
+  simplesmente aparece vazia.
 
 **Uso informativo. Não é recomendação de investimento.**

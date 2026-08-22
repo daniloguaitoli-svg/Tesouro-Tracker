@@ -19,10 +19,14 @@
 
 // ---------- Constantes do título ----------
 
-// Cupom da NTN-B: 6% ao ano pagos semestralmente. A parcela do semestre é a
-// taxa equivalente composta — (1,06)^(1/2) − 1 ≈ 2,9563% —, não 3%.
+// Cupons dos títulos com juros semestrais. A parcela do semestre é a taxa
+// equivalente composta — (1+c)^(1/2) − 1 —, não c/2:
+//   NTN-B  paga 6% a.a.  -> 2,9563% por semestre
+//   NTN-F  paga 10% a.a. -> 4,8809% por semestre
 export const CUPOM_ANUAL_NTNB = 0.06;
 export const CUPOM_SEMESTRAL_NTNB = Math.pow(1 + CUPOM_ANUAL_NTNB, 1 / 2) - 1;
+export const CUPOM_ANUAL_NTNF = 0.10;
+export const CUPOM_SEMESTRAL_NTNF = Math.pow(1 + CUPOM_ANUAL_NTNF, 1 / 2) - 1;
 
 // Convenção de contagem de tempo. A ANBIMA precifica NTN-B em dias úteis/252;
 // aqui usamos dias corridos/365 porque não temos calendário de feriados no
@@ -117,13 +121,41 @@ export function diasUteisEntre(isoInicio, isoFim) {
 // ---------- Identificação do título ----------
 
 // O arquivo do Tesouro nomeia os títulos por extenso ("Tesouro IPCA+ com Juros
-// Semestrais"); os arquivos da ANBIMA usam a sigla ("NTN-B" e "NTN-B Principal").
-// Esta função aceita as duas grafias e devolve o par (tipo, tem cupom?).
+// Semestrais"); os arquivos da ANBIMA usam a sigla (NTN-B, LTN, NTN-F, LFT).
+// Esta função aceita as duas grafias e devolve tipo, cupom e indexador.
+//
+// Famílias reconhecidas:
+//   ipca / ipca-juros            NTN-B Principal / NTN-B      (real, sobre IPCA)
+//   prefixado / prefixado-juros  LTN / NTN-F                  (nominal)
+//   selic                        LFT                          (pós-fixado; a "taxa"
+//                                é ágio/deságio sobre a Selic, NÃO uma taxa cheia)
+//
+// Tesouro RendA+ e Educa+ ficam DE FORA de propósito: são séries com
+// amortização mensal, cuja matemática (e leitura) não é a destes títulos.
+// Melhor ausentes do que mostrados com régua errada.
 export function classificarTitulo(nome) {
   const n = normalizar(nome);
-  if (!/ipca|ntn-?b/.test(n)) return null;
-  const comCupom = /juros semestrais/.test(n) || (/ntn-?b/.test(n) && !/principal/.test(n));
-  return { comCupom, tipo: comCupom ? "ipca-juros" : "ipca" };
+  if (/renda\+|educa\+/.test(n)) return null;
+  if (/ipca|ntn-?b/.test(n)) {
+    const comCupom = /juros semestrais/.test(n) || (/ntn-?b/.test(n) && !/principal/.test(n));
+    return { tipo: comCupom ? "ipca-juros" : "ipca", comCupom, cupomAnual: comCupom ? CUPOM_ANUAL_NTNB : null };
+  }
+  if (/prefixado|ntn-?f|\bltn\b/.test(n)) {
+    const comCupom = /juros semestrais/.test(n) || /ntn-?f/.test(n);
+    return { tipo: comCupom ? "prefixado-juros" : "prefixado", comCupom, cupomAnual: comCupom ? CUPOM_ANUAL_NTNF : null };
+  }
+  if (/tesouro selic|\blft\b/.test(n)) {
+    return { tipo: "selic", comCupom: false, cupomAnual: null };
+  }
+  return null;
+}
+
+// A LFT não entra na matemática de duration: é pós-fixada (acompanha a Selic
+// diária), então o preço quase não reage a juros de mercado — a "taxa" dela é
+// um pequeno ágio/deságio. Duration null é a resposta honesta, não zero "de
+// mentirinha" calculado sobre o spread.
+export function temDuration(tipo) {
+  return tipo !== "selic";
 }
 
 // Slug estável usado nas rotas /api, no cache e no histórico.
@@ -140,7 +172,7 @@ export function slugDe(tipo, vencimentoISO) {
 // Os cupons caem de 6 em 6 meses contados de trás para frente, a partir do
 // vencimento — que é o que produz as datas reais da NTN-B (15/02 e 15/08 para
 // vencimentos de agosto; 15/05 e 15/11 para os de maio).
-export function fluxosNTNB({ vencimentoISO, comCupom, hojeISO: hoje = hojeISO() }) {
+export function fluxosNTNB({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_NTNB, hojeISO: hoje = hojeISO() }) {
   const anosAteVencer = anosEntre(hoje, vencimentoISO);
   if (!(anosAteVencer > 0)) return [];
 
@@ -148,7 +180,8 @@ export function fluxosNTNB({ vencimentoISO, comCupom, hojeISO: hoje = hojeISO() 
     return [{ dataISO: vencimentoISO, anos: anosAteVencer, valor: 100 }];
   }
 
-  const cupom = 100 * CUPOM_SEMESTRAL_NTNB;
+  // Semestral composto do cupom anual do título (6% NTN-B, 10% NTN-F).
+  const cupom = 100 * (Math.pow(1 + cupomAnual, 1 / 2) - 1);
   const fluxos = [];
   let d = dataDeISO(vencimentoISO);
   const limite = dataDeISO(hoje);
@@ -176,11 +209,11 @@ export function fluxosNTNB({ vencimentoISO, comCupom, hojeISO: hoje = hojeISO() 
 // `variacaoPor1pp` traduz isso para a pergunta prática: quanto o preço cai (ou
 // sobe) hoje se a taxa real subir (ou cair) 1 ponto percentual — já com o termo
 // de convexidade, que é o que torna a subida e a descida assimétricas.
-export function calcularDuration({ vencimentoISO, comCupom, taxaReal, hojeISO: hoje = hojeISO() }) {
+export function calcularDuration({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_NTNB, taxaReal, hojeISO: hoje = hojeISO() }) {
   const vazio = { macaulay: null, modificada: null, convexidade: null, variacaoPor1pp: null, variacaoMenos1pp: null };
   if (taxaReal == null || !Number.isFinite(taxaReal) || taxaReal <= -1) return vazio;
 
-  const fluxos = fluxosNTNB({ vencimentoISO, comCupom, hojeISO: hoje });
+  const fluxos = fluxosNTNB({ vencimentoISO, comCupom, cupomAnual, hojeISO: hoje });
   if (!fluxos.length) return vazio;
 
   const y = taxaReal;
@@ -214,9 +247,9 @@ export function calcularDuration({ vencimentoISO, comCupom, taxaReal, hojeISO: h
 
 // Preço teórico por 100 de VNA, dada a taxa real. Usado para conferir a ordem
 // de grandeza do PU do arquivo e para a calculadora "e se a taxa fosse X?".
-export function precoPor100({ vencimentoISO, comCupom, taxaReal, hojeISO: hoje = hojeISO() }) {
+export function precoPor100({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_NTNB, taxaReal, hojeISO: hoje = hojeISO() }) {
   if (taxaReal == null || !Number.isFinite(taxaReal)) return null;
-  const fluxos = fluxosNTNB({ vencimentoISO, comCupom, hojeISO: hoje });
+  const fluxos = fluxosNTNB({ vencimentoISO, comCupom, cupomAnual, hojeISO: hoje });
   if (!fluxos.length) return null;
   return fluxos.reduce((s, f) => s + f.valor / Math.pow(1 + taxaReal, f.anos), 0);
 }

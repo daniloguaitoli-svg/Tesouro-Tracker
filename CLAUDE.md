@@ -6,11 +6,12 @@ Guidance for AI assistants working in this repository.
 
 A React + Vite PWA that tracks Brazilian government bonds (Tesouro Direto).
 
-**Current scope: NTN-B / Tesouro IPCA+** — real yield, unit price (PU) and
-**duration** per maturity, the real yield curve, and the macro frame (IPCA,
-Selic, PTAX). The repo name is an umbrella on purpose: the owner intends to
-widen it to Prefixado (LTN/NTN-F) and Selic (LFT). See **Widening the scope**
-below before you start — the seams already exist, so don't restructure.
+**Scope: the three classic Tesouro Direto families** — IPCA+ (NTN-B, both
+kinds), Prefixado (LTN/NTN-F) and Selic (LFT) — plus monetary-policy decisions
+(Copom, Fed, ECB), PTAX FX, CDI × Selic and market headlines by region.
+RendA+/Educa+ are excluded on purpose (monthly amortisation needs a different
+ruler). See **Family semantics** below — the three families do NOT share rate
+semantics, and mixing them up is the main way to break this app.
 
 It mirrors the architecture of the sibling ETF / Cana / Soja / Café trackers.
 Deployed on Vercel; pushes to `main` auto-deploy.
@@ -28,10 +29,16 @@ Beyond being an app, this repo is a **data bridge**. A scheduled Action reads
 the Tesouro Direto CSV (tens of MB) and commits three small files:
 
 ```
-dados/ntnb.json       today's snapshot with duration — machine-readable
+dados/ntnb.json       NTN-B snapshot with duration — machine-readable (frozen shape)
 dados/ntnb.md         the same as a table — human-readable
-dados/historico.json  the daily series per maturity — what the app reads
+dados/prefixado.json  LTN + NTN-F snapshot — NOMINAL rates
+dados/selic.json      LFT snapshot — spread over Selic, duration null
+dados/global.json     Fed + ECB policy rates, last decision (collector-written)
+dados/historico.json  the daily series per maturity, all families — what the app reads
 ```
+
+`ntnb.json` keeps its original shape forever; each family got a **sibling**
+file. Never widen an existing bridge file's meaning — add a sibling.
 
 Because the repo is **public**, these are readable via
 `raw.githubusercontent.com` with no token. That is deliberate and load-bearing:
@@ -106,8 +113,10 @@ server/
   providers/
     tesouro.js        Tesouro Transparente CSV — streaming, header-driven (collector only)
     anbima.js         free secondary-market file — enrichment, defensive
-    bcb.js            IPCA, Selic, PTAX via SGS
-api/                  Vercel functions: titulos, detalhe, curva, macro
+    bcb.js            IPCA, Selic, CDI, PTAX via SGS
+    globais.js        Fed (FRED csv) + ECB (Data Portal csv) — collector only
+    noticias.js       Google News RSS per region — request-time, best-effort
+api/                  Vercel functions: titulos, detalhe, curva, macro, mercado, noticias
 dados/                the committed data (bot-owned) — see "the bridge" above
 .github/
   workflows/coletar-tesouro.yml   scheduled collection + dry-run on claude/** push
@@ -116,8 +125,9 @@ dados/                the committed data (bot-owned) — see "the bridge" above
 scripts/verificar.mjs
 ```
 
-The five tabs in `App.jsx` are `Painel · Títulos · Curva · Calculadora ·
-Alertas`, and `Detalhe` replaces the whole frame when a slug is selected.
+The seven tabs in `App.jsx` are `Painel · Títulos · Curva · Mercado ·
+Calculadora · Notícias · Alertas`, and `Detalhe` replaces the whole frame when
+a slug is selected.
 `App.jsx` loads `getTitulos()` **once** and passes `dados` down to Painel /
 Títulos / Calculadora / Alertas; `Curva` and `Detalhe` fetch their own
 endpoints. So a new field on the `getTitulos` payload reaches four screens for
@@ -130,8 +140,10 @@ The UI never fetches a source directly. `src/api.js` exposes four calls:
 ```
 getTitulos()         -> { categorias, destaques, macro, desatualizados, pendente, aviso }
 getDetalhe(slug, tf) -> { item, pontos, estatisticas, fluxos, notaHistorico }
-getCurva()           -> { agora, umMesAtras, umAnoAtras }
-getMacro()           -> IPCA / Selic / PTAX do BCB
+getCurva()           -> { curvas: [real, prefixada], ... }  (LFT fica fora das duas)
+getMacro()           -> IPCA / Selic / CDI / PTAX do BCB (+ decisão do Copom)
+getMercado()         -> decisões Copom/Fed/BCE + câmbio + CDI × Selic
+getNoticias()        -> manchetes por região (best-effort)
 ```
 
 Each maps to same-origin `/api/*`, served **twice from the same module**:
@@ -247,41 +259,61 @@ changed in both places**:
 | Value | Server | Client |
 |---|---|---|
 | `CUPOM_SEMESTRAL_NTNB` | `server/util.js` | `src/components/Calculadora.jsx` |
+| `CUPOM_SEMESTRAL_NTNF` | `server/util.js` | `src/components/Calculadora.jsx` |
 | periodicity labels | `ROTULO_PERIODICIDADE` in `server/util.js` | `PERIODICIDADE` in `src/format.js` |
 
 `verificar.mjs` compares both sides.
 
-## Widening the scope
+## Family semantics (the thing that breaks if you're careless)
 
-The owner named the repo `Tesouro-Tracker` (not `ntnb-tracker`) specifically to
-add other Tesouro Direto families later. The architecture already anticipates
-it — **extend, don't restructure**:
+The same number means three different things across families:
 
-1. **`server/util.js` → `classificarTitulo()`** returns `null` for anything that
-   isn't IPCA+. Teach it "Tesouro Prefixado" (LTN), "Tesouro Prefixado com Juros
-   Semestrais" (NTN-F) and "Tesouro Selic" (LFT), returning new `tipo`s. Slugs
-   are already tipo-prefixed, so `prefixado-2031-01-01` slots in without
-   colliding and without orphaning existing history.
-2. **`server/catalogo.js` → `CATEGORIAS`** gains one entry per family. Maturities
-   stay *discovered* from the file; the catalogue only labels.
-3. **The maths.** LTN and NTN-F are the same discounting with a different
-   cashflow (LTN is zero-coupon on a face of 1,000; NTN-F pays a 10% a.a.
-   coupon). Generalise `fluxosNTNB()` rather than copying it — but **LFT is a
-   different instrument**: post-fixed, duration effectively zero, and its
-   "taxa" is a spread over Selic, **not** a real rate. Do not force the NTN-B
-   ruler onto it, and do not display it in the real-yield curve.
-4. **Bridge files.** `dados/ntnb.json` keeps its name and shape — an external
-   consumer already reads that URL. A new family gets a sibling file
-   (`dados/prefixado.json`), never a breaking change to this one.
-5. **The `taxa` label is real-yield-specific.** `src/format.js` `taxa()` and the
-   copy around it say "acima do IPCA". That is correct for NTN-B and wrong for
-   everything else — make the label follow the family before shipping a second
-   one.
+| Family | `taxa` means | duration |
+|---|---|---|
+| ipca / ipca-juros | **real** % a.a. above IPCA | yes (coupon 6%) |
+| prefixado / prefixado-juros | **nominal** % a.a., inflation not deducted | yes (coupon 10%) |
+| selic | **spread** over Selic (ágio/deságio, can be negative) | **null by design** |
 
-The collector, the tolerant parser, the versioned cache, the macro frame and the
-screens need no structural change for any of this.
+Everything downstream keys off this:
 
-## Conventions
+- `classificarTitulo()` in `server/util.js` is the single authority on family
+  names (both long forms and ANBIMA acronyms) and carries `cupomAnual`.
+  RendA+/Educa+ return `null` on purpose.
+- `temDuration(tipo)` gates every duration computation. Do not "fix" the LFT by
+  computing duration on its spread — a number with the look of analysis and the
+  value of none.
+- `unidadeTaxa(tipo)` in `src/format.js` is the display-side label. Never show
+  a rate without it: an 8% real and a 13% nominal are not comparable, and the
+  two yield curves are kept separate for the same reason (their gap is implied
+  inflation).
+- The Calculadora excludes LFT, and its terminal-value copy switches between
+  "a preços de hoje" (IPCA+) and "reais nominais" (prefixado) — that switch is
+  load-bearing honesty, not styling.
+
+To add another family: teach `classificarTitulo()`, add the category in
+`catalogo.js`, give it a sibling bridge file in the collector. Never reshape an
+existing bridge file.
+
+## Fed / ECB / news (the non-Tesouro sources)
+
+- **Fed**: FRED's public `fredgraph.csv` (DFEDTARU/DFEDTARL) — key-less; the
+  real FRED API needs a key, this endpoint doesn't. **ECB**: ECB Data Portal
+  `csvdata` (DFR + MRR), key-less. Both are read by the **collector** (policy
+  changes ~8×/year; twice daily is plenty) into `dados/global.json`, with
+  keep-previous-on-failure per source — same contract as the CEPEA cache in
+  Cana-Tracker. The Copom decision is derived live from SGS 432.
+- "Decision dates" are **effective dates** derived from the series (the day the
+  value changed), not meeting dates. The UI says "vigente desde" — keep it that
+  way.
+- **News**: Google News RSS per region, regex-parsed (house rule: no deps),
+  request-time with a 20-min in-process cache, best-effort via `allSettled` —
+  one dead region never blanks the others. Headlines are context, not data: the
+  screen links to original sources and says the selection is the aggregator's.
+  The collector **probes** the feeds on every run and logs the result — that log
+  is the only place with open network where the RSS parser can be checked
+  against the real feed.
+
+## Conventions## Conventions
 
 - **Portuguese everywhere** — identifiers (`carregar`, `pontos`,
   `desatualizado`, `vivo`), UI copy, and comments. Don't mix in English names.
