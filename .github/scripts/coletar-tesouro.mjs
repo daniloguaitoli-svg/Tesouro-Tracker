@@ -37,6 +37,7 @@ import { montarTitulos, montarPonte, montarHistorico, markdownDaPonte, filtrarFa
 import { lerGlobais } from "../../server/providers/globais.js";
 import { REGIOES, manchetes } from "../../server/providers/noticias.js";
 import { ibovespa } from "../../server/providers/yahoo.js";
+import { variacaoPeriodo } from "../../server/util.js";
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DIR = join(RAIZ, "dados");
