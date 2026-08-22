@@ -68,6 +68,14 @@ Its `acompanhados` list is the **catalogue** `destaque` set, not the user's
 stars — those live in `localStorage` and the server cannot know them. The file
 says so in `sobreAcompanhados`; keep that honest if you change the shape.
 
+The catalogue's `destaque` flags are therefore a **hand-kept copy** of what the
+owner actually stars on their phone, last reconciled on 2026-08-22 against a
+screenshot of the Painel: IPCA+ 2032 and IPCA+ 2035 (both zero-coupon),
+Prefixado 2029 (LTN) and Selic 2031. If the user says their selection changed,
+update `ENTRADAS` — otherwise the bridge quietly tells the assistant a different
+story from the one on screen. Don't pin a check to a specific starred slug;
+`verificar.mjs` asserts the relationship, not the membership, for this reason.
+
 Never hand-edit `dados/` — the bot owns it. Expect frequent
 `github-actions[bot]` commits titled "Dados: coleta automatica das NTN-B".
 
