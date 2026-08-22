@@ -171,6 +171,16 @@ for (const e of lidos.erros) console.log(`globais FALHA ${e} — mantido o valor
 try {
   const ib = await ibovespa();
   console.log(`\nIbovespa: ${ib.valor.toLocaleString("pt-BR")} pts em ${ib.data} (${ib.changePct >= 0 ? "+" : ""}${ib.changePct.toFixed(2)}%)`);
+  // O que de fato precisa ser conferido aqui: se a série alcança 12 meses. É a
+  // única parte que não dá para verificar sem rede — e é o número em destaque
+  // do cartão. Se sair "—", o range do Yahoo encolheu.
+  const v12 = variacaoPeriodo(ib.pontos, 365);
+  const v1s = variacaoPeriodo(ib.pontos, 7);
+  console.log(`  série: ${ib.pontos.length} pontos, de ${ib.pontos[0].date} a ${ib.pontos.at(-1).date}`);
+  console.log(
+    `  12 meses: ${v12 ? `${v12.pct.toFixed(2)}% (desde ${v12.de})` : "— (SÉRIE CURTA: confira o range do Yahoo)"}` +
+      ` · 1 semana: ${v1s ? `${v1s.pct.toFixed(2)}% (desde ${v1s.de})` : "—"}`
+  );
 } catch (e) {
   console.log(`\nIbovespa: FALHA ${e.message} — o cartão da moldura mostrará "—"`);
 }
