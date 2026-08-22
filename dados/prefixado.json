@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-08-22T19:37:55.637Z",
+ "atualizadoEm": "2026-08-22T19:48:54.060Z",
  "nota": "Taxas NOMINAIS (a.a., sem correção pela inflação) — não compare diretamente com as taxas reais do ntnb.json.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -87,7 +87,7 @@
    "tipo": "prefixado",
    "vencimento": "2029-01-01",
    "comCupom": false,
-   "destaque": false,
+   "destaque": true,
    "data": "2026-08-21",
    "anosAteVencer": 2.364,
    "taxa": 14.22,

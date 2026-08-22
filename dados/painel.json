@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-08-22T19:37:55.637Z",
+ "atualizadoEm": "2026-08-22T19:48:54.060Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -16,37 +16,54 @@
  },
  "acompanhados": [
   {
-   "slug": "ipca-juros-2032-08-15",
-   "nome": "Tesouro IPCA+ 2032 (juros semestrais)",
-   "vencimento": "2032-08-15",
-   "comCupom": true,
-   "taxa": 7.96,
-   "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 4334.52,
+   "slug": "prefixado-2029-01-01",
+   "nome": "Tesouro Prefixado 2029",
+   "vencimento": "2029-01-01",
+   "comCupom": false,
+   "taxa": 14.22,
+   "taxaSignifica": "juros nominais ao ano (a inflação do período corre por conta do investidor)",
+   "pu": 733.27,
    "data": "2026-08-21",
    "duration": {
-    "macaulayAnos": 5.074,
-    "modificada": 4.699,
-    "convexidade": 28.832,
-    "variacaoPrecoMais1pp": -4.56,
-    "variacaoPrecoMenos1pp": 4.84
+    "macaulayAnos": 2.364,
+    "modificada": 2.07,
+    "convexidade": 6.097,
+    "variacaoPrecoMais1pp": -2.04,
+    "variacaoPrecoMenos1pp": 2.1
    }
   },
   {
-   "slug": "ipca-juros-2035-05-15",
-   "nome": "Tesouro IPCA+ 2035 (juros semestrais)",
-   "vencimento": "2035-05-15",
-   "comCupom": true,
-   "taxa": 7.84,
-   "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 4302.87,
+   "slug": "selic-2031-03-01",
+   "nome": "Tesouro Selic 2031",
+   "vencimento": "2031-03-01",
+   "comCupom": false,
+   "taxa": 0.07,
+   "taxaSignifica": "ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo)",
+   "pu": 19657.17,
    "data": "2026-08-21",
    "duration": {
-    "macaulayAnos": 6.7,
-    "modificada": 6.213,
-    "convexidade": 51.546,
-    "variacaoPrecoMais1pp": -5.96,
-    "variacaoPrecoMenos1pp": 6.47
+    "macaulayAnos": null,
+    "modificada": null,
+    "convexidade": null,
+    "variacaoPrecoMais1pp": null,
+    "variacaoPrecoMenos1pp": null
+   }
+  },
+  {
+   "slug": "ipca-2032-08-15",
+   "nome": "Tesouro IPCA+ 2032",
+   "vencimento": "2032-08-15",
+   "comCupom": false,
+   "taxa": 7.97,
+   "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
+   "pu": 3005.66,
+   "data": "2026-08-21",
+   "duration": {
+    "macaulayAnos": 5.986,
+    "modificada": 5.544,
+    "convexidade": 35.876,
+    "variacaoPrecoMais1pp": -5.37,
+    "variacaoPrecoMenos1pp": 5.72
    }
   },
   {

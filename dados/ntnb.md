@@ -1,15 +1,15 @@
 # NTN-B — Tesouro IPCA+
 
-Retrato gerado automaticamente em 2026-08-22T19:37:55.637Z.
+Retrato gerado automaticamente em 2026-08-22T19:48:54.060Z.
 Fonte: Tesouro Nacional (Tesouro Transparente).
 
 | Vencimento | Título | Taxa real | PU (R$) | Duration | Dur. mod. | +1 p.p. | −1 p.p. | Data |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 15/05/2029 | Tesouro IPCA+ 2029 | 7.9% | 3861.91 | 2.732 a | 2.532 | -2.49% | 2.58% | 21/08/2026 |
 | 15/08/2030 | Tesouro IPCA+ 2030 (juros semestrais) | 7.97% | 4453.88 | 3.589 a | 3.324 | -3.25% | 3.4% | 21/08/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 (juros semestrais) ⭐ | 7.96% | 4334.52 | 5.074 a | 4.699 | -4.56% | 4.84% | 21/08/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 | 7.97% | 3005.66 | 5.986 a | 5.544 | -5.37% | 5.72% | 21/08/2026 |
-| 15/05/2035 | Tesouro IPCA+ 2035 (juros semestrais) ⭐ | 7.84% | 4302.87 | 6.7 a | 6.213 | -5.96% | 6.47% | 21/08/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 (juros semestrais) | 7.96% | 4334.52 | 5.074 a | 4.699 | -4.56% | 4.84% | 21/08/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 ⭐ | 7.97% | 3005.66 | 5.986 a | 5.544 | -5.37% | 5.72% | 21/08/2026 |
+| 15/05/2035 | Tesouro IPCA+ 2035 (juros semestrais) | 7.84% | 4302.87 | 6.7 a | 6.213 | -5.96% | 6.47% | 21/08/2026 |
 | 15/05/2035 | Tesouro IPCA+ 2035 ⭐ | 7.82% | 2468.95 | 8.734 a | 8.101 | -7.74% | 8.47% | 21/08/2026 |
 | 15/05/2037 | Tesouro IPCA+ 2037 (juros semestrais) | 7.67% | 4276.52 | 7.765 a | 7.212 | -6.86% | 7.56% | 21/08/2026 |
 | 15/08/2040 | Tesouro IPCA+ 2040 (juros semestrais) | 7.57% | 4143.81 | 9.348 a | 8.691 | -8.17% | 9.21% | 21/08/2026 |

@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-08-22T19:37:55.637Z",
+ "atualizadoEm": "2026-08-22T19:48:54.060Z",
  "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -87,7 +87,7 @@
    "tipo": "selic",
    "vencimento": "2031-03-01",
    "comCupom": false,
-   "destaque": false,
+   "destaque": true,
    "data": "2026-08-21",
    "anosAteVencer": 4.526,
    "taxa": 0.07,

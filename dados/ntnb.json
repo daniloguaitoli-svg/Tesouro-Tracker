@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-08-22T19:37:55.637Z",
+ "atualizadoEm": "2026-08-22T19:48:54.060Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
   "tesouro": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
@@ -62,7 +62,7 @@
    "tipo": "ipca-juros",
    "vencimento": "2032-08-15",
    "comCupom": true,
-   "destaque": true,
+   "destaque": false,
    "data": "2026-08-21",
    "anosAteVencer": 5.986,
    "taxa": 7.96,
@@ -86,7 +86,7 @@
    "tipo": "ipca",
    "vencimento": "2032-08-15",
    "comCupom": false,
-   "destaque": false,
+   "destaque": true,
    "data": "2026-08-21",
    "anosAteVencer": 5.986,
    "taxa": 7.97,
@@ -110,7 +110,7 @@
    "tipo": "ipca-juros",
    "vencimento": "2035-05-15",
    "comCupom": true,
-   "destaque": true,
+   "destaque": false,
    "data": "2026-08-21",
    "anosAteVencer": 8.734,
    "taxa": 7.84,
