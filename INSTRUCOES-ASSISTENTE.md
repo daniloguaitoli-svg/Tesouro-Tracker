@@ -36,32 +36,40 @@ coleta pode ter falhado.
 
 ### O que tem dentro
 
+Os números abaixo são um retrato **real** de 22/08/2026, só para mostrar o
+formato — leia sempre os valores do arquivo, nunca deste exemplo.
+
 ```jsonc
 {
-  "atualizadoEm": "2026-08-22T22:04:30.420Z",
-  "acompanhados": [            // títulos acompanhados de perto
+  "atualizadoEm": "2026-08-22T19:37:55.637Z",
+  "acompanhados": [            // vencimentos em destaque
     {
+      "slug": "ipca-2035-05-15",
       "nome": "Tesouro IPCA+ 2035",
       "vencimento": "2035-05-15",
-      "taxa": 7.93,
+      "comCupom": false,       // true = paga juros semestrais
+      "taxa": 7.82,
       "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-      "pu": 2446.97,           // preço unitário em reais
-      "data": "2026-08-20",    // data do preço
+      "pu": 2468.95,           // preço unitário em reais
+      "data": "2026-08-21",    // data do preço
       "duration": {
         "macaulayAnos": 8.734,
-        "modificada": 8.093,
-        "variacaoPrecoMais1pp": -7.73,   // % no preço se a taxa subir 1 p.p.
-        "variacaoPrecoMenos1pp": 8.46
+        "modificada": 8.101,
+        "convexidade": 73.136,
+        "variacaoPrecoMais1pp": -7.74,  // % no preço se a taxa subir 1 p.p.
+        "variacaoPrecoMenos1pp": 8.47
       }
     }
   ],
   "moldura": {
-    "ipca":     { "acumulado12mPct": 4.87, "ultimoMesPct": 0.32 },
-    "ibovespa": { "pontos": 171032, "var12mPct": 23.96, "var1semPct": 2.45 },
-    "eurbrl":   { "valor": 6.1423, "varDiaPct": -0.21, "var12mPct": -3.15, "var1semPct": 0.42 },
-    "usdbrl":   { "valor": 5.2871, "varDiaPct": 0.12,  "var12mPct": 8.40,  "var1semPct": -0.35 },
-    "cdi":      { "pctAoAno": 14.65 },
-    "selic":    { "metaPctAoAno": 14.75, "vigenteDesde": "2026-06-18", "ultimaVariacaoPP": -0.25 }
+    "ipca":     { "acumulado12mPct": 4.44, "ultimoMesPct": 0.07, "data": "2026-07-01" },
+    "ibovespa": { "pontos": 171032, "var12mPct": 23.96, "var12mDesde": "2025-08-22",
+                  "var1semPct": 2.45, "data": "2026-08-22" },
+    "eurbrl":   { "valor": 6.0319, "varDiaPct": -0.41, "var12mPct": -5.2,  "var1semPct": -0.3,  "data": "2026-08-21" },
+    "usdbrl":   { "valor": 5.1625, "varDiaPct": -0.46, "var12mPct": -5.84, "var1semPct": -1.17, "data": "2026-08-21" },
+    "cdi":      { "pctAoAno": 13.9, "data": "2026-08-20" },
+    "selic":    { "metaPctAoAno": 14, "vigenteDesde": "2026-08-06",
+                  "ultimaVariacaoPP": -0.25, "data": "2026-08-22" }
   }
 }
 ```
@@ -69,7 +77,7 @@ coleta pode ter falhado.
 ### Como ler os números — isto importa
 
 - **`taxa` significa coisas diferentes conforme o título.** Sempre leia o campo
-  `taxaSignifica` que vem ao lado. Um IPCA+ a 7,93% e um Prefixado a 14,62%
+  `taxaSignifica` que vem ao lado. Um IPCA+ 2035 a 7,82% e um Prefixado 2035 a 14,72%
   **não** são comparáveis: o primeiro é real (acima da inflação), o segundo é
   nominal. A diferença entre os dois é a inflação que o mercado embute.
 - **`duration`** é o prazo médio ponderado dos fluxos, em anos, e mede
@@ -88,7 +96,7 @@ coleta pode ter falhado.
 
 | Arquivo | Conteúdo |
 |---|---|
-| `dados/painel.json` | **começe por aqui** — retrato do dia, títulos em destaque + moldura macro |
+| `dados/painel.json` | **comece por aqui** — retrato do dia, títulos em destaque + moldura macro |
 | `dados/ntnb.json` | todas as NTN-B (Tesouro IPCA+) vivas, com duration |
 | `dados/prefixado.json` | LTN e NTN-F — taxas **nominais** |
 | `dados/selic.json` | LFT — o número é ágio/deságio sobre a Selic, não taxa cheia; sem duration |
