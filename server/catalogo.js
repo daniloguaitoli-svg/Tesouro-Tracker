@@ -167,7 +167,11 @@ export const macroPorId = Object.fromEntries(MACRO.map((m) => [m.id, m]));
 export const IBOVESPA = {
   id: "ibovespa",
   nome: "Ibovespa",
-  descricao: "Índice da B3, fechamento diário (^BVSP via Yahoo Finance).",
+  // Não diga "fechamento": o Yahoo já devolve uma linha para o dia corrente
+  // antes de a B3 abrir, e durante o pregão o valor é o último negociado. A
+  // primeira sonda real pegou justamente isso (22/08 às 06:39 de Brasília,
+  // com variação 0,00% porque o pregão nem tinha começado).
+  descricao: "Índice da B3 (^BVSP via Yahoo Finance). Durante o pregão, é o último valor negociado — não o fechamento.",
   unidade: "PONTOS",
   periodicidade: "diaria",
 };
