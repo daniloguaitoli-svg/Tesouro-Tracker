@@ -14,10 +14,11 @@
 // A MATEMÁTICA MORA AQUI (e em util.js), não nos componentes: duration,
 // variação, estatísticas e sensibilidade a juros saem prontas para a tela.
 
-import { CATALOGO, CATEGORIAS, porSlug, DESTAQUES, MACRO, rotuloGenerico } from "./catalogo.js";
+import { CATALOGO, CATEGORIAS, porSlug, DESTAQUES, MACRO, IBOVESPA, rotuloGenerico } from "./catalogo.js";
 import * as cache from "./cache.js";
 import * as bcb from "./providers/bcb.js";
 import * as bcglobais from "./providers/globais.js";
+import { ibovespa } from "./providers/yahoo.js";
 import { REGIOES, manchetes } from "./providers/noticias.js";
 import {
   calcularDuration,
@@ -307,9 +308,34 @@ export async function getMacro() {
   const pedidos = MACRO.map((m) =>
     bcb.ultimo(m.serie, { dias: m.id === "ipca" ? 2000 : 800 }).then((r) => [m, r])
   );
-  const resultados = await Promise.allSettled(pedidos);
+  // O Ibovespa entra no mesmo allSettled: uma bolsa fora do ar não pode
+  // derrubar o IPCA nem a Selic.
+  const [resultados, ibov] = await Promise.all([
+    Promise.allSettled(pedidos),
+    ibovespa().catch(() => null),
+  ]);
 
-  const saida = { fetchedAt: new Date().toISOString(), fonte: "Banco Central do Brasil (SGS)", indicadores: {}, aviso: AVISO };
+  const saida = {
+    fetchedAt: new Date().toISOString(),
+    fonte: "Banco Central do Brasil (SGS); Ibovespa via Yahoo Finance",
+    indicadores: {},
+    aviso: AVISO,
+  };
+
+  if (ibov) {
+    saida.indicadores.ibovespa = anotarData({
+      id: IBOVESPA.id,
+      nome: IBOVESPA.nome,
+      descricao: IBOVESPA.descricao,
+      unidade: IBOVESPA.unidade,
+      periodicidade: IBOVESPA.periodicidade,
+      valor: ibov.valor,
+      data: ibov.data,
+      change: ibov.change,
+      changePct: ibov.changePct,
+      pontos: ibov.pontos.slice(-120),
+    });
+  }
   for (const r of resultados) {
     if (r.status !== "fulfilled" || !r.value) continue;
     const [meta, dado] = r.value;

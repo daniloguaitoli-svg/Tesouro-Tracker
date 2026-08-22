@@ -1,12 +1,17 @@
 // src/format.js — formatação pt-BR de números, taxas e datas.
 
 const nf = (min, max) => new Intl.NumberFormat("pt-BR", { minimumFractionDigits: min, maximumFractionDigits: max });
+const nf0 = nf(0, 0);
 const nf2 = nf(2, 2);
 const nf3 = nf(2, 3);
 const nf4 = nf(2, 4);
 
 export function num(v, casas = 2) {
   if (v == null || !Number.isFinite(v)) return "—";
+  // casas === 0 é para índices em pontos (Ibovespa): "139.512", não
+  // "139.512,00". Sem este ramo, casas=0 caía no formatador de 2 casas e o
+  // pedido de "sem decimais" era ignorado em silêncio.
+  if (casas === 0) return nf0.format(v);
   return (casas >= 4 ? nf4 : casas === 3 ? nf3 : nf2).format(v);
 }
 

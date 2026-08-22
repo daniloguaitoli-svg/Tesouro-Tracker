@@ -159,3 +159,15 @@ export const MACRO = [
 ];
 
 export const macroPorId = Object.fromEntries(MACRO.map((m) => [m.id, m]));
+
+// O Ibovespa não vem do SGS do Banco Central como o resto da moldura — vem do
+// Yahoo (server/providers/yahoo.js). Fica fora de MACRO de propósito: aquela
+// lista é "séries do BCB", e misturar as duas faria o loop do getMacro tentar
+// buscar um código de série que não existe.
+export const IBOVESPA = {
+  id: "ibovespa",
+  nome: "Ibovespa",
+  descricao: "Índice da B3, fechamento diário (^BVSP via Yahoo Finance).",
+  unidade: "PONTOS",
+  periodicidade: "diaria",
+};

@@ -117,6 +117,7 @@ server/
     bcb.js            IPCA, Selic, CDI, PTAX via SGS
     globais.js        Fed (FRED csv) + ECB (Data Portal csv) — collector only
     noticias.js       Google News RSS per region — request-time, best-effort
+    yahoo.js          Ibovespa (^BVSP) chart API — request-time, best-effort
 api/                  Vercel functions: titulos, detalhe, curva, macro, mercado, noticias
 dados/                the committed data (bot-owned) — see "the bridge" above
 .github/
@@ -125,6 +126,13 @@ dados/                the committed data (bot-owned) — see "the bridge" above
   scripts/coletar-tesouro.mjs     the collector itself
 scripts/verificar.mjs
 ```
+
+The Painel's **Moldura** renders its six cards in a fixed order — IPCA |
+Ibovespa, EUR/BRL | USD/BRL, CDI | Selic — inside a single `.grid-2`, so the
+card order *is* the row pairing. They render **unconditionally**, showing "—"
+when a source is down: a card that disappears reflows the grid and breaks the
+pairing. Below 460px the grid collapses to one column and it becomes a list in
+the same order — expected, not a regression.
 
 The seven tabs in `App.jsx` are `Painel · Títulos · Curva · Mercado ·
 Calculadora · Notícias · Alertas`, and `Detalhe` replaces the whole frame when
@@ -339,6 +347,14 @@ existing bridge file.
 - "Decision dates" are **effective dates** derived from the series (the day the
   value changed), not meeting dates. The UI says "vigente desde" — keep it that
   way.
+- **Ibovespa**: Yahoo Finance's public chart endpoint (`^BVSP`), request-time.
+  It is **not** in `MACRO` — that list is "BCB SGS series", and the BCB does not
+  publish Ibovespa among them. Guessing an SGS number would have labelled some
+  unrelated series "IBOVESPA", so the Yahoo route was taken instead (the same
+  one Cana-Tracker uses for NY contracts). `extrairSerie()` is pure and
+  fixture-tested: the payload is deeply nested
+  (`chart.result[0].indicators.quote[0].close`) and a careless refactor returns
+  an empty array rather than throwing, which would show "—" with no clue why.
 - **News**: Google News RSS per region, regex-parsed (house rule: no deps),
   request-time with a 20-min in-process cache, best-effort via `allSettled` —
   one dead region never blanks the others. Headlines are context, not data: the
@@ -358,7 +374,10 @@ existing bridge file.
   exists, why `createRequire` and not `readFile`, why parsing is tolerant).
   Match that density — it's the house style.
 - **Numbers go through `src/format.js`** (`num`, `taxa`, `reais`, `pct`, `pp`,
-  `anos`, `dataBR`, …) and render with the `mono` class. Note `pct` vs `pp`:
+  `anos`, `dataBR`, …) and render with the `mono` class. `num(v, 0)` is the
+  no-decimals form, for index points (Ibovespa) — it has its own branch because
+  the fallback formatter has `minimumFractionDigits: 2` and would silently
+  ignore the request. Note `pct` vs `pp`:
   **prices** move in percent, **rates** move in percentage points. Mixing them
   is a real error, not a style nit.
 - **Rate direction is inverted for colour.** Rate up = price down. `sinalTaxa()`

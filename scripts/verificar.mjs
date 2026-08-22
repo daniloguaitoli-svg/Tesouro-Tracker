@@ -44,7 +44,7 @@ const anbima = await import("../server/providers/anbima.js");
 
 const ROTAS = ["getTitulos", "getDetalhe", "getCurva", "getMacro", "getMercado", "getNoticias"];
 for (const nome of ROTAS) conferir(typeof datalayer[nome] === "function", `datalayer exporta ${nome}()`);
-for (const rel of ["tesouro", "anbima", "bcb", "globais", "noticias"]) {
+for (const rel of ["tesouro", "anbima", "bcb", "globais", "noticias", "yahoo"]) {
   await import(`../server/providers/${rel}.js`);
   ok(`provider ${rel} carrega`);
 }
@@ -217,6 +217,24 @@ const bceFix = "KEY,FREQ,TIME_PERIOD,OBS_VALUE\nx,B,2026-06-10,2.15\nx,B,2026-08
 conferir(globais.parseCsvBce(bceFix).ok, "csvdata do BCE parseia (TIME_PERIOD/OBS_VALUE por nome)");
 conferir(globais.parseCsvFred("lixo").ok === false && globais.parseCsvBce("lixo").ok === false,
   "formato irreconhecível devolve ok:false com amostra (nunca chute)");
+
+console.log("\nparser do Yahoo (Ibovespa)");
+const yahoo = await import("../server/providers/yahoo.js");
+const ontem = Math.floor(Date.UTC(2026, 7, 20) / 1000);
+const hoje = Math.floor(Date.UTC(2026, 7, 21) / 1000);
+const fixtureY = {
+  chart: { result: [{ timestamp: [ontem, hoje, hoje + 86400],
+    indicators: { quote: [{ close: [138000.4, 139500.6, null] }] } }] },
+};
+const serieY = yahoo.extrairSerie(fixtureY, { casas: 0 });
+conferir(serieY.length === 2, "série do Yahoo extraída, pontos nulos descartados");
+conferir(serieY[0].close === 138000 && serieY[0].date === "2026-08-20", "fechamento e data corretos");
+// O formato do Yahoo é aninhado (chart.result[0].indicators.quote[0].close):
+// uma refatoração desatenta devolve vazio em vez de erro, e a tela só mostra
+// "—" sem ninguém entender por quê.
+conferir(yahoo.extrairSerie({}).length === 0, "payload inesperado devolve série vazia (sem estourar)");
+conferir(yahoo.extrairSerie({ chart: { result: [{}] } }).length === 0, "result sem timestamp/close devolve vazio");
+conferir(yahoo.SIMBOLO_IBOVESPA === "^BVSP", "símbolo do Ibovespa é ^BVSP");
 
 console.log("\nparser de RSS (notícias)");
 const noticias = await import("../server/providers/noticias.js");

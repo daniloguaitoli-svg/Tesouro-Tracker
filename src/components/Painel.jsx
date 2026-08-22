@@ -41,13 +41,42 @@ function CartaoTitulo({ t, onOpen }) {
   );
 }
 
+// Cartão de um indicador da moldura. Renderiza SEMPRE, mesmo sem dado: mostra
+// "—" em vez de sumir. Duas razões — a regra da casa ("dado ausente é —, nunca
+// omitido") e a grade: um cartão que some reflui a linha e desfaz o
+// pareamento pedido (IPCA|Ibovespa, EUR|USD, CDI|Selic).
+function CartaoMacro({ titulo, ind, casas = 2, sufixo = "%", rodape }) {
+  const valor = ind?.valor;
+  return (
+    <div className="card">
+      <div className="label">{titulo}</div>
+      <div className="big">
+        {valor == null ? "—" : `${num(valor, casas)}${sufixo}`}
+      </div>
+      <div className={`label ${ind?.changePct != null ? sinal(ind.changePct) : ""}`}>
+        {ind ? (
+          <>
+            {ind.changePct != null && <>{pct(ind.changePct)} · </>}
+            {rodape}
+            {ind.data && <> {dataBR(ind.data)}</>}
+          </>
+        ) : (
+          "sem dados agora"
+        )}
+      </div>
+    </div>
+  );
+}
+
+// A moldura macro, em três linhas de dois — nesta ordem, de propósito:
+//   IPCA | Ibovespa     (a inflação que corrige a NTN-B, e a bolsa ao lado)
+//   EUR/BRL | USD/BRL   (câmbio)
+//   CDI | Selic         (o juro curto, que é a alternativa a comprar título)
+// A grade é `grid-2`, então a ordem dos cartões É o pareamento das linhas.
+// Em telas estreitas (<460px) ela colapsa para uma coluna e vira uma lista na
+// mesma ordem — comportamento responsivo esperado, não perda do layout.
 function Macro({ macro }) {
   const ind = macro?.indicadores || {};
-  const ipca = ind.ipca;
-  const selic = ind.selic;
-  const usd = ind.usdbrl;
-  const eur = ind.eurbrl;
-  if (!ipca && !selic && !usd && !eur) return null;
   return (
     <>
       <div className="section-title">Moldura</div>
@@ -55,41 +84,26 @@ function Macro({ macro }) {
         A NTN-B paga IPCA <em>mais</em> a taxa real. Estes números são o outro lado da conta.
       </p>
       <div className="grid grid-2" style={{ marginTop: 0 }}>
-        {ipca && (
-          <div className="card">
-            <div className="label">IPCA acumulado 12 meses</div>
-            <div className="big">{ipca.acumulado12m != null ? `${num(ipca.acumulado12m)}%` : "—"}</div>
-            <div className="label">último mês {num(ipca.valor)}% · {dataBR(ipca.data)}</div>
+        <div className="card">
+          <div className="label">IPCA acumulado 12 meses</div>
+          <div className="big">
+            {ind.ipca?.acumulado12m != null ? `${num(ind.ipca.acumulado12m)}%` : "—"}
           </div>
-        )}
-        {selic && (
-          <div className="card">
-            <div className="label">Selic meta</div>
-            <div className="big">{num(selic.valor)}%</div>
-            <div className="label">a.a. · {dataBR(selic.data)}</div>
+          <div className="label">
+            {ind.ipca ? (
+              <>último mês {num(ind.ipca.valor)}% · {dataBR(ind.ipca.data)}</>
+            ) : (
+              "sem dados agora"
+            )}
           </div>
-        )}
-        {ind.cdi && (
-          <div className="card">
-            <div className="label">CDI</div>
-            <div className="big">{num(ind.cdi.valor)}%</div>
-            <div className="label">a.a. · {dataBR(ind.cdi.data)}</div>
-          </div>
-        )}
-        {usd && (
-          <div className="card">
-            <div className="label">USD/BRL (PTAX)</div>
-            <div className="big">{num(usd.valor, 4)}</div>
-            <div className={`label ${sinal(usd.changePct)}`}>{pct(usd.changePct)} · {dataBR(usd.data)}</div>
-          </div>
-        )}
-        {eur && (
-          <div className="card">
-            <div className="label">EUR/BRL (PTAX)</div>
-            <div className="big">{num(eur.valor, 4)}</div>
-            <div className={`label ${sinal(eur.changePct)}`}>{pct(eur.changePct)} · {dataBR(eur.data)}</div>
-          </div>
-        )}
+        </div>
+        <CartaoMacro titulo="Ibovespa" ind={ind.ibovespa} casas={0} sufixo="" rodape="pontos ·" />
+
+        <CartaoMacro titulo="EUR/BRL (PTAX)" ind={ind.eurbrl} casas={4} sufixo="" rodape="" />
+        <CartaoMacro titulo="USD/BRL (PTAX)" ind={ind.usdbrl} casas={4} sufixo="" rodape="" />
+
+        <CartaoMacro titulo="CDI" ind={ind.cdi} rodape="a.a. ·" />
+        <CartaoMacro titulo="Selic meta" ind={ind.selic} rodape="a.a. ·" />
       </div>
     </>
   );

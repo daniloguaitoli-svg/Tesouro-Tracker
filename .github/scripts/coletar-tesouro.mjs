@@ -36,6 +36,7 @@ import { hojeISO } from "../../server/util.js";
 import { montarTitulos, montarPonte, montarHistorico, markdownDaPonte, filtrarFamilias, arred } from "../../server/ponte.js";
 import { lerGlobais } from "../../server/providers/globais.js";
 import { REGIOES, manchetes } from "../../server/providers/noticias.js";
+import { ibovespa } from "../../server/providers/yahoo.js";
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DIR = join(RAIZ, "dados");
@@ -159,6 +160,19 @@ const globalNovo = {
 if (lidos.fed) console.log(`\nFed: ${lidos.fed.limiteInferior}–${lidos.fed.limiteSuperior}% (vigente desde ${lidos.fed.vigenteDesde}, ${lidos.fed.variacaoPP > 0 ? "+" : ""}${lidos.fed.variacaoPP} p.p.)`);
 if (lidos.bce) console.log(`BCE: depósito ${lidos.bce.deposito}% · refi ${lidos.bce.refi}% (vigente desde ${lidos.bce.vigenteDesde})`);
 for (const e of lidos.erros) console.log(`globais FALHA ${e} — mantido o valor anterior`);
+
+// ---------- 3b2. Sonda do Ibovespa (só log) ----------
+//
+// O Ibovespa é lido na hora do request (moldura do Painel), não aqui. Mas o
+// runner é o único lugar com rede aberta onde dá para conferir que o endpoint
+// de gráficos do Yahoo ainda responde no formato esperado — então a coleta
+// sonda e loga. Falhar aqui não falha o job: a bolsa é contexto.
+try {
+  const ib = await ibovespa();
+  console.log(`\nIbovespa: ${ib.valor.toLocaleString("pt-BR")} pts em ${ib.data} (${ib.changePct >= 0 ? "+" : ""}${ib.changePct.toFixed(2)}%)`);
+} catch (e) {
+  console.log(`\nIbovespa: FALHA ${e.message} — o cartão da moldura mostrará "—"`);
+}
 
 // ---------- 3c. Sonda das notícias (só log) ----------
 //
