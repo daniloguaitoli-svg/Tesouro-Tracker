@@ -13,8 +13,8 @@ import { ErroBox, Skeletons, AguardandoColeta } from "./States.jsx";
 export function Curva() {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
-
   const [tentativa, setTentativa] = useState(0);
+  const [familiaId, setFamiliaId] = useState("real");
 
   useEffect(() => {
     let vivo = true;
