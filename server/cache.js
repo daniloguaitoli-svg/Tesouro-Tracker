@@ -20,19 +20,42 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 
-function carregar(caminho, vazio) {
-  try {
-    return require(caminho);
-  } catch {
-    // Antes da primeira coleta os arquivos podem não existir. O app tem de
-    // subir mesmo assim, mostrando "sem dados ainda" em vez de estourar.
-    return vazio;
-  }
+// CADA require RECEBE O CAMINHO LITERAL, escrito na própria chamada. Não
+// refatore isto para um helper `carregar(caminho)` — parece idêntico e não é.
+//
+// O rastreador de arquivos da Vercel (@vercel/nft) faz ANÁLISE ESTÁTICA: ele lê
+// o código sem executar e só enxerga o arquivo quando a string está ali, na
+// chamada. Com o caminho vindo por variável ele não resolve nada, os JSON ficam
+// FORA do pacote da função, o require estoura em produção, o catch engole o
+// erro em silêncio e o app sobe eternamente em "aguardando coleta" — com tudo
+// verde no build e nos testes locais, porque local os arquivos estão no disco.
+//
+// Isso já aconteceu neste repositório, no primeiro deploy. O irmão
+// Cana-Tracker sempre usou o literal e por isso nunca teve o problema.
+//
+// O try/catch continua necessário: antes da primeira coleta os arquivos podem
+// não existir, e o app tem de subir mostrando "sem dados ainda" em vez de
+// quebrar.
+let HISTORICO;
+try {
+  HISTORICO = require("../dados/historico.json");
+} catch {
+  HISTORICO = { atualizadoEm: null, desde: null, titulos: {} };
 }
 
-const HISTORICO = carregar("../dados/historico.json", { atualizadoEm: null, desde: null, titulos: {} });
-const PONTE = carregar("../dados/ntnb.json", { atualizadoEm: null, titulos: [] });
-const GLOBAL = carregar("../dados/global.json", { atualizadoEm: null, fed: null, bce: null });
+let PONTE;
+try {
+  PONTE = require("../dados/ntnb.json");
+} catch {
+  PONTE = { atualizadoEm: null, titulos: [] };
+}
+
+let GLOBAL;
+try {
+  GLOBAL = require("../dados/global.json");
+} catch {
+  GLOBAL = { atualizadoEm: null, fed: null, bce: null };
+}
 
 export function historico() {
   return HISTORICO;

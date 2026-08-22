@@ -427,9 +427,21 @@ implying more precision than free data supports.
   502 on upstream failure. Keep them thin. `titulos`, `detalhe` and `curva` use
   `s-maxage=1800, stale-while-revalidate=7200` (the base changes twice a day);
   `macro` uses `s-maxage=3600, stale-while-revalidate=21600`.
-- `server/cache.js` loads the JSON via `createRequire` **on purpose** — a static
-  require makes Vercel's file tracer bundle the JSON into the function. Don't
-  "modernise" it to `readFile`, or the function ships without its data.
+- `server/cache.js` loads the JSON via `createRequire` **on purpose**, and every
+  `require()` takes a **literal path written at the call site**. Both halves
+  matter:
+  - Don't "modernise" it to `readFile` — the tracer won't see the file.
+  - Don't refactor the three requires into a `carregar(caminho)` helper. It
+    looks identical and is not: `@vercel/nft` analyses statically, so a path
+    arriving via a variable resolves to nothing, the JSON ships **outside** the
+    function bundle, the `require` throws, the `try/catch` swallows it, and the
+    deployed app sits in "aguardando coleta" forever — while the build, the
+    local pre-flight and `verificar` all pass, because locally the files are
+    just there on disk.
+
+  This is not hypothetical: it broke the first Vercel deploy of this repo.
+  `verificar.mjs` now fails if any `require()` in `cache.js` uses a non-literal
+  path.
 - The service worker (`public/sw.js`) is **network-first for navigation**,
   **cache-first for hashed `/assets/*`**, and never caches `/api/*`. `CACHE` is
   the version string to bump (`"tesouro-tracker-v1"`); `SHELL` is the precached

@@ -433,6 +433,23 @@ for (const [nome, valorServidor] of [
 // diferentes. Se colidirem (copiar-colar de uma para a outra), alertas e
 // destaques passam a sobrescrever um ao outro — falha silenciosa e chata de
 // diagnosticar, porque só aparece depois que o usuário mexe nos dois.
+// O rastreador da Vercel (@vercel/nft) só empacota um JSON quando o caminho
+// está LITERAL dentro do require(). Um helper `carregar(caminho)` passa no
+// build, passa nos testes locais (os arquivos estão no disco) e falha só em
+// produção — o app sobe em "aguardando coleta" para sempre. Já aconteceu aqui.
+console.log("\nrequires de dados/ são literais (rastreáveis pela Vercel)");
+const cacheSrc = await ler("server/cache.js");
+const requires = [...cacheSrc.matchAll(/require\(([^)]*)\)/g)].map((m) => m[1].trim());
+const naoLiterais = requires.filter((a) => !/^["'][^"']+["']$/.test(a));
+conferir(requires.length >= 3, `${requires.length} require(...) em cache.js`);
+conferir(
+  naoLiterais.length === 0,
+  `todo require() usa caminho literal${naoLiterais.length ? ` — variável em: ${naoLiterais.join(", ")}` : ""}`
+);
+for (const arq of ["../dados/historico.json", "../dados/ntnb.json", "../dados/global.json"]) {
+  conferir(cacheSrc.includes(`require("${arq}")`), `cache.js exige ${arq} por literal`);
+}
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");
