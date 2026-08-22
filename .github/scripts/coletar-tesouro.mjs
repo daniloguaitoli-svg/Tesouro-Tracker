@@ -18,8 +18,13 @@
 //
 // Saídas:
 //   dados/historico.json  série diária por vencimento — o que o app lê
-//   dados/ntnb.json       retrato do dia, com duration — a ponte (máquina)
+//   dados/ntnb.json       NTN-B do dia, com duration — a ponte (máquina)
 //   dados/ntnb.md         o mesmo retrato em tabela — a ponte (leitura humana)
+//   dados/prefixado.json  LTN + NTN-F (taxas NOMINAIS)
+//   dados/selic.json      LFT (ágio/deságio sobre a Selic, sem duration)
+//   dados/global.json     Fed e BCE: taxa vigente e última decisão
+//   dados/painel.json     o retrato da aba Painel: destaques + moldura macro
+//   dados/painel.md       o mesmo, em tabela
 //
 // Uso:
 //   node .github/scripts/coletar-tesouro.mjs             # coleta e grava
@@ -33,10 +38,20 @@ import { varrerSerie, URL_CSV } from "../../server/providers/tesouro.js";
 import { getSecundario } from "../../server/providers/anbima.js";
 import { porSlug, DESTAQUES } from "../../server/catalogo.js";
 import { hojeISO } from "../../server/util.js";
-import { montarTitulos, montarPonte, montarHistorico, markdownDaPonte, filtrarFamilias, arred } from "../../server/ponte.js";
+import {
+  montarTitulos,
+  montarPonte,
+  montarHistorico,
+  markdownDaPonte,
+  montarPainel,
+  markdownDoPainel,
+  filtrarFamilias,
+  arred,
+} from "../../server/ponte.js";
 import { lerGlobais } from "../../server/providers/globais.js";
 import { REGIOES, manchetes } from "../../server/providers/noticias.js";
 import { ibovespa } from "../../server/providers/yahoo.js";
+import { getMacro } from "../../server/datalayer.js";
 import { variacaoPeriodo } from "../../server/util.js";
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -202,6 +217,27 @@ for (const regiao of REGIOES) {
   }
 }
 
+// ---------- 3d. Moldura macro (para dados/painel.json) ----------
+//
+// A moldura (IPCA, Ibovespa, câmbio, CDI, Selic) era lida SÓ na hora do request
+// e por isso não existia em arquivo nenhum — quem consome as pontes pelo raw do
+// GitHub via os títulos e não via a moldura. Aqui ela é coletada e versionada.
+//
+// Reusa getMacro() do datalayer de propósito: garante que o arquivo-ponte
+// mostre exatamente os mesmos números que a aba Painel, em vez de duas contas
+// que podem divergir.
+
+let macro = { indicadores: {} };
+try {
+  macro = await getMacro();
+  const ind = macro.indicadores || {};
+  console.log(`\nmoldura macro: ${Object.keys(ind).join(", ") || "(nenhum indicador)"}`);
+  if (ind.ipca) console.log(`  IPCA 12m ${ind.ipca.acumulado12m?.toFixed(2)}% · CDI ${ind.cdi?.valor}% · Selic ${ind.selic?.valor}%`);
+  if (ind.usdbrl) console.log(`  USD/BRL ${ind.usdbrl.valor} · EUR/BRL ${ind.eurbrl?.valor}`);
+} catch (e) {
+  console.log(`\nmoldura macro: FALHA ${e.message} — painel.json sai sem ela`);
+}
+
 // ---------- 4. Gravação ----------
 
 const agora = new Date().toISOString();
@@ -227,10 +263,20 @@ const ponteSelic = montarPonte({
 });
 const md = markdownDaPonte({ titulos: soIpca, agora, comAnbima: secundario.ok });
 
+// O retrato da aba Painel: destaques + moldura, num arquivo só.
+const painel = montarPainel({
+  titulos,
+  macro,
+  agora,
+  urlRepo: "https://github.com/daniloguaitoli-svg/Tesouro-Tracker",
+});
+const painelMd = markdownDoPainel(painel);
+
 if (seco) {
   console.log(`\n--dry-run: nada gravado.`);
   console.log(`historico.json teria ${Object.keys(historico.titulos).length} vencimentos`);
   console.log(`ntnb.json teria ${soIpca.length} · prefixado.json ${soPrefixado.length} · selic.json ${soSelic.length}`);
+  console.log(`painel.json teria ${painel.acompanhados.length} acompanhados e moldura: ${Object.entries(painel.moldura).filter(([, v]) => v).map(([k]) => k).join(", ") || "(vazia)"}`);
   console.log(`\n----- prévia de dados/ntnb.md -----\n${md.split("\n").slice(0, 14).join("\n")}`);
 } else {
   await mkdir(DIR, { recursive: true });
@@ -240,5 +286,7 @@ if (seco) {
   await writeFile(join(DIR, "selic.json"), JSON.stringify(ponteSelic, null, 1) + "\n", "utf-8");
   await writeFile(ARQ_GLOBAL, JSON.stringify(globalNovo, null, 1) + "\n", "utf-8");
   await writeFile(join(DIR, "ntnb.md"), md, "utf-8");
-  console.log(`\ngravados dados/: historico, ntnb(.json/.md), prefixado, selic e global`);
+  await writeFile(join(DIR, "painel.json"), JSON.stringify(painel, null, 1) + "\n", "utf-8");
+  await writeFile(join(DIR, "painel.md"), painelMd, "utf-8");
+  console.log(`\ngravados dados/: historico, ntnb(.json/.md), prefixado, selic, global e painel(.json/.md)`);
 }

@@ -386,6 +386,41 @@ conferir(ponteMod.tabelaMD([]).split("\n").length === 2, "tabela vazia ainda tra
 // middleware do vite (dev) E como função da Vercel (produção). Esquecer a
 // terceira faz funcionar em dev e dar 404 no ar — exatamente o erro que este
 // bloco existe para pegar.
+// O painel.json é o arquivo que o assistente pessoal lê todo dia. Se a
+// montagem quebrar, ele fica com o retrato de ontem — ou pior, com campos
+// faltando e sem aviso.
+console.log("\nmontagem do painel.json");
+const macroFake = {
+  indicadores: {
+    ipca: { valor: 0.32, acumulado12m: 4.87, data: "2026-07-01" },
+    ibovespa: { valor: 171032.4, data: "2026-08-22", var12m: { pct: 23.9612, de: "2025-08-22" }, var1sem: { pct: 2.4489, de: "2026-08-14" } },
+    usdbrl: { valor: 5.28714, changePct: 0.1234, data: "2026-08-20", var12m: null, var1sem: { pct: -0.35, de: "2026-08-14" } },
+    cdi: { valor: 14.65, data: "2026-08-20" },
+    selic: { valor: 14.75, data: "2026-08-20", decisao: { vigenteDesde: "2026-06-18", variacaoPP: -0.25 } },
+  },
+};
+const titulosFake = [
+  { slug: "ipca-2035-05-15", nome: "Tesouro IPCA+ 2035", tipo: "ipca", vencimento: "2035-05-15", comCupom: false, destaque: true, taxa: 7.93, pu: 2446.97, data: "2026-08-20", duration: { macaulayAnos: 8.734, modificada: 8.093, variacaoPrecoMais1pp: -7.73 } },
+  { slug: "selic-2029-03-01", nome: "Tesouro Selic 2029", tipo: "selic", vencimento: "2029-03-01", comCupom: false, destaque: false, taxa: 0.03, pu: 19697.85, data: "2026-08-20", duration: { macaulayAnos: null } },
+];
+const painelFake = ponteMod.montarPainel({ titulos: titulosFake, macro: macroFake, agora: "2026-08-22T22:00:00.000Z" });
+conferir(painelFake.acompanhados.length === 1, "painel leva só os títulos em destaque");
+conferir(
+  painelFake.acompanhados[0].taxaSignifica?.includes("ACIMA do IPCA"),
+  "cada título diz o que a taxa dele significa (real x nominal x spread)"
+);
+conferir(painelFake.moldura.ibovespa.var12mPct === 23.96, "variação de 12 meses arredondada para o arquivo");
+conferir(painelFake.moldura.usdbrl.var12mPct === null, "janela indisponível vira null (nunca estimada)");
+conferir(painelFake.moldura.selic.vigenteDesde === "2026-06-18", "Selic carrega a data de vigência da decisão");
+conferir(painelFake.moldura.eurbrl === null, "indicador ausente da moldura vira null, não some do formato");
+// Serializa e volta: o arquivo tem de sobreviver ao round-trip.
+const voltou = JSON.parse(JSON.stringify(painelFake));
+conferir(voltou.moldura.cdi.pctAoAno === 14.65, "painel.json serializa e volta inteiro");
+const mdPainel = ponteMod.markdownDoPainel(painelFake);
+conferir(mdPainel.startsWith("# Painel"), "markdownDoPainel devolve texto");
+conferir(!mdPainel.includes("undefined") && !mdPainel.includes("[object"), "markdown do painel sem `undefined`");
+conferir(mdPainel.includes("| Ibovespa |"), "tabela da moldura traz o Ibovespa");
+
 console.log("\nregra dos três lugares (datalayer + api/ + devApi)");
 const vite = await ler("vite.config.js");
 for (const nome of ROTAS) {

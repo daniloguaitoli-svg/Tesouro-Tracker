@@ -34,6 +34,9 @@ dados/ntnb.md         the same as a table — human-readable
 dados/prefixado.json  LTN + NTN-F snapshot — NOMINAL rates
 dados/selic.json      LFT snapshot — spread over Selic, duration null
 dados/global.json     Fed + ECB policy rates, last decision (collector-written)
+dados/painel.json     the Painel tab as one object: highlights + macro frame (the file
+                      external consumers read — see INSTRUCOES-ASSISTENTE.md)
+dados/painel.md       the same, as tables
 dados/historico.json  the daily series per maturity, all families — what the app reads
 ```
 
@@ -53,6 +56,17 @@ called — the workflow compares `github.ref` against
 always been named `main`, and a hardcoded name makes the job run, succeed, and
 silently never commit. The raw URLs in the README do assume `main`, so keep the
 two in step if the default branch is ever renamed.
+
+`dados/painel.json` exists because the Painel's macro frame (IPCA, Ibovespa, FX,
+CDI, Selic) used to be **request-time only** — it lived in no committed file, so
+anything reading the bridge saw the bonds and none of the frame. The collector
+now calls `getMacro()` and versions the result. It reuses `getMacro()` on purpose
+so the bridge shows exactly the numbers the app shows, rather than a second
+calculation that can drift.
+
+Its `acompanhados` list is the **catalogue** `destaque` set, not the user's
+stars — those live in `localStorage` and the server cannot know them. The file
+says so in `sobreAcompanhados`; keep that honest if you change the shape.
 
 Never hand-edit `dados/` — the bot owns it. Expect frequent
 `github-actions[bot]` commits titled "Dados: coleta automatica das NTN-B".

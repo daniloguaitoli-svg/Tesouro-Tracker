@@ -186,3 +186,161 @@ export function markdownDaPonte({ titulos, agora, comAnbima = false }) {
   ];
   return partes.join("\n");
 }
+
+// ---------- O retrato da aba Painel (dados/painel.json + painel.md) ----------
+//
+// POR QUE UM ARQUIVO PRÓPRIO: o Painel mostra duas coisas que hoje vivem em
+// lugares diferentes — os vencimentos acompanhados (que já estão no
+// historico/ntnb) e a MOLDURA macro (IPCA, Ibovespa, câmbio, CDI, Selic), que
+// era lida só na hora do request e portanto não existia em arquivo nenhum.
+// Sem isto, quem consome as pontes por raw.githubusercontent vê os títulos mas
+// não vê a moldura.
+//
+// LIMITE HONESTO, e é importante: a estrela que escolhe os "acompanhados de
+// perto" no app fica no localStorage do aparelho e o servidor não a conhece.
+// Este arquivo traz os vencimentos marcados como `destaque` no CATÁLOGO. Se a
+// seleção do celular for outra, os dois divergem — e o próprio arquivo diz isso
+// no campo `sobreAcompanhados`.
+
+const SIGNIFICADO_TAXA = {
+  ipca: "juros reais ao ano ACIMA do IPCA",
+  "ipca-juros": "juros reais ao ano ACIMA do IPCA",
+  prefixado: "juros nominais ao ano (a inflação do período corre por conta do investidor)",
+  "prefixado-juros": "juros nominais ao ano (a inflação do período corre por conta do investidor)",
+  selic: "ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo)",
+};
+
+const pctDe = (v) => (v && Number.isFinite(v.pct) ? arred(v.pct, 2) : null);
+
+export function montarPainel({ titulos, macro, agora, urlRepo }) {
+  const ind = macro?.indicadores || {};
+  const acompanhados = titulos
+    .filter((t) => t.destaque)
+    .map((t) => ({
+      slug: t.slug,
+      nome: t.nome,
+      vencimento: t.vencimento,
+      comCupom: t.comCupom,
+      taxa: t.taxa,
+      taxaSignifica: SIGNIFICADO_TAXA[t.tipo] || null,
+      pu: t.pu,
+      data: t.data,
+      duration: t.duration,
+    }));
+
+  return {
+    atualizadoEm: agora,
+    geradoPor: "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
+    sobre:
+      "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
+    sobreAcompanhados:
+      "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
+    convencao:
+      "Taxas em % ao ano; veja `taxaSignifica` em cada título, porque o mesmo número quer dizer coisas diferentes por família. " +
+      "Duration em anos (dias corridos/365, aproximação da convenção oficial de dias úteis/252). " +
+      "variacaoPrecoMais1pp = variação % estimada do preço se a taxa subir 1 ponto percentual, já com convexidade. " +
+      "Variações de 12 meses e 1 semana comparam com o último pregão EM OU ANTES do alvo (mercado não abre em fim de semana); " +
+      "`desde` diz de que data a comparação parte. Campo ausente ou null = dado indisponível, nunca estimado.",
+    aviso:
+      "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
+    fontes: {
+      titulos: "Tesouro Nacional — Tesouro Transparente",
+      ipca: "BCB/SGS 433",
+      cdi: "BCB/SGS 4389",
+      selic: "BCB/SGS 432",
+      cambio: "BCB/SGS 1 (USD) e 21619 (EUR), PTAX venda",
+      ibovespa: "Yahoo Finance ^BVSP",
+      repositorio: urlRepo || null,
+    },
+    acompanhados,
+    moldura: {
+      ipca: ind.ipca
+        ? {
+            acumulado12mPct: arred(ind.ipca.acumulado12m, 2),
+            ultimoMesPct: arred(ind.ipca.valor, 2),
+            data: ind.ipca.data,
+          }
+        : null,
+      ibovespa: ind.ibovespa
+        ? {
+            pontos: arred(ind.ibovespa.valor, 0),
+            var12mPct: pctDe(ind.ibovespa.var12m),
+            var12mDesde: ind.ibovespa.var12m?.de ?? null,
+            var1semPct: pctDe(ind.ibovespa.var1sem),
+            data: ind.ibovespa.data,
+          }
+        : null,
+      eurbrl: ind.eurbrl
+        ? {
+            valor: arred(ind.eurbrl.valor, 4),
+            varDiaPct: arred(ind.eurbrl.changePct, 2),
+            var12mPct: pctDe(ind.eurbrl.var12m),
+            var1semPct: pctDe(ind.eurbrl.var1sem),
+            data: ind.eurbrl.data,
+          }
+        : null,
+      usdbrl: ind.usdbrl
+        ? {
+            valor: arred(ind.usdbrl.valor, 4),
+            varDiaPct: arred(ind.usdbrl.changePct, 2),
+            var12mPct: pctDe(ind.usdbrl.var12m),
+            var1semPct: pctDe(ind.usdbrl.var1sem),
+            data: ind.usdbrl.data,
+          }
+        : null,
+      cdi: ind.cdi ? { pctAoAno: arred(ind.cdi.valor, 2), data: ind.cdi.data } : null,
+      selic: ind.selic
+        ? {
+            metaPctAoAno: arred(ind.selic.valor, 2),
+            vigenteDesde: ind.selic.decisao?.vigenteDesde ?? null,
+            ultimaVariacaoPP: arred(ind.selic.decisao?.variacaoPP, 2),
+            data: ind.selic.data,
+          }
+        : null,
+    },
+  };
+}
+
+// Markdown do Painel — por concatenação, não template literal, pelo mesmo
+// motivo do markdownDaPonte: o texto tem crases e elas encerrariam a string.
+export function markdownDoPainel(p) {
+  const n = (v, s = "") => (v == null ? "—" : `${v}${s}`);
+  const m = p.moldura;
+  const linhas = [
+    "# Painel — Tesouro Tracker",
+    "",
+    "Retrato gerado automaticamente em " + p.atualizadoEm + ".",
+    "",
+    "## Acompanhados de perto",
+    "",
+    "| Vencimento | Título | Taxa | Significa | PU (R$) | Duration | +1 p.p. | Data |",
+    "| --- | --- | ---: | --- | ---: | ---: | ---: | --- |",
+  ];
+  for (const t of p.acompanhados) {
+    linhas.push(
+      `| ${brDeISO(t.vencimento)} | ${t.nome} | ${n(t.taxa, "%")} | ${t.taxaSignifica || "—"} | ${n(t.pu)} | ` +
+        `${n(t.duration?.macaulayAnos, " a")} | ${n(t.duration?.variacaoPrecoMais1pp, "%")} | ${brDeISO(t.data) ?? "—"} |`
+    );
+  }
+  linhas.push(
+    "",
+    "## Moldura",
+    "",
+    "| Indicador | Valor | 12 meses | 1 semana | Data |",
+    "| --- | ---: | ---: | ---: | --- |",
+    `| IPCA (acum. 12m) | ${n(m.ipca?.acumulado12mPct, "%")} | — | — | ${brDeISO(m.ipca?.data) ?? "—"} |`,
+    `| Ibovespa | ${n(m.ibovespa?.pontos)} pts | ${n(m.ibovespa?.var12mPct, "%")} | ${n(m.ibovespa?.var1semPct, "%")} | ${brDeISO(m.ibovespa?.data) ?? "—"} |`,
+    `| EUR/BRL | ${n(m.eurbrl?.valor)} | ${n(m.eurbrl?.var12mPct, "%")} | ${n(m.eurbrl?.var1semPct, "%")} | ${brDeISO(m.eurbrl?.data) ?? "—"} |`,
+    `| USD/BRL | ${n(m.usdbrl?.valor)} | ${n(m.usdbrl?.var12mPct, "%")} | ${n(m.usdbrl?.var1semPct, "%")} | ${brDeISO(m.usdbrl?.data) ?? "—"} |`,
+    `| CDI | ${n(m.cdi?.pctAoAno, "% a.a.")} | — | — | ${brDeISO(m.cdi?.data) ?? "—"} |`,
+    `| Selic (meta) | ${n(m.selic?.metaPctAoAno, "% a.a.")} | — | — | ${brDeISO(m.selic?.data) ?? "—"} |`,
+    "",
+    "## Ressalvas",
+    "",
+    "- " + p.sobreAcompanhados,
+    "- " + p.convencao,
+    "- " + p.aviso,
+    "",
+  );
+  return linhas.join("\n");
+}

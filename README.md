@@ -28,6 +28,8 @@ pequenos, versionados neste repositório**:
 
 | Arquivo | Para quê |
 |---|---|
+| [`dados/painel.json`](dados/painel.json) | **o retrato da aba Painel**: destaques + moldura macro — comece por aqui |
+| [`dados/painel.md`](dados/painel.md) | o mesmo, em tabela |
 | [`dados/ntnb.json`](dados/ntnb.json) | NTN-B: retrato do dia com duration — consumo por máquina |
 | [`dados/ntnb.md`](dados/ntnb.md) | o mesmo retrato em tabela — leitura humana |
 | [`dados/prefixado.json`](dados/prefixado.json) | LTN e NTN-F: taxas **nominais**, com duration |
@@ -124,6 +126,16 @@ venda por título). Se um dia houver credencial, o lugar de plugar é
 > indicativa do secundário), nunca requisito.
 
 ---
+
+## Consumindo estes dados de fora
+
+Se outra ferramenta (um assistente, um script) precisa destes números todo dia,
+o arquivo por onde começar é **`dados/painel.json`** — pequeno, sem chave, com
+os títulos em destaque e a moldura macro num objeto só.
+
+As instruções prontas para colar no projeto que vai consumir estão em
+[`INSTRUCOES-ASSISTENTE.md`](INSTRUCOES-ASSISTENTE.md): o que cada campo
+significa, quando o arquivo muda, e o que **não** concluir dele.
 
 ## Escolhendo o que aparece no Painel
 
