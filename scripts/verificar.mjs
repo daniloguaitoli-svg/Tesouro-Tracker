@@ -150,6 +150,39 @@ conferir(cupom10.macaulay < cupom6.macaulay, "cupom 10% (NTN-F) tem duration men
 conferir(util.temDuration("ipca") && util.temDuration("prefixado-juros") && !util.temDuration("selic"),
   "temDuration: todas as famílias menos a LFT");
 
+// A janela de 12 meses é o numero em DESTAQUE do cartao do Ibovespa: se ela
+// comparar com o ponto errado (ou com o mais antigo que existir, fingindo ser
+// um ano), a tela mente com cara de certeza.
+console.log("\njanelas de variação (12 meses / 1 semana)");
+const serieUtil = [];
+{
+  let v = 100;
+  for (let d = new Date(Date.UTC(2024, 7, 1)); d <= new Date(Date.UTC(2026, 7, 21)); d = new Date(d.getTime() + 864e5)) {
+    const dow = d.getUTCDay();
+    if (dow === 0 || dow === 6) continue; // sem pregão
+    v *= 1.0004;
+    serieUtil.push({ date: d.toISOString().slice(0, 10), close: Number(v.toFixed(2)) });
+  }
+}
+const j12 = util.variacaoPeriodo(serieUtil, 365);
+const j1s = util.variacaoPeriodo(serieUtil, 7);
+conferir(j12 && j12.de === "2025-08-21" && j12.ate === "2026-08-21", "12 meses parte do ponto de um ano antes");
+conferir(j12.pct > 0, "série em alta devolve variação positiva");
+// 21/08/2026 é sexta; 7 dias antes é 14/08, também sexta e com pregão.
+conferir(j1s && j1s.de === "2026-08-14", "1 semana cai no último pregão em ou antes do alvo");
+// Alvo em fim de semana: recua para a sexta anterior em vez de devolver null.
+const ateSegunda = serieUtil.filter((p) => p.date <= "2026-08-17");
+conferir(util.variacaoPeriodo(ateSegunda, 2)?.de === "2026-08-14", "alvo em fim de semana recua para o pregão anterior");
+// Série curta: null, nunca comparar com o ponto mais antigo e chamar de 12 meses.
+conferir(util.variacaoPeriodo(serieUtil.slice(-10), 365) === null, "série curta demais devolve null (não finge 12 meses)");
+conferir(util.variacaoPeriodo([], 7) === null && util.variacaoPeriodo(null, 7) === null, "série vazia/ausente devolve null");
+// Sinal correto na queda.
+const caindo = [
+  { date: "2025-08-20", close: 200 },
+  { date: "2026-08-20", close: 150 },
+];
+conferir(Math.abs(util.variacaoPeriodo(caindo, 365).pct - -25) < 1e-9, "queda de 200 para 150 é −25%");
+
 console.log("\nclassificador de títulos");
 const cls = (n) => util.classificarTitulo(n);
 conferir(cls("Tesouro Prefixado")?.tipo === "prefixado", "LTN por extenso -> prefixado");

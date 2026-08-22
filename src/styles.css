@@ -116,6 +116,16 @@ body {
 .row .rowprice .sub { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 .spark { display: block; }
 
+/* ---------- Janelas de variação (12 meses / 1 semana) ---------- */
+.varlinha {
+  display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3);
+  margin-top: var(--s2); padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--muted);
+}
+.varlinha b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.varlinha i { font-style: normal; opacity: .7; }
+
 /* ---------- Estrela de "acompanhar no Painel" ---------- */
 /* A linha vira uma div com dois botões: o de abrir (ocupa o espaço todo) e a
    estrela. Botão dentro de botão seria HTML inválido. */

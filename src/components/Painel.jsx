@@ -41,29 +41,69 @@ function CartaoTitulo({ t, onOpen }) {
   );
 }
 
+// As duas janelas de variação, lado a lado. Cada uma leva a data de onde a
+// comparação parte — "12 meses" nunca cai exatamente 365 dias atrás (fim de
+// semana, feriado), e mostrar a data de origem evita fingir precisão.
+// `mostrar12m` fica falso quando o número grande do cartão JÁ é a variação de
+// 12 meses (Ibovespa) — repetir logo abaixo seria ruído.
+function Janelas({ v12m, v1sem, mostrar12m = true }) {
+  if (!v12m && !v1sem) return null;
+  return (
+    <div className="varlinha">
+      {mostrar12m && (
+        <span>
+          12 meses <b className={sinal(v12m?.pct)}>{v12m ? pct(v12m.pct) : "—"}</b>
+        </span>
+      )}
+      <span>
+        1 semana <b className={sinal(v1sem?.pct)}>{v1sem ? pct(v1sem.pct) : "—"}</b>
+      </span>
+    </div>
+  );
+}
+
 // Cartão de um indicador da moldura. Renderiza SEMPRE, mesmo sem dado: mostra
 // "—" em vez de sumir. Duas razões — a regra da casa ("dado ausente é —, nunca
 // omitido") e a grade: um cartão que some reflui a linha e desfaz o
 // pareamento pedido (IPCA|Ibovespa, EUR|USD, CDI|Selic).
-function CartaoMacro({ titulo, ind, casas = 2, sufixo = "%", rodape }) {
-  const valor = ind?.valor;
+//
+// `comoVariacao` troca o número grande pelo retorno de 12 meses (é o caso do
+// Ibovespa: o nível do índice em pontos não diz nada sozinho — 171.032 só
+// significa alguma coisa comparado com onde estava).
+function CartaoMacro({ titulo, ind, casas = 2, sufixo = "%", rodape, comoVariacao = false, janelas = false }) {
+  const v12m = ind?.var12m;
+  const v1sem = ind?.var1sem;
+  const grande = comoVariacao
+    ? v12m
+      ? pct(v12m.pct)
+      : "—"
+    : ind?.valor == null
+      ? "—"
+      : `${num(ind.valor, casas)}${sufixo}`;
+
   return (
     <div className="card">
       <div className="label">{titulo}</div>
-      <div className="big">
-        {valor == null ? "—" : `${num(valor, casas)}${sufixo}`}
-      </div>
-      <div className={`label ${ind?.changePct != null ? sinal(ind.changePct) : ""}`}>
+      <div className={`big ${comoVariacao ? sinal(v12m?.pct) : ""}`}>{grande}</div>
+      <div className={`label ${!comoVariacao && ind?.changePct != null ? sinal(ind.changePct) : ""}`}>
         {ind ? (
-          <>
-            {ind.changePct != null && <>{pct(ind.changePct)} · </>}
-            {rodape}
-            {ind.data && <> {dataBR(ind.data)}</>}
-          </>
+          comoVariacao ? (
+            // A data de origem da comparação, não a de hoje: "12 meses" parte
+            // do último pregão em ou antes de 365 dias atrás, e dizer qual é
+            // evita fingir que a janela é exata.
+            <>em 12 meses{v12m && <> · desde {dataBR(v12m.de)}</>}</>
+          ) : (
+            <>
+              {ind.changePct != null && <>{pct(ind.changePct)} · </>}
+              {rodape}
+              {ind.data && <> {dataBR(ind.data)}</>}
+            </>
+          )
         ) : (
           "sem dados agora"
         )}
       </div>
+      {janelas && <Janelas v12m={v12m} v1sem={v1sem} mostrar12m={!comoVariacao} />}
     </div>
   );
 }
@@ -97,10 +137,12 @@ function Macro({ macro }) {
             )}
           </div>
         </div>
-        <CartaoMacro titulo="Ibovespa" ind={ind.ibovespa} casas={0} sufixo="" rodape="pontos ·" />
+        {/* O Ibovespa entra pela VARIAÇÃO, não pelo nível: "171.032 pontos" não
+            informa nada sem referência; "+18% em 12 meses" informa. */}
+        <CartaoMacro titulo="Ibovespa" ind={ind.ibovespa} comoVariacao janelas />
 
-        <CartaoMacro titulo="EUR/BRL (PTAX)" ind={ind.eurbrl} casas={4} sufixo="" rodape="" />
-        <CartaoMacro titulo="USD/BRL (PTAX)" ind={ind.usdbrl} casas={4} sufixo="" rodape="" />
+        <CartaoMacro titulo="EUR/BRL (PTAX)" ind={ind.eurbrl} casas={4} sufixo="" rodape="" janelas />
+        <CartaoMacro titulo="USD/BRL (PTAX)" ind={ind.usdbrl} casas={4} sufixo="" rodape="" janelas />
 
         <CartaoMacro titulo="CDI" ind={ind.cdi} rodape="a.a. ·" />
         <CartaoMacro titulo="Selic meta" ind={ind.selic} rodape="a.a. ·" />

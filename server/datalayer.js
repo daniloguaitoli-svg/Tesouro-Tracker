@@ -21,6 +21,7 @@ import * as bcglobais from "./providers/globais.js";
 import { ibovespa } from "./providers/yahoo.js";
 import { REGIOES, manchetes } from "./providers/noticias.js";
 import {
+  variacaoPeriodo,
   calcularDuration,
   precoPor100,
   temDuration,
@@ -304,6 +305,16 @@ export async function getCurva() {
 
 // ---------- /api/macro ----------
 
+// As duas janelas que a moldura mostra. Calculadas da série COMPLETA e ANTES
+// do slice(-120) que enxuga o payload: 120 pontos diários são ~6 meses, então
+// calcular depois do corte daria null em "12 meses" — e o erro seria mudo.
+function janelas(pontos) {
+  return {
+    var12m: variacaoPeriodo(pontos, 365),
+    var1sem: variacaoPeriodo(pontos, 7),
+  };
+}
+
 export async function getMacro() {
   const pedidos = MACRO.map((m) =>
     bcb.ultimo(m.serie, { dias: m.id === "ipca" ? 2000 : 800 }).then((r) => [m, r])
@@ -333,6 +344,7 @@ export async function getMacro() {
       data: ibov.data,
       change: ibov.change,
       changePct: ibov.changePct,
+      ...janelas(ibov.pontos),
       pontos: ibov.pontos.slice(-120),
     });
   }
@@ -350,6 +362,7 @@ export async function getMacro() {
       data: dado.data,
       change: dado.change,
       changePct: dado.changePct,
+      ...janelas(dado.pontos),
       pontos: dado.pontos.slice(-120),
     });
     // O IPCA mensal só vira informação útil acumulado: é ele que corrige o VNA.

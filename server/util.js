@@ -118,6 +118,42 @@ export function diasUteisEntre(isoInicio, isoFim) {
   return n;
 }
 
+// ---------- Variação de uma série no tempo ----------
+
+// Variação percentual entre o último ponto da série e o último ponto em ou
+// ANTES de (data do último − dias).
+//
+// "Em ou antes" e não "exatamente na data": bolsa e câmbio não têm ponto em
+// fim de semana nem feriado, então "uma semana atrás" quase nunca existe na
+// série. Pegar o último disponível antes do alvo é o que qualquer terminal
+// faz — e é honesto, porque a data usada sai junto no resultado.
+//
+// Devolve null quando a série não alcança o período pedido, em vez de
+// comparar com o ponto mais antigo que existir e chamar isso de "12 meses".
+// Um número errado com cara de certo é pior que um traço.
+//
+// Pressupõe `pontos` em ordem cronológica crescente — é como os dois
+// providers (BCB e Yahoo) constroem as séries.
+export function variacaoPeriodo(pontos, dias) {
+  if (!Array.isArray(pontos) || pontos.length < 2) return null;
+  const ultimo = pontos[pontos.length - 1];
+  if (ultimo?.close == null || !ultimo.date) return null;
+
+  const alvo = new Date(dataDeISO(ultimo.date).getTime() - dias * 86400000).toISOString().slice(0, 10);
+  let base = null;
+  for (const p of pontos) {
+    if (p.date > alvo) break;
+    if (p.close != null) base = p;
+  }
+  if (!base || !base.close) return null;
+
+  return {
+    pct: ((ultimo.close - base.close) / base.close) * 100,
+    de: base.date,
+    ate: ultimo.date,
+  };
+}
+
 // ---------- Identificação do título ----------
 
 // O arquivo do Tesouro nomeia os títulos por extenso ("Tesouro IPCA+ com Juros

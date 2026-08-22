@@ -58,7 +58,11 @@ async function baixar(symbol, { range = "1y", interval = "1d", casas = 0 } = {})
 // o provider do BCB devolve (valor/data/change/changePct/pontos), para a
 // moldura tratar todos os indicadores igual.
 export async function ibovespa() {
-  const pontos = await baixar(SIMBOLO_IBOVESPA, { range: "1y", interval: "1d", casas: 0 });
+  // 2 anos, não 1: a variação de 12 meses precisa de um ponto ANTES de
+  // 365 dias atrás. Com range=1y o ponto mais antigo cai quase em cima do
+  // alvo e a comparação sairia null (ou colada na borda) justamente no
+  // número que a tela mostra em destaque.
+  const pontos = await baixar(SIMBOLO_IBOVESPA, { range: "2y", interval: "1d", casas: 0 });
   const ult = pontos[pontos.length - 1];
   const ant = pontos[pontos.length - 2] || ult;
   const change = ult.close - ant.close;

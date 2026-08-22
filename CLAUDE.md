@@ -129,7 +129,15 @@ scripts/verificar.mjs
 
 The Painel's **Moldura** renders its six cards in a fixed order — IPCA |
 Ibovespa, EUR/BRL | USD/BRL, CDI | Selic — inside a single `.grid-2`, so the
-card order *is* the row pairing. They render **unconditionally**, showing "—"
+card order *is* the row pairing. Ibovespa and both FX pairs show **12-month and
+1-week variation**; Ibovespa leads with the 12-month figure instead of the index
+level (171.032 points says nothing without a reference). Those windows come from
+`variacaoPeriodo()` in `server/util.js` and are computed **before** the
+`slice(-120)` that trims the payload — 120 daily points is ~6 months, so
+computing them after the trim silently yields `null` for the 12-month figure.
+It returns `null` (rendered `—`) when the series doesn't reach back far enough,
+rather than comparing against the oldest point available and calling that a
+year. Yahoo therefore fetches `range=2y`, not `1y`. They render **unconditionally**, showing "—"
 when a source is down: a card that disappears reflows the grid and breaks the
 pairing. Below 460px the grid collapses to one column and it becomes a list in
 the same order — expected, not a regression.
