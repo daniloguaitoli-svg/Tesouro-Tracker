@@ -15,7 +15,7 @@
 // Sem dependências de propósito: o repositório não tem test runner e a regra é
 // manter só react + react-dom.
 
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -513,8 +513,22 @@ for (const arq of ["../dados/historico.json", "../dados/ntnb.json", "../dados/gl
 // enxergar os JSON; o includeFiles manda incluí-los de qualquer jeito. Duas
 // garantias baratas para uma falha que NÃO aparece localmente: build, verificar
 // e pré-voo do handler passam todos, e só a produção fica vazia.
+//
+// O PADRÃO É "api/*.js", NÃO "api/**/*.js": as funções são todas planas em
+// api/, e a Vercel FALHA O BUILD quando um padrão de `functions` não casa com
+// nenhuma função ("The pattern ... doesn't match any Serverless Functions").
+// Com `**` isso depende de a implementação aceitar zero segmentos — risco sem
+// ganho nenhum aqui. Se algum dia surgir api/sub/algo.js, acrescente uma
+// entrada em vez de trocar por `**`.
 const vercelCfg = JSON.parse(await ler("vercel.json"));
-const incl = vercelCfg?.functions?.["api/**/*.js"]?.includeFiles;
+const padroes = Object.keys(vercelCfg?.functions || {});
+const funcoesApi = (await readdir(join(RAIZ, "api"))).filter((f) => f.endsWith(".js"));
+conferir(padroes.includes("api/*.js"), `vercel.json usa o padrão api/*.js (achou: ${padroes.join(", ") || "nenhum"})`);
+conferir(
+  funcoesApi.every((f) => !f.includes("/")),
+  `as ${funcoesApi.length} funções são planas em api/, que é o que api/*.js cobre`
+);
+const incl = vercelCfg?.functions?.["api/*.js"]?.includeFiles;
 conferir(incl === "dados/**", `vercel.json inclui dados/ no pacote das funções (includeFiles: ${JSON.stringify(incl)})`);
 
 // dados/ é commitado DE PROPÓSITO — é a ponte inteira. Ignorá-lo esvazia a

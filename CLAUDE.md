@@ -465,13 +465,20 @@ implying more precision than free data supports.
   `verificar.mjs` now fails if any `require()` in `cache.js` uses a non-literal
   path.
 - **`vercel.json` belts what `cache.js` braces.** It declares
-  `functions["api/**/*.js"].includeFiles = "dados/**"`, forcing the data files
+  `functions["api/*.js"].includeFiles = "dados/**"`, forcing the data files
   into every function bundle regardless of what the tracer concludes on its own.
   The literal-`require` rule above is still the primary mechanism and must stay
   — this is the second line of defence, because the failure it guards against
   is invisible everywhere except production: build, `verificar` and a local
   handler pre-flight all pass while the deployed app shows nothing. Two cheap
   guarantees are worth it for a fault with no local signal.
+
+  Keep the pattern `api/*.js`, **not** `api/**/*.js`. The functions are all flat
+  in `api/`, and Vercel **fails the build** when a `functions` pattern matches
+  nothing — with `**` that hinges on the glob accepting zero segments, which is
+  risk for no gain. A failed build is worse than the bug it guards: the previous
+  deployment stays live and every later fix silently fails to ship. If a
+  `api/sub/thing.js` ever appears, add an entry rather than switching to `**`.
 - **`dados/` must never be added to `.gitignore` or a `.vercelignore`.** The
   data files are deliberately committed — that is the whole bridge — and
   ignoring them would empty the app in production while leaving dev perfect.
