@@ -1,6 +1,6 @@
 # NTN-B — Tesouro IPCA+
 
-Retrato gerado automaticamente em 2026-08-25T13:40:59.850Z.
+Retrato gerado automaticamente em 2026-08-25T22:16:17.068Z.
 Fonte: Tesouro Nacional (Tesouro Transparente).
 
 | Vencimento | Título | Taxa real | PU (R$) | Duration | Dur. mod. | +1 p.p. | −1 p.p. | Data |
