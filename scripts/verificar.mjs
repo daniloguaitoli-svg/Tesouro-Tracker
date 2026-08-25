@@ -509,6 +509,26 @@ for (const arq of ["../dados/historico.json", "../dados/ntnb.json", "../dados/gl
   conferir(cacheSrc.includes(`require("${arq}")`), `cache.js exige ${arq} por literal`);
 }
 
+// Segunda linha de defesa do mesmo perigo. O require literal manda o rastreador
+// enxergar os JSON; o includeFiles manda incluí-los de qualquer jeito. Duas
+// garantias baratas para uma falha que NÃO aparece localmente: build, verificar
+// e pré-voo do handler passam todos, e só a produção fica vazia.
+const vercelCfg = JSON.parse(await ler("vercel.json"));
+const incl = vercelCfg?.functions?.["api/**/*.js"]?.includeFiles;
+conferir(incl === "dados/**", `vercel.json inclui dados/ no pacote das funções (includeFiles: ${JSON.stringify(incl)})`);
+
+// dados/ é commitado DE PROPÓSITO — é a ponte inteira. Ignorá-lo esvazia a
+// produção e deixa o dev perfeito, que é o pior formato possível de defeito.
+for (const arq of [".gitignore", ".vercelignore"]) {
+  const txt = await ler(arq).catch(() => null);
+  if (txt === null) continue;
+  const ignora = txt
+    .split("\n")
+    .map((l) => l.trim())
+    .some((l) => l && !l.startsWith("#") && /^\/?dados(\/|$|\*)/.test(l));
+  conferir(!ignora, `${arq} não ignora dados/`);
+}
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");

@@ -464,6 +464,17 @@ implying more precision than free data supports.
   This is not hypothetical: it broke the first Vercel deploy of this repo.
   `verificar.mjs` now fails if any `require()` in `cache.js` uses a non-literal
   path.
+- **`vercel.json` belts what `cache.js` braces.** It declares
+  `functions["api/**/*.js"].includeFiles = "dados/**"`, forcing the data files
+  into every function bundle regardless of what the tracer concludes on its own.
+  The literal-`require` rule above is still the primary mechanism and must stay
+  — this is the second line of defence, because the failure it guards against
+  is invisible everywhere except production: build, `verificar` and a local
+  handler pre-flight all pass while the deployed app shows nothing. Two cheap
+  guarantees are worth it for a fault with no local signal.
+- **`dados/` must never be added to `.gitignore` or a `.vercelignore`.** The
+  data files are deliberately committed — that is the whole bridge — and
+  ignoring them would empty the app in production while leaving dev perfect.
 - The service worker (`public/sw.js`) is **network-first for navigation**,
   **cache-first for hashed `/assets/*`**, and never caches `/api/*`. `CACHE` is
   the version string to bump (`"tesouro-tracker-v1"`); `SHELL` is the precached
