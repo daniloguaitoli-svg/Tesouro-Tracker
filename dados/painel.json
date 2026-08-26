@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-08-25T22:16:17.068Z",
+ "atualizadoEm": "2026-08-26T13:45:49.115Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -25,9 +25,9 @@
    "pu": 733.27,
    "data": "2026-08-21",
    "duration": {
-    "macaulayAnos": 2.356,
-    "modificada": 2.063,
-    "convexidade": 6.061,
+    "macaulayAnos": 2.353,
+    "modificada": 2.06,
+    "convexidade": 6.049,
     "variacaoPrecoMais1pp": -2.03,
     "variacaoPrecoMenos1pp": 2.09
    }
@@ -59,11 +59,11 @@
    "pu": 3005.66,
    "data": "2026-08-21",
    "duration": {
-    "macaulayAnos": 5.978,
-    "modificada": 5.537,
-    "convexidade": 35.784,
+    "macaulayAnos": 5.975,
+    "modificada": 5.534,
+    "convexidade": 35.754,
     "variacaoPrecoMais1pp": -5.36,
-    "variacaoPrecoMenos1pp": 5.72
+    "variacaoPrecoMenos1pp": 5.71
    }
   },
   {
@@ -76,9 +76,9 @@
    "pu": 2468.95,
    "data": "2026-08-21",
    "duration": {
-    "macaulayAnos": 8.726,
-    "modificada": 8.093,
-    "convexidade": 73.005,
+    "macaulayAnos": 8.723,
+    "modificada": 8.091,
+    "convexidade": 72.962,
     "variacaoPrecoMais1pp": -7.73,
     "variacaoPrecoMenos1pp": 8.46
    }
@@ -91,11 +91,11 @@
    "data": "2026-07-01"
   },
   "ibovespa": {
-   "pontos": 174577,
-   "var12mPct": 26.48,
-   "var12mDesde": "2025-08-25",
-   "var1semPct": 4.96,
-   "data": "2026-08-25"
+   "pontos": 175673,
+   "var12mPct": 27.51,
+   "var12mDesde": "2025-08-26",
+   "var1semPct": 4.67,
+   "data": "2026-08-26"
   },
   "eurbrl": {
    "valor": 6.0109,
@@ -113,13 +113,13 @@
   },
   "cdi": {
    "pctAoAno": 13.9,
-   "data": "2026-08-24"
+   "data": "2026-08-25"
   },
   "selic": {
    "metaPctAoAno": 14,
    "vigenteDesde": "2026-08-06",
    "ultimaVariacaoPP": -0.25,
-   "data": "2026-08-25"
+   "data": "2026-08-26"
   }
  }
 }
