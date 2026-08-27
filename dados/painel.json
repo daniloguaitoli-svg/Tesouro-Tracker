@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-08-27T02:24:44.785Z",
+ "atualizadoEm": "2026-08-27T22:41:43.372Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -91,29 +91,29 @@
    "data": "2026-07-01"
   },
   "ibovespa": {
-   "pontos": 174586,
-   "var12mPct": 26.72,
-   "var12mDesde": "2025-08-26",
-   "var1semPct": 4.03,
-   "data": "2026-08-26"
+   "pontos": 175135,
+   "var12mPct": 25.81,
+   "var12mDesde": "2025-08-27",
+   "var1semPct": 4.29,
+   "data": "2026-08-27"
   },
   "eurbrl": {
-   "valor": 6.0129,
-   "varDiaPct": 0.03,
-   "var12mPct": -4.87,
-   "var1semPct": -0.32,
-   "data": "2026-08-26"
+   "valor": 6.0184,
+   "varDiaPct": 0.09,
+   "var12mPct": -4.77,
+   "var1semPct": -0.64,
+   "data": "2026-08-27"
   },
   "usdbrl": {
-   "valor": 5.1604,
-   "varDiaPct": 0.22,
-   "var12mPct": -4.82,
-   "var1semPct": -0.21,
-   "data": "2026-08-26"
+   "valor": 5.1642,
+   "varDiaPct": 0.07,
+   "var12mPct": -5.12,
+   "var1semPct": -0.42,
+   "data": "2026-08-27"
   },
   "cdi": {
    "pctAoAno": 13.9,
-   "data": "2026-08-25"
+   "data": "2026-08-26"
   },
   "selic": {
    "metaPctAoAno": 14,
