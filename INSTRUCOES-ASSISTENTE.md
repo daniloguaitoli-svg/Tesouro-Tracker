@@ -26,13 +26,20 @@ Se preferir ler em tabela em vez de JSON, o mesmo conteúdo está em
 
 ### Quando o arquivo muda
 
-Uma coleta automática roda **em dias úteis, às 13:00 e às 22:00 UTC**
-(10h e 19h de Brasília) e só reescreve o arquivo quando algo mudou. Para uso
-diário, ler uma vez por dia depois das 22:30 UTC pega o dado mais completo.
+Uma coleta automática roda **todo dia, a cada três horas** (11:23, 14:23,
+17:23, 20:23 e 23:23 UTC) e só reescreve o arquivo quando algo mudou. Para uso
+diário, ler uma vez depois das 23:30 UTC pega o dado mais completo.
 
-Sempre confira o campo `atualizadoEm` (ISO 8601, UTC). **Se ele tiver mais de
-dois dias úteis, diga isso em vez de apresentar os números como atuais** — a
-coleta pode ter falhado.
+Confira **dois** campos, porque eles dizem coisas diferentes:
+
+- `atualizadoEm` — quando a coleta rodou. Se tiver mais de um dia, a coleta
+  falhou ou foi descartada.
+- `data`, em cada título — **a data do preço**, que é o que importa numa
+  resposta. Ela vem naturalmente atrasada: o arquivo do Tesouro sai com pelo
+  menos um dia útil de defasagem e às vezes publica vários dias de uma vez.
+
+Ou seja: uma coleta de hoje com preço de anteontem é normal, não é falha. Cite
+sempre a `data` do preço, nunca a data em que você leu o arquivo.
 
 ### O que tem dentro
 

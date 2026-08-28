@@ -20,9 +20,27 @@ name: Coletar Tesouro
 
 on:
   schedule:
-    # 13:00 e 22:00 UTC = 10h e 19h de Brasília, em dias úteis: uma leitura de
-    # manhã (quando a ANBIMA já publicou o secundário) e outra após o fechamento.
-    - cron: "0 13,22 * * 1-5"
+    # 11:23, 14:23, 17:23, 20:23 e 23:23 UTC = 8h, 11h, 14h, 17h e 20h de
+    # Brasília, TODO DIA. Duas escolhas aqui, ambas aprendidas na prática:
+    #
+    # MINUTO 23, NÃO 0. O GitHub atrasa ou simplesmente DESCARTA execuções
+    # agendadas em períodos de carga alta, e o pico é a virada da hora — que é
+    # exatamente onde estava o agendamento anterior ("0 13,22"). O resultado
+    # apareceu no histórico: a execução de 26/08 22:00 só rodou às 02:23 do dia
+    # seguinte, e as de 27/08 e 28/08 às 13:00 nunca rodaram. O app ficou dois
+    # dias mostrando preço velho com a coleta "funcionando".
+    #
+    # CINCO TENTATIVAS, TODO DIA, e não duas em dia útil. O arquivo do Tesouro
+    # não sai em horário fixo: entre 24/08 e 26/08 de manhã ele ficou parado em
+    # 21/08 e depois publicou 22, 25 e 26 de uma vez, de madrugada. Com poucas
+    # janelas, uma execução perdida custa um dia inteiro de defasagem; com
+    # cinco, o próximo tiro é em três horas. Rodar de sábado e domingo pega o
+    # lote que sai na sexta à noite em vez de esperar até segunda.
+    #
+    # O custo disso é ~zero: o repositório é público (minutos de Actions
+    # gratuitos e ilimitados), o job leva ~40s e só COMMITA quando algum número
+    # mudou — então não gera deploy nem ruído à toa.
+    - cron: "23 11,14,17,20,23 * * *"
   workflow_dispatch:
   # Numa branch de trabalho que NÃO seja a padrão, o job roda em DRY-RUN: baixa,
   # parseia e relata, sem gravar nem commitar. É como se confere que os parsers

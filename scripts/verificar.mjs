@@ -531,6 +531,22 @@ conferir(
 const incl = vercelCfg?.functions?.["api/*.js"]?.includeFiles;
 conferir(incl === "dados/**", `vercel.json inclui dados/ no pacote das funções (includeFiles: ${JSON.stringify(incl)})`);
 
+console.log("\nagendamento da coleta");
+// O GitHub ATRASA ou DESCARTA execuções agendadas sob carga, e o pico é a
+// virada da hora. Com "0 13,22" isto aconteceu de verdade: a coleta de 26/08
+// 22:00 saiu 4h23 atrasada e as de 27 e 28/08 às 13:00 nunca rodaram — o app
+// passou dois dias com preço velho enquanto o job aparecia "verde". Estas duas
+// checagens travam a regra aprendida ali.
+const wf = await ler(".github/workflows/coletar-tesouro.yml");
+const crons = [...wf.matchAll(/^\s*-\s*cron:\s*"([^"]+)"/gm)].map((m) => m[1]);
+conferir(crons.length === 1, `um cron declarado (${crons.join(" | ") || "nenhum"})`);
+const [minuto, horas] = (crons[0] || "").split(/\s+/);
+conferir(minuto !== "0" && minuto !== "*", `cron fora da virada da hora (minuto ${minuto})`);
+conferir(
+  (horas || "").split(",").filter(Boolean).length >= 4,
+  `pelo menos 4 janelas por dia, para uma execução perdida não custar o dia (horas: ${horas})`
+);
+
 // dados/ é commitado DE PROPÓSITO — é a ponte inteira. Ignorá-lo esvazia a
 // produção e deixa o dev perfeito, que é o pior formato possível de defeito.
 for (const arq of [".gitignore", ".vercelignore"]) {

@@ -192,8 +192,10 @@ dois em todo pull request.
 
 ## Como os dados chegam ao ar
 
-1. `.github/workflows/coletar-tesouro.yml` roda às 13:00 e 22:00 UTC (10h e 19h
-   de Brasília), em dias úteis.
+1. `.github/workflows/coletar-tesouro.yml` roda cinco vezes por dia, todo dia:
+   11:23, 14:23, 17:23, 20:23 e 23:23 UTC (8h, 11h, 14h, 17h e 20h de Brasília).
+   O minuto quebrado é de propósito — o GitHub descarta execuções agendadas na
+   virada da hora quando está sob carga, e foi o que aconteceu aqui.
 2. O coletor lê o CSV do Tesouro em streaming, destila e grava `dados/`.
 3. O bot commita as mudanças — e esse commit dispara um deploy novo na Vercel.
 
@@ -229,9 +231,10 @@ análise.
 
 Este app é deliberadamente explícito sobre o que **não** sabe:
 
-- **Defasagem.** O arquivo do Tesouro é de fechamento e a coleta roda duas
-  vezes por dia. Nada aqui é tempo real. Todo item carrega a data do preço, e
-  os desatualizados são marcados.
+- **Defasagem.** O arquivo do Tesouro é de fechamento e sai com pelo menos um
+  dia útil de atraso — às vezes mais, e em lote: já ficou parado três dias e
+  depois publicou três datas de uma vez. Nada aqui é tempo real. Todo item
+  carrega a data do preço, e os desatualizados são marcados.
 - **Convenção de tempo.** Duration e sensibilidade usam dias corridos/365. A
   convenção oficial da ANBIMA para NTN-B é **dias úteis/252** — a diferença é
   desprezível para duration (que é uma razão ponderada, onde a convenção quase
