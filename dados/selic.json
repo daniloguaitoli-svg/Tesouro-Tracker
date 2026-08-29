@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-08-28T17:41:47.077Z",
+ "atualizadoEm": "2026-08-29T02:50:58.168Z",
  "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -17,7 +17,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-08-27",
-   "anosAteVencer": 0.507,
+   "anosAteVencer": 0.504,
    "taxa": 0,
    "taxaCompra": 0,
    "taxaVenda": 0.01,
@@ -31,14 +31,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 1386,
-   "secundario": {
-    "fonte": "ANBIMA — mercado secundário",
-    "taxaIndicativa": -0.0044,
-    "taxaCompra": -0.0025,
-    "taxaVenda": -0.006,
-    "pu": 19742.546971
-   }
+   "pontosNaSerie": 1386
   },
   {
    "slug": "selic-2028-03-01",
@@ -48,7 +41,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-08-27",
-   "anosAteVencer": 1.51,
+   "anosAteVencer": 1.507,
    "taxa": 0.01,
    "taxaCompra": 0.01,
    "taxaVenda": 0.02,
@@ -62,14 +55,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 392,
-   "secundario": {
-    "fonte": "ANBIMA — mercado secundário",
-    "taxaIndicativa": 0.009,
-    "taxaCompra": 0.0103,
-    "taxaVenda": 0.0078,
-    "pu": 19739.467199
-   }
+   "pontosNaSerie": 392
   },
   {
    "slug": "selic-2029-03-01",
@@ -79,7 +65,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-08-27",
-   "anosAteVencer": 2.51,
+   "anosAteVencer": 2.507,
    "taxa": 0.03,
    "taxaCompra": 0.03,
    "taxaVenda": 0.04,
@@ -93,14 +79,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 908,
-   "secundario": {
-    "fonte": "ANBIMA — mercado secundário",
-    "taxaIndicativa": 0.027,
-    "taxaCompra": 0.0276,
-    "taxaVenda": 0.026,
-    "pu": 19728.885416
-   }
+   "pontosNaSerie": 908
   },
   {
    "slug": "selic-2031-03-01",
@@ -110,7 +89,7 @@
    "comCupom": false,
    "destaque": true,
    "data": "2026-08-27",
-   "anosAteVencer": 4.51,
+   "anosAteVencer": 4.507,
    "taxa": 0.07,
    "taxaCompra": 0.07,
    "taxaVenda": 0.08,
@@ -124,14 +103,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 392,
-   "secundario": {
-    "fonte": "ANBIMA — mercado secundário",
-    "taxaIndicativa": 0.073,
-    "taxaCompra": 0.0742,
-    "taxaVenda": 0.0724,
-    "pu": 19677.792777
-   }
+   "pontosNaSerie": 392
   }
  ]
 }
