@@ -255,6 +255,21 @@ days/252. The difference is negligible for duration (a weighted ratio, where the
 convention largely cancels) and is documented in the README as an approximation.
 If you add a holiday calendar, update both the README and this section.
 
+### The download retries; the parse does not
+
+`varrerSerie()` retries the **connection** up to 4 times with backoff (2s, 4s,
+8s) before giving up. Reason: `tesourotransparente.gov.br` intermittently
+refuses connections, and without a retry one `UND_ERR_CONNECT_TIMEOUT` failed
+the whole job with exit 1 — which emails the repo owner about a network hiccup
+that fixes itself. It happened on most days between 29/08 and 02/09/2026, and
+a later run in the same day always succeeded, so no data was ever lost — only
+noise was produced.
+
+Two boundaries are deliberate: a **4xx is not retried** (if the resource moved,
+more attempts only delay the error that needs to surface), and the retry covers
+only the connection — once the body starts streaming, a reopen would duplicate
+points.
+
 ### Parsing is tolerant, and fails loudly
 
 `providers/tesouro.js` detects the separator and finds columns by **regex on the

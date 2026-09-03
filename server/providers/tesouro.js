@@ -113,11 +113,39 @@ export function linhaParaPonto(cels, idx, desdeISO) {
 
 // Varre o CSV em streaming, chamando aoLer(ponto) para cada ponto IPCA+ dentro
 // da janela. Nunca carrega o arquivo inteiro na memória.
-export async function varrerSerie({ desdeISO = null, aoLer, sinal } = {}) {
-  const r = await fetch(URL_CSV, {
-    headers: { Accept: "text/csv,text/plain,*/*", "User-Agent": "tesouro-tracker (github actions)" },
-    signal: sinal,
-  });
+export async function varrerSerie({ desdeISO = null, aoLer, sinal, tentativas = 4 } = {}) {
+  // POR QUE RETENTAR: o site do Tesouro recusa conexão de vez em quando, e sem
+  // retry um único ConnectTimeout derrubava a coleta inteira com exit 1 — o que
+  // manda um e-mail de falha ao dono do repositório por um soluço de rede que
+  // se resolve sozinho. Aconteceu quase todo dia entre 29/08 e 02/09/2026.
+  //
+  // A retentativa cobre só a CONEXÃO. Depois que o corpo começa a chegar, o
+  // streaming segue como antes: reabrir no meio duplicaria pontos.
+  //
+  // Um 4xx não é retentado de propósito: se o recurso mudou de endereço, mais
+  // tentativas só atrasam o erro que precisa aparecer.
+  let r = null;
+  let ultimoErro = null;
+  for (let i = 0; i < tentativas; i++) {
+    if (i > 0) await new Promise((ok) => setTimeout(ok, 2000 * 2 ** (i - 1))); // 2s, 4s, 8s
+    try {
+      r = await fetch(URL_CSV, {
+        headers: { Accept: "text/csv,text/plain,*/*", "User-Agent": "tesouro-tracker (github actions)" },
+        signal: sinal,
+      });
+    } catch (e) {
+      ultimoErro = e;
+      if (sinal?.aborted) throw e;
+      console.error(`tentativa ${i + 1}/${tentativas} falhou: ${e.cause?.code || e.message}`);
+      continue;
+    }
+    if (r.ok) break;
+    if (r.status < 500) throw new Error(`Tesouro Transparente indisponível (HTTP ${r.status})`);
+    ultimoErro = new Error(`HTTP ${r.status}`);
+    console.error(`tentativa ${i + 1}/${tentativas}: HTTP ${r.status}`);
+    r = null;
+  }
+  if (!r) throw new Error(`Tesouro Transparente inalcançável após ${tentativas} tentativas: ${ultimoErro?.cause?.code || ultimoErro?.message}`);
   if (!r.ok) throw new Error(`Tesouro Transparente indisponível (HTTP ${r.status})`);
   if (!r.body) throw new Error("Tesouro Transparente devolveu resposta sem corpo");
 
