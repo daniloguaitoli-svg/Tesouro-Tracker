@@ -559,6 +559,25 @@ for (const arq of [".gitignore", ".vercelignore"]) {
   conferir(!ignora, `${arq} não ignora dados/`);
 }
 
+console.log("\nrótulo real x nominal na Calculadora");
+// A taxa de um IPCA+ é REAL e a de um prefixado é NOMINAL — a tela dizia
+// "taxa real" nos dois casos, em quatro lugares. Agora vem tudo de um
+// `rotuloTaxa` derivado do tipo, e esta checagem impede que alguém volte a
+// escrever a palavra à mão num deles.
+const calcSrc = await ler("src/components/Calculadora.jsx");
+// Ficam de fora os comentários (onde os dois termos são explicados de
+// propósito) e a própria linha que define `rotuloTaxa` — o único lugar do
+// arquivo onde as duas palavras têm de estar escritas.
+const calcSemComentarios = calcSrc
+  .split("\n")
+  .filter((l) => !l.trim().startsWith("//") && !/const rotuloTaxa\s*=/.test(l))
+  .join("\n");
+conferir(/const rotuloTaxa\s*=/.test(calcSrc), "Calculadora deriva rotuloTaxa do tipo do título");
+for (const termo of ["taxa real", "taxa nominal"]) {
+  const n = (calcSemComentarios.match(new RegExp(termo, "g")) || []).length;
+  conferir(n === 0, `"${termo}" não aparece escrito à mão na Calculadora (achou ${n})`);
+}
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");

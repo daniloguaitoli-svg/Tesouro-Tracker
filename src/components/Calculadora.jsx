@@ -71,12 +71,18 @@ export function Calculadora({ dados }) {
   if (!todos.length) return <AguardandoColeta />;
 
   const ehPrefixado = t?.tipo === "prefixado" || t?.tipo === "prefixado-juros";
+  // A taxa de um IPCA+ é REAL (acima da inflação) e a de um prefixado é NOMINAL.
+  // Chamar as duas de "taxa real" era o erro que esta tela cometia em quatro
+  // lugares — os números sempre estiveram certos, mas o rótulo dizia que um
+  // prefixado a 14% rende 14% ACIMA do IPCA, que é a leitura mais cara possível.
+  // Um rótulo só, derivado do tipo, para os quatro pontos não voltarem a divergir.
+  const rotuloTaxa = ehPrefixado ? "taxa nominal" : "taxa real";
 
   return (
     <div>
       <div className="section-title">Sensibilidade a juros</div>
       <p className="section-sub">
-        Quanto uma mudança na taxa real mexe na posição hoje, e o que ela entrega até o
+        Quanto uma mudança na {rotuloTaxa} mexe na posição hoje, e o que ela entrega até o
         vencimento.
       </p>
 
@@ -103,7 +109,7 @@ export function Calculadora({ dados }) {
           />
         </label>
 
-        <span className="label">Se a taxa real variar</span>
+        <span className="label">Se a {rotuloTaxa} variar</span>
         <div className="chips" style={{ marginTop: 6 }}>
           {DELTAS.map((d) => (
             <button key={d} className="chip" aria-pressed={delta === d} onClick={() => setDelta(d)}>
@@ -122,7 +128,7 @@ export function Calculadora({ dados }) {
             <div className="card">
               <div className="label">Variação do preço</div>
               <div className={`big ${conta.variacaoPct >= 0 ? "up" : "down"}`}>{pct(conta.variacaoPct)}</div>
-              <div className="label">com {pp(delta, 1)} na taxa real</div>
+              <div className="label">com {pp(delta, 1)} na {rotuloTaxa}</div>
             </div>
             <div className="card">
               <div className="label">Em reais</div>
@@ -170,7 +176,7 @@ export function Calculadora({ dados }) {
               inflação futura.</>
             )} Os números são brutos de
             imposto de renda e de taxa de custódia. Para os títulos com cupom, o valor final
-            supõe que os cupons sejam reinvestidos à mesma taxa real — na prática eles caem na
+            supõe que os cupons sejam reinvestidos à mesma {rotuloTaxa} — na prática eles caem na
             conta e podem render outra coisa. E a sensibilidade é uma aproximação de segunda
             ordem (duration + convexidade), não uma reprecificação exata.
           </div>

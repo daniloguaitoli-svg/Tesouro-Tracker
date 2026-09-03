@@ -375,7 +375,12 @@ Everything downstream keys off this:
   inflation).
 - The Calculadora excludes LFT, and its terminal-value copy switches between
   "a preços de hoje" (IPCA+) and "reais nominais" (prefixado) — that switch is
-  load-bearing honesty, not styling.
+  load-bearing honesty, not styling. Every mention of the rate itself comes from
+  a single `rotuloTaxa` ("taxa real" / "taxa nominal") derived from `t.tipo`.
+  Four separate places used to say "taxa real" unconditionally, so a Prefixado
+  at 14% read as 14% *above* inflation — the numbers were right and the label
+  was not. Never write either phrase by hand there; `verificar.mjs` fails if you
+  do.
 
 To add another family: teach `classificarTitulo()`, add the category in
 `catalogo.js`, give it a sibling bridge file in the collector. Never reshape an
