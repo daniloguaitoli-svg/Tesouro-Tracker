@@ -119,7 +119,8 @@ export default function App() {
         {dados?.aviso ||
           "Dados de fontes públicas (Tesouro Nacional, ANBIMA e Banco Central), com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento."}
         <br />
-        Feito para acompanhar a taxa real e a sensibilidade a juros das NTN-B (Tesouro IPCA+).
+        Feito para acompanhar taxa, duration e sensibilidade a juros dos títulos do Tesouro
+        Direto: IPCA+, Prefixado e Selic.
         {dados?.atualizadoEm && (
           <> Última coleta: {dataBR(dados.atualizadoEm)} às {horaBR(dados.atualizadoEm)}.</>
         )}

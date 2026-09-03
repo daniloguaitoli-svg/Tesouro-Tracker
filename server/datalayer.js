@@ -31,8 +31,15 @@ import {
   LIMITE_DIAS_UTEIS,
 } from "./util.js";
 
+// A ANBIMA saiu desta lista DE PROPOSITO. O caminho publico do mercado
+// secundario responde 404 desde que o app existe (a ferramenta migrou para a
+// plataforma ANBIMA Data), entao `dados/ntnb.json` sai com `anbima: null` e
+// nenhum titulo carrega campo vindo dela. Creditar uma fonte que nao entrega
+// nada sugere ao leitor que os numeros estao corroborados por ela — e nao
+// estao. Se o seam ANBIMA_MS_URL um dia apontar para um endereco que responde,
+// devolva o nome aqui.
 export const AVISO =
-  "Dados de fontes públicas (Tesouro Nacional, ANBIMA e Banco Central), com defasagem de pelo menos um dia útil. " +
+  "Dados de fontes públicas (Tesouro Nacional e Banco Central), com defasagem de pelo menos um dia útil. " +
   "Duration e sensibilidade são calculadas em dias corridos/365, aproximação da convenção oficial de dias úteis/252. " +
   "Uso informativo — não é recomendação de investimento.";
 

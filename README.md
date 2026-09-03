@@ -89,7 +89,7 @@ não uma tela. As taxas são **reais** (ao ano, acima do IPCA).
 | **ECB Data Portal** | taxas de depósito e de refinanciamento do BCE | API pública em CSV, sem chave — lido pelo job agendado |
 | **Google News (RSS)** | manchetes de mercado (Brasil, EUA, Europa), com link para a fonte original | RSS público, sem chave — melhor esforço |
 | **Yahoo Finance** | Ibovespa (`^BVSP`), fechamento diário | endpoint público de gráficos, sem chave — melhor esforço |
-| **ANBIMA** (mercado secundário) | taxa indicativa e bid/ask do secundário | arquivo diário público — enriquecimento, nunca requisito |
+| **ANBIMA** (mercado secundário) | taxa indicativa e bid/ask do secundário | **fora do ar hoje**: o caminho público responde 404 (ver abaixo). Sempre foi enriquecimento, nunca requisito — o app funciona inteiro sem ela, e por isso a ANBIMA não é creditada no rodapé |
 
 **Nenhuma chave de API é necessária.** Todas as fontes são gratuitas e abertas.
 
