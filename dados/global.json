@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-09-05T01:04:24.415Z",
+ "atualizadoEm": "2026-09-05T13:54:09.398Z",
  "fontes": {
   "fed": "FRED / St. Louis Fed (fredgraph.csv, DFEDTARU + DFEDTARL)",
   "bce": "ECB Data Portal (FM.B.U2.EUR.4F.KR.DFR/MRR_FR.LEV)"
@@ -12,7 +12,7 @@
   "limiteInferior": 3.5,
   "vigenteDesde": "2025-12-11",
   "variacaoPP": -0.25,
-  "data": "2026-09-04",
+  "data": "2026-09-05",
   "fonte": "FRED / St. Louis Fed (DFEDTARU, DFEDTARL)"
  },
  "bce": {
