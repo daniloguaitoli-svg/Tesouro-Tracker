@@ -61,15 +61,20 @@ const ROTAS = {
   "/api/macro": datalayer.getMacro,
 };
 
+// Guarda { ok, corpo } e não só o corpo, porque a FORMA DA FALHA importa.
+// Uma fonte fora do ar vira, em produção, um 502 com `{ error }` (é o que os
+// `api/*.js` fazem), e a tela trata isso no `.catch` do fetch. Devolver aqui um
+// 200 com corpo vazio seria uma falha que produção nunca produz — a tela leria
+// `undefined.map` e o teste acusaria um defeito inexistente. Já aconteceu:
+// a primeira versão deste script reprovou a aba Mercado por isso.
 const payloads = {};
 for (const [rota, fn] of Object.entries(ROTAS)) {
+  if (typeof fn !== "function") continue;
   try {
-    payloads[rota] = await fn();
+    payloads[rota] = { ok: true, corpo: await fn() };
   } catch (e) {
-    // Uma fonte fora do ar não é defeito da tela. O app é construído para
-    // tolerar buraco de dado, então o teste segue e a tela mostra o vazio.
-    relato.push(`  aviso  ${rota} não respondeu (${e.message.slice(0, 60)}) — segue com vazio`);
-    payloads[rota] = {};
+    relato.push(`  aviso  ${rota} fora do ar (${e.message.slice(0, 50)}) — servido como 502, igual à produção`);
+    payloads[rota] = { ok: false, corpo: { error: e.message } };
   }
 }
 
@@ -99,13 +104,15 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 
 globalThis.fetch = async (url) => {
   const caminho = String(url).split("?")[0];
-  const corpo = payloads[caminho];
-  if (corpo === undefined) {
+  const r = payloads[caminho];
+  if (r === undefined) {
     // Endpoint que a tela chama e o teste não conhece: vale saber.
     falhas.push(`fetch inesperado: ${url}`);
     return { ok: false, status: 404, json: async () => ({ error: "rota não mapeada no teste" }) };
   }
-  return { ok: true, status: 200, json: async () => corpo };
+  // Espelha o que o `api/<rota>.js` devolveria: 200 com o payload, ou 502 com
+  // `{ error }`. Assim o caminho de erro da tela é exercitado de verdade.
+  return { ok: r.ok, status: r.ok ? 200 : 502, json: async () => r.corpo };
 };
 
 // Erros que escapam do React (efeito assíncrono, handler) caem aqui.
@@ -165,9 +172,46 @@ class Fronteira extends React.Component {
   }
 }
 
-// Deixa efeito, promessa e re-render assentarem antes de olhar a tela.
-const assentar = async (voltas = 12) => {
-  for (let i = 0; i < voltas; i++) await new Promise((r) => setTimeout(r, 0));
+// Espera no RELÓGIO, não em voltas de microtask.
+//
+// Um laço de `setTimeout(0)` esvazia a fila de microtasks, mas não espera nada
+// que leve tempo de verdade — um fetch com latência, uma cadeia de promessas.
+// Hoje o stub responde na hora e um laço bastaria; no dia em que não bastar, a
+// tela seria lida ainda carregando e o teste acusaria "renderizou quase nada"
+// num componente perfeito. (Foi exatamente esse o erro na versão do irmão ETF
+// Tracker, onde o mock atrasa 250ms de propósito.)
+//
+// O sinal de "terminou" aqui é o próprio tamanho do texto: `Skeletons` não
+// renderiza texto nenhum e `Loading` renderiza 21 caracteres, ambos abaixo do
+// piso de 40 — então texto acima do piso E parado significa tela pronta.
+const tique = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function esperarAssentar(ler, { piso = 40, teto = 5000, passo = 25, repeticoes = 3 } = {}) {
+  const inicio = Date.now();
+  let anterior = null;
+  let parado = 0;
+  while (Date.now() - inicio < teto) {
+    await tique(passo);
+    const agora = ler();
+    if (agora.length < piso) {
+      parado = 0;
+      anterior = agora;
+      continue;
+    }
+    if (agora === anterior) {
+      if (++parado >= repeticoes) return agora;
+    } else {
+      parado = 0;
+      anterior = agora;
+    }
+  }
+  return ler();
+}
+
+// Conteúdo da aba: o <main>, não o container inteiro (ver o porquê abaixo).
+const textoDaAba = (container) => {
+  const conteudo = container.querySelector("main") || container;
+  return conteudo.textContent.replace(/\s+/g, " ").trim();
 };
 
 // ---------- 4. Abrir cada aba, uma montagem limpa por aba ----------
@@ -187,7 +231,8 @@ async function abrirAba(nome) {
 
   try {
     raiz.render(React.createElement(Fronteira, null, React.createElement(App)));
-    await assentar();
+    // Espera a moldura aparecer (ou um erro de montagem estourar).
+    await esperarAssentar(() => (container.querySelector('[role="tab"]') ? "moldura" : ""), { piso: 1, teto: 5000 });
 
     // Erro na montagem inicial ANTES de procurar as abas. A aba padrão (Painel)
     // renderiza junto com a moldura, então se ela quebrar a fronteira apaga a
@@ -209,7 +254,7 @@ async function abrirAba(nome) {
     }
 
     alvo.click();
-    await assentar();
+    const texto = await esperarAssentar(() => textoDaAba(container));
 
     const novos = errosSoltos.slice(antes);
     if (capturados.length || novos.length) {
@@ -217,9 +262,13 @@ async function abrirAba(nome) {
       return { ok: false, motivo: String(e?.message || e).split("\n")[0] };
     }
 
-    // Painel vazio também é defeito: significa que a tela montou sem nada.
-    const texto = container.textContent.replace(/\s+/g, " ").trim();
-    if (texto.length < 40) return { ok: false, motivo: `a tela renderizou quase nada (${texto.length} chars)` };
+    // Tela vazia também é defeito. `textoDaAba` mede o <main>, NÃO o container
+    // inteiro: a moldura (marca + tira de abas) sozinha já passa de 70
+    // caracteres, então um piso medido no container aprovaria uma aba cujo
+    // corpo não renderizou nada.
+    if (texto.length < 40) {
+      return { ok: false, motivo: `o corpo da aba renderizou quase nada (${texto.length} chars)` };
+    }
 
     return { ok: true, chars: texto.length };
   } catch (e) {
