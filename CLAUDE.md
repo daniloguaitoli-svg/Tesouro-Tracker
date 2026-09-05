@@ -86,9 +86,9 @@ Never hand-edit `dados/` — the bot owns it. Expect frequent
 | Language | **Plain JavaScript (ESM)** + JSX. **No TypeScript** — do not add it. |
 | UI | React 18, function components + hooks only. |
 | Build | Vite 5 (`"type": "module"`) |
-| Dependencies | **react + react-dom only.** No UI kit, no chart library, no CSV parser, no state manager. Charts are hand-rolled SVG (`Sparkline`, `AreaChart`, `CurvaChart`); CSV parsing is hand-rolled and streaming. Keep it that way unless asked. |
+| Dependencies | **react + react-dom only** at runtime. No UI kit, no chart library, no CSV parser, no state manager. Charts are hand-rolled SVG (`Sparkline`, `AreaChart`, `CurvaChart`); CSV parsing is hand-rolled and streaming. Keep it that way unless asked. In devDependencies there is one addition beyond vite: **jsdom**, used only by `scripts/fumaca.mjs` — nothing in `src/` or `server/` may import it. It is **pinned to `^26`, and that pin is load-bearing**: jsdom 27+ requires Node ≥20.19 and jsdom 30 requires Node ≥22.22, while this project (and the CI runner) is on Node 18+/20. Upgrading it makes `npm run fumaca` die on the runner with `webidl.util.markAsUncloneable is not a function` — from the bundled `undici`, not from any code here. jsdom 26 declares `engines.node: ">=18"` and does not depend on undici at all. |
 | Styling | One global stylesheet, `src/styles.css`. No CSS modules, no Tailwind. |
-| Tests / lint | **No test runner, no ESLint, no Prettier** — don't invent an `npm test`. What exists is `npm run verificar` (`scripts/verificar.mjs`, dependency-free) plus `npm run build`; CI runs both on every PR. |
+| Tests / lint | **No test runner, no ESLint, no Prettier** — don't invent an `npm test`. What exists is three plain scripts: `npm run build`, `npm run verificar` (`scripts/verificar.mjs`, dependency-free) and `npm run fumaca` (`scripts/fumaca.mjs`, mounts the app in jsdom). CI runs all three on every PR. |
 | Node | 18+ |
 | Secrets | **None.** Every source is free and key-less. Don't add one without asking. |
 
@@ -102,18 +102,38 @@ npm install
 npm run dev        # Vite + the dev /api middleware; host exposed on the LAN
 npm run build      # production build
 npm run verificar  # loads server/ + asserts the invariants this file declares
+npm run fumaca     # mounts the app in a DOM and opens every tab
 npm run preview
 
 node .github/scripts/coletar-tesouro.mjs --dry-run   # collect and report only
 TESOURO_DESDE=2015-01-01 node .github/scripts/coletar-tesouro.mjs --dry-run
 ```
 
-**Run both `build` and `verificar` — neither covers the other.** `vite build`
-only bundles `src/`, so it never parses `server/`: a broken import, a column
-regex that stopped matching, a catalogue slug inconsistent with its
-tipo+vencimento, or a duplicated constant that drifted all pass the build and
-fail at request time. `scripts/verificar.mjs` covers that half, and
-`.github/workflows/ci.yml` runs both on every PR.
+**Run all three — no two of them overlap.** `vite build` only bundles `src/`,
+so it never parses `server/`: a broken import, a column regex that stopped
+matching, a catalogue slug inconsistent with its tipo+vencimento, or a
+duplicated constant that drifted all pass the build and fail at request time.
+`scripts/verificar.mjs` covers that half.
+
+Neither of those **renders a component**. The build packages code that throws
+the moment it runs, and `verificar` never looks at `src/components/`. That gap
+shipped a real bug: on 22/08/2026 the `useState("real")` declaration of
+`familiaId` vanished from `Curva.jsx` while the JSX kept using it, so the Curva
+tab died with a `ReferenceError` as soon as anyone opened it — build green,
+verificar green, production broken.
+
+`scripts/fumaca.mjs` closes that third gap. It mounts the real `App` in a jsdom
+DOM, serves `/api` from the real `server/datalayer.js`, and clicks through every
+tab. **Mounting with data is the load-bearing part**: that bug sat *after* the
+`if (!dados) return <Skeletons/>` guard, so rendering without data stops short
+of it, and server-side rendering never runs `useEffect` at all — the state would
+stay `null` either way. Only a real DOM with populated responses executes the
+body of the component.
+
+If you add a tab to `TABS` in `App.jsx`, add its label to `ABAS_ESPERADAS` in
+`scripts/fumaca.mjs` — otherwise the new screen has no coverage at all.
+
+`.github/workflows/ci.yml` runs all three on every PR.
 
 ## Architecture
 
@@ -144,9 +164,10 @@ api/                  Vercel functions: titulos, detalhe, curva, macro, mercado,
 dados/                the committed data (bot-owned) — see "the bridge" above
 .github/
   workflows/coletar-tesouro.yml   scheduled collection + dry-run on claude/** push
-  workflows/ci.yml                build + verificar on PRs
+  workflows/ci.yml                build + verificar + fumaça on PRs
   scripts/coletar-tesouro.mjs     the collector itself
-scripts/verificar.mjs
+scripts/verificar.mjs           invariantes do server/ (sem dependência)
+scripts/fumaca.mjs              monta o app num DOM e abre cada aba (jsdom)
 ```
 
 The Painel's **Moldura** renders its six cards in a fixed order — IPCA |
