@@ -1,11 +1,15 @@
-# Confere cada pull request: o build de produção e as verificações do lado
-# servidor que o build não faz.
+# Confere cada pull request em três frentes, porque nenhuma cobre a outra.
 #
 # O `vite build` empacota só o src/, então a metade server/ (datalayer,
 # catálogo, util, providers) nem chega a ser lida por ele — um import quebrado,
 # uma coluna essencial removida do parser ou um slug de catálogo órfão passam
 # verde e só falham em produção, na hora do request. O scripts/verificar.mjs
 # fecha essa lacuna.
+#
+# E nenhum dos dois RENDERIZA um componente: o build empacota código que quebra
+# ao rodar, e o verificar nem olha para src/components/. Foi por aí que a aba
+# Curva foi para produção quebrada em 22/08/2026. O scripts/fumaca.mjs monta o
+# app num DOM e abre cada aba, que é o único jeito de pegar isso.
 #
 # Só em pull request (e manual): nada aqui precisa rodar de novo a cada commit
 # do bot de coleta no main.
@@ -44,3 +48,9 @@ jobs:
 
       - name: Verificar server/ e os invariantes do CLAUDE.md
         run: npm run verificar
+
+      # Monta o app de verdade e abre cada aba. Lê os arquivos de dados/ e
+      # consulta o BCB para montar os payloads; uma fonte fora do ar não
+      # derruba o job — a tela renderiza vazia, que é o comportamento esperado.
+      - name: Teste de fumaça (monta as telas)
+        run: npm run fumaca
