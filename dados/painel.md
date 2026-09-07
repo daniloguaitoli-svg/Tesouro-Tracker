@@ -1,6 +1,6 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-09-07T01:05:59.121Z.
+Retrato gerado automaticamente em 2026-09-07T16:32:14.884Z.
 
 ## Acompanhados de perto
 
@@ -19,7 +19,7 @@ Retrato gerado automaticamente em 2026-09-07T01:05:59.121Z.
 | Ibovespa | 185147 pts | 31.32% | 5.4% | 04/09/2026 |
 | EUR/BRL | 5.9546 | -6.36% | -1.27% | 04/09/2026 |
 | USD/BRL | 5.1253 | -6.11% | -1.45% | 04/09/2026 |
-| CDI | 13.9% a.a. | — | — | 03/09/2026 |
+| CDI | 13.9% a.a. | — | — | 04/09/2026 |
 | Selic (meta) | 14% a.a. | — | — | 07/09/2026 |
 
 ## Ressalvas
