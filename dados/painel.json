@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-09-10T19:48:14.467Z",
+ "atualizadoEm": "2026-09-10T22:40:08.297Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -91,10 +91,10 @@
    "data": "2026-07-01"
   },
   "ibovespa": {
-   "pontos": 188112,
-   "var12mPct": 32.15,
+   "pontos": 188269,
+   "var12mPct": 32.26,
    "var12mDesde": "2025-09-10",
-   "var1semPct": 1.58,
+   "var1semPct": 1.66,
    "data": "2026-09-10"
   },
   "eurbrl": {
