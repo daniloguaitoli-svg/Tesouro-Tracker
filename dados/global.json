@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-09-10T01:09:57.141Z",
+ "atualizadoEm": "2026-09-10T15:01:53.951Z",
  "fontes": {
   "fed": "FRED / St. Louis Fed (fredgraph.csv, DFEDTARU + DFEDTARL)",
   "bce": "ECB Data Portal (FM.B.U2.EUR.4F.KR.DFR/MRR_FR.LEV)"
@@ -18,11 +18,11 @@
  "bce": {
   "nome": "Banco Central Europeu",
   "indicador": "Taxa de depósito (e refi)",
-  "deposito": 2.25,
-  "refi": 2.4,
-  "vigenteDesde": "2026-06-17",
+  "deposito": 2.5,
+  "refi": 2.65,
+  "vigenteDesde": "2026-09-16",
   "variacaoPP": 0.25,
-  "data": "2026-06-17",
+  "data": "2026-09-16",
   "fonte": "ECB Data Portal (DFR, MRR)"
  }
 }
