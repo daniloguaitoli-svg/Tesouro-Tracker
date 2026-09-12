@@ -316,9 +316,23 @@ entry comes with it.
 
 The ⭐ marker is in the legend too (a bigger dot **on** today's line, which is
 exactly how it renders), and only when a point on screen actually has it —
-explaining an absent marker is noise. `verificar.mjs` asserts both halves: no
-`className="legenda"` left in `Curva.jsx`, and every series entry has a
-`rotulo`.
+explaining an absent marker is noise.
+
+**The dash pattern is NOT shared, and that is the point.** A round linecap
+extends every dash by `strokeWidth/2` at each end, so it eats a whole
+`strokeWidth` out of the declared gap. The chart draws at 1.4px, where `"4 3"`
+leaves a 1.6px gap you can see; the legend draws thicker (2.4px) so it reads on
+a phone, and the same `"4 3"` left **0.6px** — a solid bar to the naked eye, the
+very defect the legend rewrite was meant to fix. So the legend uses a butt cap,
+where the declared gap *is* the visible gap, and `TRACEJADO_LEGENDA = "6 5"`,
+which divides the 28px swatch into exactly three full dashes.
+
+`verificar.mjs` computes the **visible** gap on both sides
+(`vão = gap − strokeWidth` for a round cap, `gap` for a butt cap) and requires
+≥ 1.5px, plus a swatch wide enough for ≥ 2.5 dashes. Don't "unify" the two
+constants — that is exactly the regression the check exists for. It also asserts
+no `className="legenda"` is left in `Curva.jsx` and that every series entry
+carries a `rotulo`.
 
 ### Implied inflation (`implicita`)
 

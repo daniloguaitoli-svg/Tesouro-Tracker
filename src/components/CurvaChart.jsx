@@ -15,6 +15,15 @@ const B = 18; // espaço abaixo para os rótulos do eixo X
 // numa barrinha de 14×3px não acontece. Constante compartilhada = a legenda não
 // pode divergir do gráfico.
 export const TRACEJADO = "4 3";
+// A legenda desenha o traço MAIS GROSSO (para se ler num celular) e por isso
+// não pode reusar o par acima: a ponta redonda estica cada traço em
+// strokeWidth/2 de cada lado, ou seja come strokeWidth INTEIRO do vão. A 1.4px
+// no gráfico sobra 1,6px de vão e se vê; a 2.4px na legenda sobrava 0,6px — que
+// numa tela de celular é uma barra sólida, exatamente o defeito que a legenda
+// nova existia para corrigir. Então a legenda usa ponta reta (butt), onde o vão
+// declarado é o vão que aparece, e 6+5 fecha certinho nos 28px da amostra:
+// três traços cheios, sem sobra picada na ponta.
+export const TRACEJADO_LEGENDA = "6 5";
 const R_PONTO = 2;
 const R_DESTAQUE = 3.4;
 
@@ -136,8 +145,8 @@ export function CurvaLegenda({ series, campoX = "anos" }) {
               y2="6"
               stroke={s.cor}
               strokeWidth={s.forte ? 3 : 2.4}
-              strokeDasharray={s.tracejado ? TRACEJADO : undefined}
-              strokeLinecap="round"
+              strokeDasharray={s.tracejado ? TRACEJADO_LEGENDA : undefined}
+              strokeLinecap={s.tracejado ? "butt" : "round"}
               opacity={s.forte ? 1 : 0.75}
             />
           </svg>

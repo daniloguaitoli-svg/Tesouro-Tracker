@@ -664,12 +664,38 @@ for (const linha of seriesDeclaradas) {
   const id = linha.match(/id:\s*"([^"]+)"/)?.[1];
   conferir(/rotulo:\s*"/.test(linha), `série ${id} traz rotulo para a legenda`);
 }
-// O tracejado é uma constante única: se o gráfico e a legenda tivessem cada um
-// o seu, a amostra podia deixar de parecer com a linha sem quebrar nada.
-const usosTracejado = (chartSrc.match(/strokeDasharray=\{s\.tracejado \? TRACEJADO : undefined\}/g) || []).length;
+// O vão do tracejado tem de SOBREVIVER à espessura do traço. A ponta redonda
+// estica cada traço em strokeWidth/2 de cada lado, então come strokeWidth
+// inteiro do vão declarado: a legenda desenha a 2.4px e, com o "4 3" do
+// gráfico, sobrava 0,6px de vão — sólido a olho nu num celular, que é
+// justamente o defeito que a legenda nova veio corrigir. Esta checagem calcula
+// o vão que de fato aparece nos dois lugares e exige que dê para ver.
+const vaoVisivel = (par, espessura, ponta) => {
+  const [traco, vao] = par.split(/\s+/).map(Number);
+  return { traco: traco + (ponta === "round" ? espessura : 0), vao: vao - (ponta === "round" ? espessura : 0) };
+};
+const parDe = (nome) => chartSrc.match(new RegExp(`export const ${nome}\\s*=\\s*"([^"]+)"`))?.[1];
+const parGrafico = parDe("TRACEJADO");
+const parLegenda = parDe("TRACEJADO_LEGENDA");
+conferir(!!parGrafico && !!parLegenda, `os dois pares de tracejado existem (${parGrafico} / ${parLegenda})`);
+// A legenda usa ponta reta justamente para o vão declarado ser o vão visível.
+const legendaPontaReta = /strokeLinecap=\{s\.tracejado \? "butt" : "round"\}/.test(chartSrc);
+conferir(legendaPontaReta, "a linha tracejada da legenda usa ponta reta (butt)");
+for (const [onde, par, espessura, ponta] of [
+  ["gráfico", parGrafico, 1.4, "round"],
+  ["legenda", parLegenda, 2.4, legendaPontaReta ? "butt" : "round"],
+]) {
+  if (!par) continue;
+  const v = vaoVisivel(par, espessura, ponta);
+  conferir(v.vao >= 1.5, `${onde}: vão visível do tracejado ${v.vao.toFixed(1)}px (>= 1.5)`);
+}
+// E a amostra tem de ser larga o bastante para caber traço suficiente: com
+// menos de três traços a linha não se lê como tracejada.
+const cssLegenda = (await ler("src/styles.css")).match(/\.legenda-traco\s*\{[^}]*width:\s*(\d+)px/)?.[1];
+const periodo = parLegenda ? parLegenda.split(/\s+/).map(Number).reduce((a, b) => a + b, 0) : 0;
 conferir(
-  /export const TRACEJADO\s*=/.test(chartSrc) && usosTracejado === 2,
-  `gráfico e legenda usam a mesma constante TRACEJADO (${usosTracejado} usos)`
+  cssLegenda && periodo && (Number(cssLegenda) - 2) / periodo >= 2.5,
+  `amostra de ${cssLegenda}px cabe ${((Number(cssLegenda) - 2) / periodo).toFixed(1)} traços`
 );
 
 console.log("\nchaves de localStorage");
