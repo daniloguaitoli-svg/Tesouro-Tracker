@@ -29,6 +29,7 @@ import {
   diasUteisEntre,
   hojeISO,
   LIMITE_DIAS_UTEIS,
+  arred,
 } from "./util.js";
 
 // A ANBIMA saiu desta lista DE PROPOSITO. O caminho publico do mercado
@@ -260,52 +261,127 @@ const FAMILIAS_CURVA = [
   { id: "prefixada", nome: "Prefixada (nominal)", tipos: ["prefixado", "prefixado-juros"], sufixo: "a.a." },
 ];
 
+// Interpola uma curva (ordenada por prazo) num prazo qualquer, linearmente.
+// Devolve null FORA do intervalo observado — extrapolar a ponta longa de uma
+// curva de juros é inventar o número mais sensível da tela.
+function interporTaxa(pontos, anos) {
+  if (!pontos.length || anos < pontos[0].anos || anos > pontos[pontos.length - 1].anos) return null;
+  for (let i = 1; i < pontos.length; i++) {
+    if (pontos[i].anos >= anos) {
+      const a = pontos[i - 1];
+      const b = pontos[i];
+      const vao = b.anos - a.anos;
+      if (vao <= 0) return b.taxa;
+      return a.taxa + ((anos - a.anos) / vao) * (b.taxa - a.taxa);
+    }
+  }
+  return null;
+}
+
+// Inflação implícita (breakeven) pela relação de Fisher, não pela subtração:
+// (1+nominal)/(1+real) − 1. Nesses níveis a diferença importa — a 14,33% nominal
+// contra 7,57% real, subtrair dá 6,76% e a conta certa dá 6,29%, quase meio
+// ponto de diferença no número que decide entre IPCA+ e Prefixado.
+//
+// O prazo de cada ponto nominal vira a grade, e a curva real é INTERPOLADA nele:
+// LTN/NTN-F vencem em 01/01 e NTN-B em 15/05 ou 15/08, então não há par exato
+// para casar. Pontos nominais no mesmo prazo (uma LTN e uma NTN-F de 2031, por
+// exemplo) entram como média — senão a curva derivada herdaria o dente de serra
+// de misturar dois instrumentos.
+function inflacaoImplicita(real, nominal) {
+  if (!real.length || !nominal.length) return [];
+  const porPrazo = new Map();
+  for (const p of nominal) {
+    const chave = p.anos.toFixed(2);
+    const g = porPrazo.get(chave) || { anos: p.anos, soma: 0, n: 0 };
+    g.soma += p.taxa;
+    g.n += 1;
+    porPrazo.set(chave, g);
+  }
+  return [...porPrazo.values()]
+    .map((g) => {
+      const nom = g.soma / g.n;
+      const r = interporTaxa(real, g.anos);
+      if (r == null) return null;
+      const taxa = ((1 + nom / 100) / (1 + r / 100) - 1) * 100;
+      return { anos: g.anos, taxa: arred(taxa, 2), nominal: arred(nom, 2), real: arred(r, 2) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.anos - b.anos);
+}
+
+// Prazo mínimo para um título valer como PONTO DE CURVA.
+//
+// Perto do vencimento a taxa anualizada explode: um ruído pequeno no PU vira
+// pontos percentuais quando o prazo tende a zero. Medindo o desvio absoluto de
+// cada ponto contra a barriga da própria curva (3–6a) NA MESMA DATA, ao longo de
+// todo o histórico:
+//
+//   IPCA+       1,00a: 1,88pp · 1,25a: 1,11pp · 1,50a: 0,38pp · 1,75a: 0,37pp
+//   Prefixado   0,75a: 3,43pp · 1,00a: 1,89pp · 1,50a: 1,80pp   (p90)
+//
+// Em 1,5a o desvio do IPCA+ cai por um fator de três e estabiliza; o prefixado
+// já está no patamar baixo. Abaixo disso o ponto não descreve a curva, descreve
+// o vencimento chegando — o mesmo motivo pelo qual títulos vencidos ficam fora
+// do arquivo-ponte. Vale para as TRÊS curvas, senão a de hoje e a de um ano
+// atrás não começariam no mesmo lugar, que é justamente o que se quer comparar.
+const PRAZO_MINIMO_CURVA = 1.5;
+
 export async function getCurva() {
   const hoje = hojeISO();
-  const todosVivos = cache.titulos().filter((t) => t.vencimento > hoje && t.taxa != null);
+  const todos = cache.titulos().filter((t) => t.taxa != null);
 
   const montarCurva = (tipos) => {
-    const pontos = todosVivos
-      .filter((t) => tipos.includes(t.tipo))
-      .map((t) => {
-        const doCatalogo = porSlug[t.slug] || null;
-        return {
-          slug: t.slug,
-          tipo: t.tipo,
-          nome: doCatalogo?.nome || rotuloGenerico(t.tipo, t.vencimento),
-          vencimento: t.vencimento,
-          anos: anosEntre(hoje, t.vencimento),
-          taxa: t.taxa,
-          data: t.data,
-          destaque: doCatalogo?.destaque === true,
-        };
-      })
-      .filter((p) => p.anos > 0)
-      .sort((a, b) => a.anos - b.anos);
+    const daFamilia = todos.filter((t) => tipos.includes(t.tipo));
 
-    const curvaEm = (diasAtras) => {
-      const alvo = new Date(Date.now() - diasAtras * 864e5).toISOString().slice(0, 10);
-      return pontos
-        .map((p) => {
-          const serie = cache.serieDe(p.slug).filter((x) => x.date <= alvo);
+    // Uma curva "na data X" é feita dos títulos que estavam VIVOS em X, não dos
+    // que estão vivos hoje. Montar a curva de um ano atrás só com os vivos de
+    // hoje apaga justamente os vencimentos que venceram nesse meio-tempo — a
+    // ponta curta some, e a linha tracejada começava um ano mais à direita que
+    // a de hoje (na real: 3,67a em vez de 2,67a). Quem lesse "o curto prazo
+    // estava diferente" estaria lendo o recorte, não o mercado. O histórico
+    // guarda os vencidos justamente para isto.
+    const curvaEm = (dataISO) =>
+      daFamilia
+        .filter((t) => t.vencimento > dataISO)
+        .map((t) => {
+          const serie = cache.serieDe(t.slug).filter((x) => x.date <= dataISO);
           const ult = serie[serie.length - 1];
-          return ult?.taxa == null ? null : { anos: anosEntre(alvo, p.vencimento), taxa: ult.taxa, slug: p.slug };
+          if (ult?.taxa == null) return null;
+          const doCatalogo = porSlug[t.slug] || null;
+          return {
+            slug: t.slug,
+            tipo: t.tipo,
+            nome: doCatalogo?.nome || rotuloGenerico(t.tipo, t.vencimento),
+            vencimento: t.vencimento,
+            anos: anosEntre(dataISO, t.vencimento),
+            taxa: ult.taxa,
+            data: ult.date,
+            destaque: doCatalogo?.destaque === true,
+          };
         })
         .filter(Boolean)
-        .filter((p) => p.anos > 0)
+        .filter((p) => p.anos >= PRAZO_MINIMO_CURVA)
         .sort((a, b) => a.anos - b.anos);
-    };
 
-    return { agora: pontos, umMesAtras: curvaEm(30), umAnoAtras: curvaEm(365) };
+    const diasAtras = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+    return { agora: curvaEm(hoje), umMesAtras: curvaEm(diasAtras(30)), umAnoAtras: curvaEm(diasAtras(365)) };
   };
 
   const curvas = FAMILIAS_CURVA.map((f) => ({ id: f.id, nome: f.nome, sufixo: f.sufixo, ...montarCurva(f.tipos) }));
+  const real = curvas.find((c) => c.id === "real");
+  const prefixada = curvas.find((c) => c.id === "prefixada");
 
   return {
     fetchedAt: new Date().toISOString(),
     atualizadoEm: cache.historico().atualizadoEm,
     pendente: curvas.every((c) => c.agora.length === 0),
     curvas,
+    implicita: {
+      agora: inflacaoImplicita(real?.agora || [], prefixada?.agora || []),
+      umMesAtras: inflacaoImplicita(real?.umMesAtras || [], prefixada?.umMesAtras || []),
+      umAnoAtras: inflacaoImplicita(real?.umAnoAtras || [], prefixada?.umAnoAtras || []),
+    },
     aviso: AVISO,
   };
 }

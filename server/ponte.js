@@ -9,10 +9,14 @@
 // crase solta dentro do template do markdown apareceu: ele quebrava o arquivo
 // inteiro e só dava as caras na hora de gravar.
 
-import { calcularDuration, anosEntre, brDeISO, temDuration } from "./util.js";
+import {calcularDuration, anosEntre, brDeISO, temDuration, arred } from "./util.js";
 import { porSlug, rotuloGenerico } from "./catalogo.js";
 
-export const arred = (v, casas) => (v == null || !Number.isFinite(v) ? null : Number(v.toFixed(casas)));
+// `arred` mora em util.js (usado também pelo datalayer). Re-exportado aqui
+// porque este módulo já era a porta dele para o coletor — e IMPORTADO também,
+// porque `export { x } from` não traz o nome para o escopo deste arquivo, e
+// ponte.js usa `arred` internamente.
+export { arred };
 
 // Séries cruas -> um item por vencimento, já com duration.
 //

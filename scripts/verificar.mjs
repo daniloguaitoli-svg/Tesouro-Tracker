@@ -559,6 +559,39 @@ for (const arq of [".gitignore", ".vercelignore"]) {
   conferir(!ignora, `${arq} não ignora dados/`);
 }
 
+console.log("\ncurva: ponta curta e inflação implícita");
+const curva = await datalayer.getCurva();
+for (const c of curva.curvas) {
+  if (!c.agora.length) continue;
+  // O corte de prazo mínimo vale para as TRÊS curvas. Se a histórica voltar a
+  // ser montada só com os títulos vivos HOJE, a ponta curta dela salta ~1 ano
+  // e a comparação passa a medir o recorte em vez do mercado.
+  const curto = (s) => (s.length ? s[0].anos : null);
+  for (const [nome, serie] of [["1 mês", c.umMesAtras], ["1 ano", c.umAnoAtras]]) {
+    if (!serie.length) continue;
+    conferir(curto(serie) >= 1.5, `${c.id}/${nome}: ponta curta em ${curto(serie).toFixed(2)}a respeita o prazo mínimo`);
+  }
+  conferir(
+    c.agora.every((p) => p.anos >= 1.5),
+    `${c.id}: nenhum ponto de curva abaixo de 1,5a (onde a taxa anualizada explode)`
+  );
+}
+
+// Fisher, não subtração: a 14,33% nominal e 7,57% real a diferença entre as
+// duas contas passa de 0,4pp — no número que decide entre IPCA+ e Prefixado.
+const imp = curva.implicita?.agora || [];
+if (imp.length) {
+  const p = imp[imp.length - 1];
+  const fisher = ((1 + p.nominal / 100) / (1 + p.real / 100) - 1) * 100;
+  conferir(Math.abs(p.taxa - fisher) < 0.011, `inflação implícita usa Fisher, não subtração (${p.taxa}% vs ${(p.nominal - p.real).toFixed(2)}% subtraindo)`);
+  conferir(
+    imp.every((x) => x.anos >= 1.5 && x.nominal != null && x.real != null),
+    `os ${imp.length} pontos implícitos trazem os dois lados da conta`
+  );
+} else {
+  avisar("inflação implícita sem pontos — as duas famílias precisam se sobrepor em prazo");
+}
+
 console.log("\nrótulo real x nominal na Calculadora");
 // A taxa de um IPCA+ é REAL e a de um prefixado é NOMINAL — a tela dizia
 // "taxa real" nos dois casos, em quatro lugares. Agora vem tudo de um

@@ -200,7 +200,7 @@ The UI never fetches a source directly. `src/api.js` exposes four calls:
 ```
 getTitulos()         -> { categorias, destaques, macro, desatualizados, pendente, aviso }
 getDetalhe(slug, tf) -> { item, pontos, estatisticas, fluxos, notaHistorico }
-getCurva()           -> { curvas: [real, prefixada], ... }  (LFT fica fora das duas)
+getCurva()           -> { curvas: [real, prefixada], implicita, ... }  (LFT fica fora)
 getMacro()           -> IPCA / Selic / CDI / PTAX do BCB (+ decisão do Copom)
 getMercado()         -> decisões Copom/Fed/BCE + câmbio + CDI × Selic
 getNoticias()        -> manchetes por região (best-effort)
@@ -253,6 +253,46 @@ maturities present in the official file on `CATALOGO_EM` (2026-08-21). Do not
 invent entries. When the collector logs a maturity as "fora do catálogo", that
 is the signal to add one. `verificar.mjs` fails if a `destaque` has matured and
 warns if any other entry has.
+
+### The curve has two rules of its own
+
+**`PRAZO_MINIMO_CURVA = 1.5` years.** A bond near maturity has an exploding
+annualised rate — small PU noise becomes percentage points as the term goes to
+zero. Measured across the whole history, as each point's absolute deviation from
+its own curve's belly (3–6y) **on the same date**: IPCA+ deviates 1.88pp at 1.00y,
+1.11pp at 1.25y, then **0.38pp at 1.50y** and stays there; Prefixado's p90 falls
+from 3.43pp at 0.75y to ~1.8pp from 1.00y on. Below the floor the point describes
+the maturity arriving, not the curve. Real readings that were being plotted: a
+−3.12% "real rate" and a 12.99% one, both from bonds days from maturity.
+
+**A past curve is built from the bonds alive THEN, not the ones alive today.**
+`curvaEm(dataISO)` filters `vencimento > dataISO` over the full history, matured
+bonds included. Building it from today's survivors deletes exactly the maturities
+that have since expired, so the short end silently shifts right by the lookback
+window — the one-year-ago real curve started at 3.67y against today's 2.67y, and
+a reader comparing the two was reading the crop, not the market. `verificar.mjs`
+asserts both rules.
+
+(The real curve's short end still sits at 3.67y a year ago, and that one is
+honest: the only shorter IPCA+ then were the 2026s at 0.92y, below the floor.
+There was a genuine gap in the NTN-B offering.)
+
+### Implied inflation (`implicita`)
+
+Derived from the two curves, never fetched: `(1+nominal)/(1+real) − 1`, the
+Fisher relation and **not** the subtraction — at 14.33% nominal against 7.57%
+real, subtracting gives 6.76% and the right answer is 6.29%, and that number is
+the one deciding between IPCA+ and Prefixado.
+
+LTN/NTN-F mature on 01/01 and NTN-B on 15/05 or 15/08, so no pair lines up: the
+real curve is **interpolated** at each nominal point's term, and only inside the
+observed range — `interporTaxa()` returns `null` rather than extrapolating.
+Nominal points sharing a term are averaged first, so the derived curve doesn't
+inherit the sawtooth of mixing two instruments.
+
+It is **not an inflation forecast** — it carries an inflation risk premium and a
+liquidity difference, so it sits above true expectations. The UI says so; keep
+it saying so.
 
 ### The bond math lives in `server/util.js`
 

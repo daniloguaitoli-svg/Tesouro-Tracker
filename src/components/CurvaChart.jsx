@@ -8,7 +8,7 @@
 const L = 34; // espaço à esquerda para os rótulos do eixo Y
 const B = 18; // espaço abaixo para os rótulos do eixo X
 
-export function CurvaChart({ series, height = 220, width = 366 }) {
+export function CurvaChart({ series, height = 220, width = 366, rotulo = "Curva de juros por prazo" }) {
   const comDados = (series || []).filter((s) => s.pontos && s.pontos.length >= 2);
   if (!comDados.length) return <svg className="curva" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" />;
 
@@ -30,7 +30,7 @@ export function CurvaChart({ series, height = 220, width = 366 }) {
   const marcasX = [anosMin, (anosMin + anosMax) / 2, anosMax];
 
   return (
-    <svg className="curva" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Curva de juros reais por prazo">
+    <svg className="curva" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={rotulo}>
       {marcasY.map((t, i) => (
         <g key={i}>
           <line x1={L} y1={py(t)} x2={width - 6} y2={py(t)} stroke="var(--text)" strokeOpacity="0.06" />

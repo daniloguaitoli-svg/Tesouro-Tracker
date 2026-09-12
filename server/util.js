@@ -155,6 +155,12 @@ export function variacaoPeriodo(pontos, dias) {
 }
 
 // ---------- Identificação do título ----------
+// Arredonda para N casas preservando o null. Vive aqui, e nao em ponte.js, por
+// ser usado dos dois lados — o coletor ao montar os arquivos-ponte e o
+// datalayer ao montar payloads. Uma definicao so, para as duas nao divergirem.
+export const arred = (v, casas) =>
+  v == null || !Number.isFinite(v) ? null : Number(v.toFixed(casas));
+
 
 // O arquivo do Tesouro nomeia os títulos por extenso ("Tesouro IPCA+ com Juros
 // Semestrais"); os arquivos da ANBIMA usam a sigla (NTN-B, LTN, NTN-F, LFT).
