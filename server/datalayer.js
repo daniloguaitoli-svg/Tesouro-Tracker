@@ -349,12 +349,26 @@ export async function getCurva() {
           const ult = serie[serie.length - 1];
           if (ult?.taxa == null) return null;
           const doCatalogo = porSlug[t.slug] || null;
+          // Duration calculada NA DATA DA CURVA, com a taxa daquele dia — não a
+          // de hoje. A duration de um título encurta com o tempo e reage ao
+          // nível da taxa; reaproveitar a de hoje na curva de um ano atrás
+          // deslocaria a linha inteira no eixo, que é exatamente o que se quer
+          // comparar. LFT nunca chega aqui (fica fora das duas famílias).
+          const dur = calcularDuration({
+            vencimentoISO: t.vencimento,
+            comCupom: t.comCupom,
+            cupomAnual: t.cupomAnual ?? undefined,
+            taxaReal: ult.taxa / 100,
+            hojeISO: dataISO,
+          });
           return {
             slug: t.slug,
             tipo: t.tipo,
             nome: doCatalogo?.nome || rotuloGenerico(t.tipo, t.vencimento),
             vencimento: t.vencimento,
             anos: anosEntre(dataISO, t.vencimento),
+            duration: arred(dur.macaulay, 2),
+            comCupom: t.comCupom === true,
             taxa: ult.taxa,
             data: ult.date,
             destaque: doCatalogo?.destaque === true,

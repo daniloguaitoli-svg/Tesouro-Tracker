@@ -8,13 +8,32 @@
 const L = 34; // espaço à esquerda para os rótulos do eixo Y
 const B = 18; // espaço abaixo para os rótulos do eixo X
 
-export function CurvaChart({ series, height = 220, width = 366, rotulo = "Curva de juros por prazo" }) {
-  const comDados = (series || []).filter((s) => s.pontos && s.pontos.length >= 2);
+export function CurvaChart({
+  series,
+  height = 220,
+  width = 366,
+  rotulo = "Curva de juros por prazo",
+  campoX = "anos",
+  sufixoX = "a",
+}) {
+  // Reordena pelo eixo escolhido. Trocar de prazo para duration REORDENA os
+  // títulos — uma NTN-B 2060 com cupom tem duration menor que uma 2040
+  // zero-cupom — e desenhar a polilinha na ordem antiga faria a linha voltar
+  // sobre si mesma. Pontos sem o campo (duration null) saem em vez de virar
+  // zero e ancorar a curva na origem.
+  const comDados = (series || [])
+    .map((s) => ({
+      ...s,
+      pontos: (s.pontos || [])
+        .filter((p) => p[campoX] != null && Number.isFinite(p[campoX]))
+        .sort((a, b) => a[campoX] - b[campoX]),
+    }))
+    .filter((s) => s.pontos.length >= 2);
   if (!comDados.length) return <svg className="curva" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" />;
 
   const todos = comDados.flatMap((s) => s.pontos);
-  const anosMin = Math.min(...todos.map((p) => p.anos));
-  const anosMax = Math.max(...todos.map((p) => p.anos));
+  const anosMin = Math.min(...todos.map((p) => p[campoX]));
+  const anosMax = Math.max(...todos.map((p) => p[campoX]));
   const taxaMin = Math.min(...todos.map((p) => p.taxa));
   const taxaMax = Math.max(...todos.map((p) => p.taxa));
   const dx = anosMax - anosMin || 1;
@@ -41,11 +60,11 @@ export function CurvaChart({ series, height = 220, width = 366, rotulo = "Curva 
       ))}
       {marcasX.map((a, i) => (
         <text key={i} x={px(a)} y={height - 4} fontSize="9" fill="var(--muted)" fontFamily="var(--mono)" textAnchor="middle">
-          {a.toFixed(0)}a
+          {a.toFixed(0)}{sufixoX}
         </text>
       ))}
       {comDados.map((s) => {
-        const d = s.pontos.map((p, i) => `${i ? "L" : "M"}${px(p.anos).toFixed(1)} ${py(p.taxa).toFixed(1)}`).join(" ");
+        const d = s.pontos.map((p, i) => `${i ? "L" : "M"}${px(p[campoX]).toFixed(1)} ${py(p.taxa).toFixed(1)}`).join(" ");
         return (
           <g key={s.id}>
             <path
@@ -60,7 +79,7 @@ export function CurvaChart({ series, height = 220, width = 366, rotulo = "Curva 
             />
             {s.forte &&
               s.pontos.map((p, i) => (
-                <circle key={i} cx={px(p.anos)} cy={py(p.taxa)} r={p.destaque ? 3.4 : 2} fill={p.destaque ? "var(--accent)" : s.cor} />
+                <circle key={i} cx={px(p[campoX])} cy={py(p.taxa)} r={p.destaque ? 3.4 : 2} fill={p.destaque ? "var(--accent)" : s.cor} />
               ))}
           </g>
         );

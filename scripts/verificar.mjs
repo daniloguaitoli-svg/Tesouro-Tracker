@@ -577,6 +577,41 @@ for (const c of curva.curvas) {
   );
 }
 
+// O eixo de duration só é honesto se cada ponto trouxer a SUA duration, medida
+// na data da própria curva. Duas identidades que o garantem: zero-cupom tem
+// duration igual ao prazo, e com cupom é sempre estritamente menor.
+for (const c of curva.curvas) {
+  if (!c.agora.length) continue;
+  conferir(
+    c.agora.every((p) => p.duration != null && p.duration > 0),
+    `${c.id}: todo ponto da curva traz duration`
+  );
+  const zeros = c.agora.filter((p) => !p.comCupom);
+  const cupons = c.agora.filter((p) => p.comCupom);
+  conferir(
+    zeros.every((p) => Math.abs(p.duration - p.anos) < 0.02),
+    `${c.id}: zero-cupom tem duration = prazo (${zeros.length} pontos)`
+  );
+  conferir(
+    cupons.every((p) => p.duration < p.anos),
+    `${c.id}: com cupom tem duration < prazo (${cupons.length} pontos)`
+  );
+}
+// A duration de um mesmo título encurta conforme a data avança. Se a curva
+// histórica reaproveitasse a duration de hoje, a linha inteira sairia deslocada
+// no eixo — justamente o que se quer comparar.
+{
+  const c = curva.curvas.find((x) => x.agora.length && x.umAnoAtras.length);
+  const par = c && c.agora.find((p) => c.umAnoAtras.some((q) => q.slug === p.slug));
+  if (par) {
+    const antes = c.umAnoAtras.find((q) => q.slug === par.slug);
+    conferir(
+      antes.duration > par.duration,
+      `duration é da data da curva, não de hoje (${par.slug}: ${antes.duration}a há um ano vs ${par.duration}a hoje)`
+    );
+  }
+}
+
 // Fisher, não subtração: a 14,33% nominal e 7,57% real a diferença entre as
 // duas contas passa de 0,4pp — no número que decide entre IPCA+ e Prefixado.
 const imp = curva.implicita?.agora || [];

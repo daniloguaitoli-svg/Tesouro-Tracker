@@ -86,6 +86,7 @@ export function Curva({ marcados }) {
   const [erro, setErro] = useState(null);
   const [tentativa, setTentativa] = useState(0);
   const [familiaId, setFamiliaId] = useState("real");
+  const [eixo, setEixo] = useState("anos"); // "anos" (prazo) | "duration"
 
   useEffect(() => {
     let vivo = true;
@@ -138,8 +139,23 @@ export function Curva({ marcados }) {
         </div>
       )}
 
+      <div className="chips" style={{ marginBottom: 8 }}>
+        {[
+          ["anos", "Por prazo"],
+          ["duration", "Por duration"],
+        ].map(([id, rot]) => (
+          <button key={id} className="chip" aria-pressed={eixo === id} onClick={() => setEixo(id)}>
+            {rot}
+          </button>
+        ))}
+      </div>
+
       <div className="card">
-        <CurvaChart series={series} />
+        <CurvaChart
+          series={series}
+          campoX={eixo}
+          rotulo={eixo === "duration" ? "Curva de juros por duration" : "Curva de juros por prazo"}
+        />
         <div className="legenda">
           <span><i style={{ background: "var(--accent)" }} />hoje</span>
           <span><i style={{ background: "var(--accent-2)" }} />há um mês</span>
@@ -156,11 +172,14 @@ export function Curva({ marcados }) {
             <tr>
               <th>Vencimento</th>
               <th className="rt">Prazo</th>
+              <th className="rt">Duration</th>
               <th className="rt">Taxa ({curva.sufixo})</th>
             </tr>
           </thead>
           <tbody>
-            {curva.agora.map((p) => (
+            {[...curva.agora]
+              .sort((a, b) => (a[eixo] ?? 0) - (b[eixo] ?? 0))
+              .map((p) => (
               <tr key={p.slug}>
                 <td>
                   {p.nome} {p.destaque && <span aria-label="acompanhado de perto">⭐</span>}
@@ -168,16 +187,35 @@ export function Curva({ marcados }) {
                   <span className="muted" style={{ fontSize: 11 }}>{dataBR(p.vencimento)}</span>
                 </td>
                 <td className="rt mono">{anos(p.anos)}</td>
+                <td className="rt mono">{anos(p.duration)}</td>
                 <td className="rt mono">{taxa(p.taxa)}</td>
               </tr>
-            ))}
+              ))}
           </tbody>
         </table>
       </div>
 
       <div className="note">
-        Cada curva mistura títulos com e sem cupom: dois pontos no mesmo prazo podem ter
-        taxas diferentes por isso — e as durations serão bem diferentes. {dados.aviso}
+        {eixo === "duration" ? (
+          <>
+            <strong>Duration é quanto risco de juros o título carrega</strong> — a régua que
+            permite comparar um com cupom e um sem. Repare que toda a NTN-B com juros
+            semestrais cabe numa faixa estreita, por mais longo que seja o vencimento:
+            comprar prazo não é comprar risco na mesma proporção. Dias corridos/365, e
+            calculada na data de cada curva, porque a duration encurta com o tempo.
+            <br />
+            O serrilhado que sobra é real, não ruído: zero-cupom e com cupom não caem sobre
+            a mesma curva nem aqui — no mesmo risco de juros, o mercado cobra taxas um pouco
+            diferentes dos dois.
+          </>
+        ) : (
+          <>
+            Cada curva mistura títulos com e sem cupom: dois pontos no mesmo prazo podem ter
+            taxas diferentes por isso — e as durations serão bem diferentes. Veja{" "}
+            <strong>por duration</strong> para compará-los na mesma régua.
+          </>
+        )}{" "}
+        {dados.aviso}
       </div>
     </div>
   );

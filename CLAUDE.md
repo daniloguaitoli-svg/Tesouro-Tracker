@@ -277,6 +277,32 @@ asserts both rules.
 honest: the only shorter IPCA+ then were the 2026s at 0.92y, below the floor.
 There was a genuine gap in the NTN-B offering.)
 
+### The duration axis
+
+Each curve point carries `duration` (Macaulay, years) and `comCupom`, and the
+Curva screen toggles the x-axis between term and duration. Two things make it
+honest, and `verificar.mjs` asserts both:
+
+- **Duration is computed at that curve's own date, with that day's rate** — not
+  today's. Duration shortens as time passes and moves with the rate level;
+  reusing today's value would shift the whole historical line along the axis,
+  which is the very thing being compared.
+- **`CurvaChart` re-sorts by whichever field it plots.** Switching axes reorders
+  the bonds — an NTN-B 2060 with coupons (d≈13.4y) sits *left* of a 2040
+  zero-coupon (d≈13.9y) — and drawing the polyline in the old order makes the
+  line double back on itself.
+
+Why it earns its place: on the term axis, every coupon bond from 2030 to 2060
+spreads across 34 years; on the duration axis they all fall between ~3.5y and
+~13.4y. Buying term is not buying interest-rate risk in the same proportion, and
+the term axis hides that completely.
+
+What it does **not** fix: zero-coupon and coupon bonds still don't lie on one
+curve in duration space either (the 2035 zero at d=8.68y yields 7.64% between
+two coupon bonds at 7.55% and 7.45%). The remaining zigzag is real pricing, not
+noise, and the UI says so. Splitting the polyline per family is the actual fix
+and has not been done.
+
 ### Implied inflation (`implicita`)
 
 Derived from the two curves, never fetched: `(1+nominal)/(1+real) − 1`, the
