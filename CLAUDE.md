@@ -303,6 +303,23 @@ two coupon bonds at 7.55% and 7.45%). The remaining zigzag is real pricing, not
 noise, and the UI says so. Splitting the polyline per family is the actual fix
 and has not been done.
 
+### The legend draws the real line
+
+`CurvaLegenda` (in `CurvaChart.jsx`) renders **from the same `series` array the
+chart draws**, reusing the exported `TRACEJADO` constant, so a swatch cannot
+drift from its line. It used to be three hand-written `<span><i>` swatches in
+`Curva.jsx`: solid 14×3px rectangles differing only in colour, which meant the
+one-year-ago line was **dashed in the chart and solid in the legend** — on a
+phone, `--muted` versus `--accent-2` in a 14px bar is not a distinction anyone
+can make. Each series therefore carries a `rotulo`; add a curve and its legend
+entry comes with it.
+
+The ⭐ marker is in the legend too (a bigger dot **on** today's line, which is
+exactly how it renders), and only when a point on screen actually has it —
+explaining an absent marker is noise. `verificar.mjs` asserts both halves: no
+`className="legenda"` left in `Curva.jsx`, and every series entry has a
+`rotulo`.
+
 ### Implied inflation (`implicita`)
 
 Derived from the two curves, never fetched: `(1+nominal)/(1+real) − 1`, the

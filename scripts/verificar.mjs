@@ -646,6 +646,32 @@ for (const termo of ["taxa real", "taxa nominal"]) {
   conferir(n === 0, `"${termo}" não aparece escrito à mão na Calculadora (achou ${n})`);
 }
 
+console.log("\nlegenda da curva");
+// A legenda desenhava um retângulo sólido para as três séries — a de um ano
+// atrás é TRACEJADA no gráfico e saía igual às outras na legenda, distinguível
+// só pela cor, num quadradinho de 14x3px. Agora ela vem do CurvaLegenda, que lê
+// a mesma lista `series` e desenha o mesmo traço. Duas coisas a manter:
+// nenhuma amostra pintada à mão no Curva.jsx, e todo item de série com rótulo.
+const curvaSrc = await ler("src/components/Curva.jsx");
+const chartSrc = await ler("src/components/CurvaChart.jsx");
+conferir(
+  /<CurvaLegenda\s/.test(curvaSrc) && !/className="legenda"/.test(curvaSrc),
+  "Curva.jsx usa <CurvaLegenda> em vez de montar a legenda à mão"
+);
+const seriesDeclaradas = curvaSrc.match(/\{\s*id:\s*"[^"]+",[^}]*pontos:[^}]*\}/g) || [];
+conferir(seriesDeclaradas.length >= 6, `séries da curva encontradas (${seriesDeclaradas.length})`);
+for (const linha of seriesDeclaradas) {
+  const id = linha.match(/id:\s*"([^"]+)"/)?.[1];
+  conferir(/rotulo:\s*"/.test(linha), `série ${id} traz rotulo para a legenda`);
+}
+// O tracejado é uma constante única: se o gráfico e a legenda tivessem cada um
+// o seu, a amostra podia deixar de parecer com a linha sem quebrar nada.
+const usosTracejado = (chartSrc.match(/strokeDasharray=\{s\.tracejado \? TRACEJADO : undefined\}/g) || []).length;
+conferir(
+  /export const TRACEJADO\s*=/.test(chartSrc) && usosTracejado === 2,
+  `gráfico e legenda usam a mesma constante TRACEJADO (${usosTracejado} usos)`
+);
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");

@@ -8,6 +8,26 @@
 const L = 34; // espaço à esquerda para os rótulos do eixo Y
 const B = 18; // espaço abaixo para os rótulos do eixo X
 
+// O traço da linha histórica e o raio dos pontos moram aqui porque a LEGENDA
+// desenha com os mesmos valores. Enquanto ela era um retângulo sólido pintado à
+// mão no Curva.jsx, o tracejado simplesmente não aparecia nela: as três séries
+// saíam idênticas menos pela cor, e num celular distinguir #8f9bb8 de #3d5a8f
+// numa barrinha de 14×3px não acontece. Constante compartilhada = a legenda não
+// pode divergir do gráfico.
+export const TRACEJADO = "4 3";
+const R_PONTO = 2;
+const R_DESTAQUE = 3.4;
+
+const desenhaveis = (series, campoX) =>
+  (series || [])
+    .map((s) => ({
+      ...s,
+      pontos: (s.pontos || [])
+        .filter((p) => p[campoX] != null && Number.isFinite(p[campoX]))
+        .sort((a, b) => a[campoX] - b[campoX]),
+    }))
+    .filter((s) => s.pontos.length >= 2);
+
 export function CurvaChart({
   series,
   height = 220,
@@ -21,14 +41,7 @@ export function CurvaChart({
   // zero-cupom — e desenhar a polilinha na ordem antiga faria a linha voltar
   // sobre si mesma. Pontos sem o campo (duration null) saem em vez de virar
   // zero e ancorar a curva na origem.
-  const comDados = (series || [])
-    .map((s) => ({
-      ...s,
-      pontos: (s.pontos || [])
-        .filter((p) => p[campoX] != null && Number.isFinite(p[campoX]))
-        .sort((a, b) => a[campoX] - b[campoX]),
-    }))
-    .filter((s) => s.pontos.length >= 2);
+  const comDados = desenhaveis(series, campoX);
   if (!comDados.length) return <svg className="curva" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" />;
 
   const todos = comDados.flatMap((s) => s.pontos);
@@ -72,18 +85,77 @@ export function CurvaChart({
               fill="none"
               stroke={s.cor}
               strokeWidth={s.forte ? 2 : 1.4}
-              strokeDasharray={s.tracejado ? "4 3" : undefined}
+              strokeDasharray={s.tracejado ? TRACEJADO : undefined}
               strokeLinejoin="round"
               strokeLinecap="round"
               opacity={s.forte ? 1 : 0.75}
             />
             {s.forte &&
               s.pontos.map((p, i) => (
-                <circle key={i} cx={px(p[campoX])} cy={py(p.taxa)} r={p.destaque ? 3.4 : 2} fill={p.destaque ? "var(--accent)" : s.cor} />
+                <circle
+                  key={i}
+                  cx={px(p[campoX])}
+                  cy={py(p.taxa)}
+                  r={p.destaque ? R_DESTAQUE : R_PONTO}
+                  fill={p.destaque ? "var(--accent)" : s.cor}
+                />
               ))}
           </g>
         );
       })}
     </svg>
+  );
+}
+
+// A legenda desenha a MESMA linha que o gráfico: mesma cor, mesmo tracejado,
+// mesma opacidade — só mais grossa, que é convenção de legenda e não muda a
+// identificação. Ela lê a lista `series`, então acrescentar ou repintar uma
+// curva atualiza as duas coisas de uma vez; antes eram três <span> com a cor
+// escrita à mão, que podiam passar a mentir sem ninguém notar.
+//
+// Ordem invertida de propósito: o gráfico desenha do mais antigo para o mais
+// novo (para a curva de hoje ficar por cima), e a legenda lista do mais novo
+// para o mais antigo, que é a ordem em que se lê.
+export function CurvaLegenda({ series, campoX = "anos" }) {
+  const itens = desenhaveis(series, campoX).reverse();
+  if (!itens.length) return null;
+
+  // O ponto maior só entra na legenda se houver algum na tela — explicar um
+  // marcador que não aparece é ruído.
+  const temDestaque = itens.some((s) => s.forte && s.pontos.some((p) => p.destaque));
+
+  return (
+    <div className="legenda">
+      {itens.map((s) => (
+        <span key={s.id} className="legenda-item">
+          <svg className="legenda-traco" viewBox="0 0 30 12" aria-hidden="true">
+            <line
+              x1="1"
+              y1="6"
+              x2="29"
+              y2="6"
+              stroke={s.cor}
+              strokeWidth={s.forte ? 3 : 2.4}
+              strokeDasharray={s.tracejado ? TRACEJADO : undefined}
+              strokeLinecap="round"
+              opacity={s.forte ? 1 : 0.75}
+            />
+          </svg>
+          {s.rotulo}
+        </span>
+      ))}
+      {temDestaque && (
+        <span className="legenda-item">
+          {/* Ponto MAIOR SOBRE a linha de hoje, que é exatamente como aparece no
+              gráfico — um ponto solto flutuando não é a mesma coisa e ainda
+              desalinhava a amostra em relação às outras. */}
+          <svg className="legenda-traco" viewBox="0 0 30 12" aria-hidden="true">
+            <line x1="1" y1="6" x2="29" y2="6" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="15" cy="6" r={R_DESTAQUE + 1.4} fill="var(--accent)" />
+          </svg>
+          acompanhado de perto
+        </span>
+      )}
+    </div>
   );
 }

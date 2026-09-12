@@ -6,7 +6,7 @@
 // com consequências diferentes para quem carrega prazo longo.
 import { useEffect, useState } from "react";
 import { getCurva } from "../api.js";
-import { CurvaChart } from "./CurvaChart.jsx";
+import { CurvaChart, CurvaLegenda } from "./CurvaChart.jsx";
 import { taxa, anos, dataBR } from "../format.js";
 import { ErroBox, Skeletons, AguardandoColeta } from "./States.jsx";
 
@@ -24,9 +24,9 @@ function Implicita({ implicita }) {
   if (agora.length < 2) return null;
 
   const series = [
-    { id: "1a", pontos: implicita.umAnoAtras, cor: "var(--muted)", tracejado: true },
-    { id: "1m", pontos: implicita.umMesAtras, cor: "var(--accent-2)" },
-    { id: "agora", pontos: agora, cor: "var(--accent)", forte: true },
+    { id: "1a", rotulo: "há um ano", pontos: implicita.umAnoAtras, cor: "var(--muted)", tracejado: true },
+    { id: "1m", rotulo: "há um mês", pontos: implicita.umMesAtras, cor: "var(--accent-2)" },
+    { id: "agora", rotulo: "hoje", pontos: agora, cor: "var(--accent)", forte: true },
   ].filter((s) => s.pontos && s.pontos.length >= 2);
 
   return (
@@ -39,11 +39,7 @@ function Implicita({ implicita }) {
 
       <div className="card">
         <CurvaChart series={series} height={170} rotulo="Inflação implícita por prazo" />
-        <div className="legenda">
-          <span><i style={{ background: "var(--accent)" }} />hoje</span>
-          <span><i style={{ background: "var(--accent-2)" }} />há um mês</span>
-          <span><i style={{ background: "var(--muted)" }} />há um ano</span>
-        </div>
+        <CurvaLegenda series={series} />
       </div>
 
       <div className="rolagem">
@@ -117,9 +113,9 @@ export function Curva({ marcados }) {
   if (!curva) return <AguardandoColeta />;
 
   const series = [
-    { id: "1a", pontos: curva.umAnoAtras, cor: "var(--muted)", tracejado: true },
-    { id: "1m", pontos: curva.umMesAtras, cor: "var(--accent-2)" },
-    { id: "agora", pontos: curva.agora, cor: "var(--accent)", forte: true },
+    { id: "1a", rotulo: "há um ano", pontos: curva.umAnoAtras, cor: "var(--muted)", tracejado: true },
+    { id: "1m", rotulo: "há um mês", pontos: curva.umMesAtras, cor: "var(--accent-2)" },
+    { id: "agora", rotulo: "hoje", pontos: curva.agora, cor: "var(--accent)", forte: true },
   ];
 
   return (
@@ -156,11 +152,7 @@ export function Curva({ marcados }) {
           campoX={eixo}
           rotulo={eixo === "duration" ? "Curva de juros por duration" : "Curva de juros por prazo"}
         />
-        <div className="legenda">
-          <span><i style={{ background: "var(--accent)" }} />hoje</span>
-          <span><i style={{ background: "var(--accent-2)" }} />há um mês</span>
-          <span><i style={{ background: "var(--muted)" }} />há um ano</span>
-        </div>
+        <CurvaLegenda series={series} campoX={eixo} />
       </div>
 
       <Implicita implicita={dados.implicita} />
