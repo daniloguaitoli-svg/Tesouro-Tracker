@@ -89,6 +89,13 @@ export function vigencia(iso, hoje = hojeSP()) {
   return `${dia > hoje ? "a partir de" : "vigente desde"} ${dataBR(dia)}`;
 }
 
+// "2026-08" -> "08/2026". O mês de REFERÊNCIA de um dado mensal não é uma data:
+// escrever "01/08/2026" sugeriria um dia que o número não tem.
+export function mesBR(iso) {
+  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[2]}/${m[1]}` : "";
+}
+
 export function dataCurtaBR(iso) {
   const cheia = dataBR(iso);
   return cheia ? cheia.slice(0, 5) : "";

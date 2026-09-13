@@ -217,6 +217,48 @@ export const IBOVESPA = indicePorId.ibovespa;
 // ACUMULADO no período, e para compor isso é preciso a taxa de cada dia. Daí
 // as séries 11 e 12. Elas não entram em MACRO porque MACRO alimenta a Moldura
 // do Painel, e lá um "CDI 0,0494%" ao lado do IPCA seria só confusão.
+// ---------- Inflação, por região ----------
+//
+// POR QUE ESTES ÍNDICES, e não outros:
+//
+// BRASIL — IPCA é o que importa aqui acima de qualquer outro: é a meta do
+// Banco Central E é o índice que corrige a NTN-B. Quando a tela diz "IPCA+
+// 7,6% real", o IPCA desta linha é literalmente a outra metade daquela conta.
+// IGP-M entra ao lado porque mede outra coisa: puxa atacado e câmbio, é bem
+// mais volátil, e é o índice dos aluguéis. Divergência grande entre os dois
+// costuma ser choque de câmbio ou de commodity, não inflação ao consumidor.
+//
+// ESTADOS UNIDOS — CPI-U, e na série SEM ajuste sazonal (CPIAUCNS). Dois
+// motivos: é a variação que o BLS anuncia como manchete, e é o índice a que os
+// TIPS são indexados. Ou seja, é o análogo exato do IPCA para a NTN-B, que é
+// justamente a comparação que esta tela existe para permitir. O Fed persegue o
+// PCE, não o CPI — mas PCE não indexa título nenhum.
+//
+// ZONA DO EURO, HOLANDA e ITÁLIA — HICP, não os índices nacionais. O HICP
+// existe precisamente para ser comparável entre países: mesma cesta, mesmo
+// método, mesmo tratamento de habitação. Comparar o CPI nacional holandês com
+// o italiano seria comparar duas metodologias diferentes e chamar a diferença
+// de inflação. A Holanda tem ainda um agravante conhecido: o índice nacional
+// (CPI do CBS) inclui custos de habitação ocupada pelo dono, que o HICP não
+// inclui, e os dois chegam a divergir mais de um ponto.
+//
+// Todas as fontes são públicas e sem chave, e por dois caminhos que este
+// repositório já usa para Fed e BCE — fredgraph.csv e o csvdata do Data Portal.
+export const INFLACAO = [
+  { id: "ipca", regiao: "Brasil", nome: "IPCA", forma: "variacao", serie: 433, fonte: "BCB / SGS (série 433)",
+    nota: "Índice oficial da meta e o que corrige a NTN-B." },
+  { id: "igpm", regiao: "Brasil", nome: "IGP-M", forma: "variacao", serie: 189, fonte: "BCB / SGS (série 189)",
+    nota: "Puxa atacado e câmbio; é o índice dos aluguéis." },
+  { id: "cpi-eua", regiao: "Estados Unidos", nome: "CPI-U", forma: "indice", fred: "CPIAUCNS", fonte: "FRED / St. Louis Fed (CPIAUCNS)",
+    nota: "Sem ajuste sazonal — é a manchete do BLS e o índice a que os TIPS são indexados." },
+  { id: "hicp-ze", regiao: "Zona do Euro", nome: "HICP", forma: "indice", ecb: "M.U2.N.000000.4.INX", fonte: "ECB Data Portal (ICP, U2)",
+    nota: "Índice harmonizado: mesma cesta e mesmo método em todos os países." },
+  { id: "hicp-nl", regiao: "Holanda", nome: "HICP", forma: "indice", ecb: "M.NL.N.000000.4.INX", fonte: "ECB Data Portal (ICP, NL)",
+    nota: "HICP, não o CPI do CBS — aquele inclui habitação do proprietário e diverge." },
+  { id: "hicp-it", regiao: "Itália", nome: "HICP", forma: "indice", ecb: "M.IT.N.000000.4.INX", fonte: "ECB Data Portal (ICP, IT)",
+    nota: "Comparável ponto a ponto com a Zona do Euro e a Holanda." },
+];
+
 export const JUROS_DIARIOS = [
   { id: "selic", serie: 11, nome: "Selic", descricao: "Taxa Selic diária (% a.d.), série 11 do SGS." },
   { id: "cdi", serie: 12, nome: "CDI", descricao: "Taxa DI diária (% a.d.), série 12 do SGS." },

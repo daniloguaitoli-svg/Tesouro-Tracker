@@ -213,6 +213,71 @@ export function retornoNoAno(pontosDiarios) {
   return retornoAcumulado(pontosDiarios, `${Number(ultimo.date.slice(0, 4)) - 1}-12-31`);
 }
 
+// ---------- Janelas de inflação (séries MENSAIS) ----------
+//
+// Inflação não se mede com janela de dias. "12 meses" é o mesmo mês do ano
+// passado, não 365 dias atrás; "no ano" é contra DEZEMBRO do ano anterior, que
+// é como IBGE, BLS e Eurostat publicam. Por isso estas funções trabalham com a
+// chave AAAA-MM e ignoram o dia — as fontes usam dia 1º por convenção, mas
+// depender disso seria frágil.
+//
+// Duas formas de série, porque as fontes não concordam: o SGS publica a
+// VARIAÇÃO de cada mês em %, enquanto FRED e BCE publicam o NÍVEL do índice.
+// Cada uma tem a sua função, e as duas devolvem o mesmo formato.
+const mesDe = (p) => String(p.date).slice(0, 7);
+
+function janelaVazia() {
+  return { mes: null, ano: null, doze: null };
+}
+
+// Série de ÍNDICE (FRED CPI, BCE HICP): razão entre dois níveis.
+export function janelasDeIndiceMensal(pontos) {
+  if (!Array.isArray(pontos) || pontos.length < 2) return janelaVazia();
+  const ordenados = [...pontos].filter((p) => p?.close != null && p.date).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const ult = ordenados[ordenados.length - 1];
+  if (!ult) return janelaVazia();
+  const porMes = new Map(ordenados.map((p) => [mesDe(p), p.close]));
+  const [ano, mes] = mesDe(ult).split("-").map(Number);
+
+  const varContra = (chave) => {
+    const base = porMes.get(chave);
+    if (base == null || !base) return null;
+    return { pct: (ult.close / base - 1) * 100, de: chave, ate: mesDe(ult) };
+  };
+  const mesAnterior = mes === 1 ? `${ano - 1}-12` : `${ano}-${String(mes - 1).padStart(2, "0")}`;
+  return {
+    mes: varContra(mesAnterior),
+    ano: varContra(`${ano - 1}-12`),
+    doze: varContra(`${ano - 1}-${String(mes).padStart(2, "0")}`),
+  };
+}
+
+// Série de VARIAÇÃO mensal em % (SGS 433 IPCA, 189 IGP-M): compõe os meses.
+// Composto, nunca somado — doze meses de 0,5% dão 6,17%, não 6,00%.
+export function janelasDeVariacaoMensal(pontos) {
+  if (!Array.isArray(pontos) || !pontos.length) return janelaVazia();
+  const ordenados = [...pontos].filter((p) => p?.close != null && p.date).sort((a, b) => (a.date < b.date ? -1 : 1));
+  if (!ordenados.length) return janelaVazia();
+  const ult = ordenados[ordenados.length - 1];
+  const mesUlt = mesDe(ult);
+  const anoUlt = mesUlt.slice(0, 4);
+
+  const compor = (lista) =>
+    lista.length ? (lista.reduce((f, p) => f * (1 + p.close / 100), 1) - 1) * 100 : null;
+  const janela = (lista) =>
+    lista.length ? { pct: compor(lista), de: mesDe(lista[0]), ate: mesUlt } : null;
+
+  const doAno = ordenados.filter((p) => mesDe(p).startsWith(anoUlt));
+  const doze = ordenados.slice(-12);
+  return {
+    mes: { pct: ult.close, de: mesUlt, ate: mesUlt },
+    ano: janela(doAno),
+    // 12 meses só quando há 12 meses: com menos, o número seria de outra janela
+    // e ninguém saberia disso olhando a tela.
+    doze: doze.length === 12 ? janela(doze) : null,
+  };
+}
+
 // ---------- Identificação do título ----------
 // Arredonda para N casas preservando o null. Vive aqui, e nao em ponte.js, por
 // ser usado dos dois lados — o coletor ao montar os arquivos-ponte e o

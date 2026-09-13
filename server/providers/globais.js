@@ -59,6 +59,13 @@ export function parseCsvFred(texto) {
 }
 
 // csvdata do BCE: muitas colunas; interessam TIME_PERIOD e OBS_VALUE.
+//
+// TIME_PERIOD vem com a granularidade da série: "2026-09-11" nas diárias (as
+// taxas do BCE) e "2026-08" nas MENSAIS (o HICP). A versão anterior exigia data
+// completa, então uma série mensal passava por aqui e saía VAZIA, sem erro —
+// ok:false com "nenhum ponto numérico", que se lê como fonte fora do ar e não
+// como formato não previsto. Mês vira o dia 1º, que é a convenção do resto da
+// base (isoDeBR faz o mesmo com "mm/aaaa").
 export function parseCsvBce(texto) {
   const linhas = String(texto ?? "").trim().split(/\r?\n/);
   if (linhas.length < 2) return { ok: false, motivo: "arquivo vazio", amostra: String(texto ?? "").slice(0, 200), pontos: [] };
@@ -73,7 +80,8 @@ export function parseCsvBce(texto) {
     const c = l.split(",");
     const date = (c[iData] || "").trim();
     const v = Number((c[iValor] || "").trim());
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(v)) pontos.push({ date, close: v });
+    const m = date.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+    if (m && Number.isFinite(v)) pontos.push({ date: m[3] ? date : `${m[1]}-${m[2]}-01`, close: v });
   }
   pontos.sort((a, b) => (a.date < b.date ? -1 : 1));
   return { ok: pontos.length > 0, motivo: pontos.length ? null : "nenhum ponto numérico", pontos };

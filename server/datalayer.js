@@ -14,11 +14,12 @@
 // A MATEMÁTICA MORA AQUI (e em util.js), não nos componentes: duration,
 // variação, estatísticas e sensibilidade a juros saem prontas para a tela.
 
-import { CATALOGO, CATEGORIAS, porSlug, DESTAQUES, MACRO, IBOVESPA, INDICES, JUROS_DIARIOS, macroPorId, rotuloGenerico } from "./catalogo.js";
+import { CATALOGO, CATEGORIAS, porSlug, DESTAQUES, MACRO, IBOVESPA, INDICES, JUROS_DIARIOS, INFLACAO, macroPorId, rotuloGenerico } from "./catalogo.js";
 import * as cache from "./cache.js";
 import * as bcb from "./providers/bcb.js";
 import * as bcglobais from "./providers/globais.js";
 import { ibovespa, todosIndices } from "./providers/yahoo.js";
+import { todasInflacoes } from "./providers/inflacao.js";
 import { REGIOES, manchetes } from "./providers/noticias.js";
 import {
   variacaoPeriodo,
@@ -562,6 +563,23 @@ export function janelasDeRetorno(pontosDiarios) {
 
 export const JANELAS = ["var1d", "var1sem", "var1mes", "varAno", "var12m"];
 
+// Cada grupo declara as PRÓPRIAS colunas, porque nem todos medem a mesma coisa.
+// Câmbio, juros e bolsas têm as cinco janelas diárias; inflação tem três
+// mensais e ponto — mostrar "1 dia" para um índice que sai uma vez por mês
+// seriam duas colunas vazias fingindo que o dado poderia existir.
+const COLUNAS_DIARIAS = [
+  { id: "var1d", rotulo: "1d" },
+  { id: "var1sem", rotulo: "1 sem" },
+  { id: "var1mes", rotulo: "1 mês" },
+  { id: "varAno", rotulo: "No ano" },
+  { id: "var12m", rotulo: "12 m" },
+];
+const COLUNAS_INFLACAO = [
+  { id: "mes", rotulo: "No mês" },
+  { id: "ano", rotulo: "No ano" },
+  { id: "doze", rotulo: "12 meses" },
+];
+
 export async function getMercado() {
   // Tudo em paralelo e tudo tolerante: macro (BCB), as cinco bolsas (Yahoo) e
   // as duas séries diárias de juros. Nenhuma fonte pode derrubar as outras.
@@ -573,9 +591,10 @@ export async function getMercado() {
   // exatamente a armadilha que o CLAUDE.md descreve, e na qual esta tela caiu.
   // O bcb.serie tem cache em processo, então ler de novo não custa requisição.
   const SERIES_CAMBIO = ["usdbrl", "eurbrl"].map((id) => ({ id, serie: macroPorId[id].serie }));
-  const [macro, indices, brutas] = await Promise.all([
+  const [macro, indices, inflacoes, brutas] = await Promise.all([
     getMacro().catch(() => ({ indicadores: {} })),
     todosIndices().catch(() => []),
+    todasInflacoes().catch(() => []),
     Promise.allSettled(
       [...SERIES_CAMBIO, ...JUROS_DIARIOS].map((x) => bcb.serie(x.serie, { dias: 800 }).then((pts) => [x.id, pts]))
     ),
@@ -665,17 +684,43 @@ export async function getMercado() {
     });
   });
 
+  // --- Inflação: janelas MENSAIS, uma linha por região. Sai sempre, como as
+  // outras; sem dado mostra "—" e o id entra em `indisponiveis`.
+  const inflacao = INFLACAO.map((meta) => {
+    const d = inflacoes.find((x) => x?.id === meta.id && !x.erro);
+    return {
+      id: meta.id,
+      nome: meta.nome,
+      sub: meta.regiao,
+      mesReferencia: d?.mesReferencia ?? null,
+      valor: null,
+      unidade: "%_MES",
+      base: "inflacao",
+      mes: d?.mes ?? null,
+      ano: d?.ano ?? null,
+      doze: d?.doze ?? null,
+      nota: meta.nota,
+      fonte: meta.fonte,
+    };
+  });
+
   // Uma linha sem valor NENHUM é fonte fora do ar; a tela nomeia quais.
-  const indisponiveis = [...cambio, ...juros, ...bolsas].filter((l) => l.valor == null).map((l) => l.id);
+  const indisponiveis = [
+    ...[...cambio, ...juros, ...bolsas].filter((l) => l.valor == null),
+    ...inflacao.filter((l) => !l.mes && !l.ano && !l.doze),
+  ].map((l) => l.id);
 
   return {
     fetchedAt: new Date().toISOString(),
     decisoes: { copom, fed: g.fed, bce: g.bce },
     globaisAtualizadosEm: g.atualizadoEm,
     grupos: [
-      { id: "cambio", nome: "Câmbio", linhas: cambio },
-      { id: "juros", nome: "Juros", linhas: juros },
-      { id: "bolsas", nome: "Bolsas", linhas: bolsas },
+      { id: "cambio", nome: "Câmbio", colunas: COLUNAS_DIARIAS, comValor: true, linhas: cambio },
+      { id: "juros", nome: "Juros", colunas: COLUNAS_DIARIAS, comValor: true, linhas: juros },
+      { id: "bolsas", nome: "Bolsas", colunas: COLUNAS_DIARIAS, comValor: true, linhas: bolsas },
+      // Sem coluna de valor: o NÍVEL de um índice de preços (CPI = 327,4) não
+      // diz nada a ninguém. O que se lê de inflação é a variação.
+      { id: "inflacao", nome: "Inflação", colunas: COLUNAS_INFLACAO, comValor: false, linhas: inflacao },
     ].filter((gr) => gr.linhas.length),
     indisponiveis,
     // Mantidos porque o formato antigo é lido em outros pontos da tela; a grade

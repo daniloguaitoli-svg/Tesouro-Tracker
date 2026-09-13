@@ -11,7 +11,7 @@
 // preposição — "vigente desde" uma data futura não quer dizer nada.
 import { useEffect, useState } from "react";
 import { getMercado } from "../api.js";
-import { num, pct, pp, dataBR, sinal, vigencia } from "../format.js";
+import { num, pct, pp, dataBR, mesBR, sinal, vigencia } from "../format.js";
 import { ErroBox, Skeletons } from "./States.jsx";
 
 function CartaoDecisao({ d, taxaPrincipal, detalhe }) {
@@ -49,20 +49,23 @@ function Cel({ j }) {
 // Vai dentro de .rolagem porque sete colunas não cabem em 390px — a primeira
 // fica grudada, senão rolar para ver "12m" esconde de quem é a linha.
 function Grade({ grupo }) {
+  // As colunas vêm do GRUPO, não fixas no componente: câmbio, juros e bolsas
+  // têm as cinco janelas diárias, inflação tem três mensais. Coluna que o grupo
+  // não mede simplesmente não existe, em vez de aparecer vazia fingindo que o
+  // dado poderia estar lá.
+  const colunas = grupo.colunas || [];
   return (
     <>
       <div className="section-title">{grupo.nome}</div>
       <div className="rolagem">
-        <table className="tbl grade">
+        <table className="tbl grade" style={{ minWidth: 150 + (grupo.comValor ? 80 : 0) + colunas.length * 66 }}>
           <thead>
             <tr>
               <th className="col-nome">Indicador</th>
-              <th className="rt">Último</th>
-              <th className="rt">1d</th>
-              <th className="rt">1 sem</th>
-              <th className="rt">1 mês</th>
-              <th className="rt">No ano</th>
-              <th className="rt">12 m</th>
+              {grupo.comValor && <th className="rt">Último</th>}
+              {colunas.map((c) => (
+                <th key={c.id} className="rt">{c.rotulo}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -73,18 +76,18 @@ function Grade({ grupo }) {
                   <br />
                   <span className="muted" style={{ fontSize: 11 }}>
                     {l.sub}
-                    {l.data ? ` · ${dataBR(l.data)}` : ""}
+                    {l.mesReferencia ? ` · ref. ${mesBR(l.mesReferencia)}` : l.data ? ` · ${dataBR(l.data)}` : ""}
                   </span>
                 </td>
-                <td className="rt mono">
-                  {l.valor == null ? "—" : num(l.valor, l.casas ?? 2)}
-                  {l.unidade === "%_ANO" ? "%" : ""}
-                </td>
-                <Cel j={l.var1d} />
-                <Cel j={l.var1sem} />
-                <Cel j={l.var1mes} />
-                <Cel j={l.varAno} />
-                <Cel j={l.var12m} />
+                {grupo.comValor && (
+                  <td className="rt mono">
+                    {l.valor == null ? "—" : num(l.valor, l.casas ?? 2)}
+                    {l.unidade === "%_ANO" ? "%" : ""}
+                  </td>
+                )}
+                {colunas.map((c) => (
+                  <Cel key={c.id} j={l[c.id]} />
+                ))}
               </tr>
             ))}
           </tbody>
@@ -163,7 +166,14 @@ export function Mercado() {
         coluna do valor continua sendo a taxa anualizada, que é como ela se cota.
         <br />
         Cada praça fecha na sua hora, então as datas legitimamente não batem entre si — cada
-        linha carrega a sua. Índices estrangeiros estão na moeda de origem, sem conversão.{" "}
+        linha carrega a sua. Índices estrangeiros estão na moeda de origem, sem conversão.
+        <br />
+        <strong>Inflação sai uma vez por mês e com atraso</strong>, e cada instituto publica
+        no seu tempo — por isso cada linha diz o <strong>mês de referência</strong> a que o
+        número se refere, que não é o mês corrente e nem sempre é o mesmo entre regiões.
+        Europa e Holanda e Itália vêm pelo HICP, harmonizado justamente para se comparar
+        entre países; os Estados Unidos pelo CPI-U sem ajuste sazonal, que é o índice a que
+        os TIPS são indexados — o análogo do IPCA para a NTN-B.{" "}
         {dados.aviso}
       </div>
     </div>
