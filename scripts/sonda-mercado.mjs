@@ -45,6 +45,23 @@ for (const j of [...Object.values(macroPorId), ...JUROS_DIARIOS.map((x) => ({ ..
   await new Promise((r) => setTimeout(r, 300));
 }
 
+console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
+{
+  const bcb = await import("../server/providers/bcb.js");
+  for (const m of [...Object.values(macroPorId), ...JUROS_DIARIOS]) {
+    try {
+      const pts = await bcb.serie(m.serie, { dias: m.id === "ipca" ? 2000 : 800 });
+      const p0 = pts[0], pN = pts[pts.length - 1];
+      const dias = p0 && pN ? Math.round((Date.parse(pN.date) - Date.parse(p0.date)) / 864e5) : 0;
+      console.log(`  ${marcar(pts.length > 0)} ${String(m.serie).padStart(5)} ${(m.nome || m.id).padEnd(12)} ${String(pts.length).padStart(5)} pontos  ${p0?.date} -> ${pN?.date}  (${dias} dias de janela)`);
+      if (dias < 370 && m.id !== "ipca") console.log(`      AVISO: menos de 370 dias — a janela de 12 meses vai sair null`);
+    } catch (e) {
+      console.log(`  ${marcar(false)} ${String(m.serie).padStart(5)} ${(m.nome || m.id).padEnd(12)} ${e.message}`);
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
 console.log("\n=== a grade como a tela vai receber ===");
 const m = await getMercado();
 for (const g of m.grupos) {

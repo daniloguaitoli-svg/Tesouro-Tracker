@@ -464,6 +464,72 @@ changed in both places**:
 
 `verificar.mjs` compares both sides.
 
+### The Mercado grid: one ruler for everything
+
+The tab is monetary-policy cards (unchanged) plus a grid of indicators measured
+on the **same five windows** — 1 day, 1 week, 1 month, year to date, 12 months —
+in three groups: cambio (USD/BRL, EUR/BRL), juros (Selic, CDI) and bolsas (the
+five indices). The single ruler is the point: it is what lets "IPCA+ 2035 pays
+7.6% real" sit next to "CDI returned 9.4% YTD, Ibovespa 12%".
+
+**A price and a rate do not vary in the same sense, and each row says which it
+is in `base`:**
+
+| `base` | meaning |
+|---|---|
+| `"preco"` | change in the value itself (FX, indices) |
+| `"retorno"` | **accumulated return** — what R$1 at that rate earned over the window, compounded daily (Selic, CDI) |
+
+The rates row is deliberately *not* the change in the rate level. CDI going from
+13.65% to 13.90% is +0.25 p.p., which does not compare with "Ibovespa +12%"; the
+return does, and that is the number in the column. The level stays in the value
+column, because that is how the rate is quoted. This is the one place the app
+answers a "%" question about a rate with a percentage rather than p.p., and it
+is only defensible because the quantity really is a return.
+
+That needs the **daily** SGS series (11 Selic, 12 CDI) on top of the annualised
+ones. They live in `JUROS_DIARIOS`, deliberately outside `MACRO`, because
+`MACRO` feeds the Painel's Moldura and a "CDI 0.0494%" card next to IPCA would
+be nothing but confusing.
+
+Window rules, all in `server/util.js` and all checked:
+
+- **YTD anchors on the last close of the *previous* year**, not the first day of
+  the current one. 1 January is a holiday on every exchange, and anchoring on
+  the year's first traded day throws away the turn-of-year move, which over a
+  year-long window is the information.
+- **Returns compound, never sum.** 252 daily rates of ~0.05% sum to 12.6% and
+  compound to 13.9%. `retornoAcumulado` is a product of `(1 + v/100)`.
+- **The 1-day window is the last point against the previous one**, not "24 hours
+  ago". On a Monday the previous session is Friday; asking for one calendar day
+  would return `null` every Monday.
+- A window the series cannot reach returns `null`, rendered `—`. Never 0.
+
+`janelasDePreco()` and `janelasDeRetorno()` are exported from `datalayer.js`
+purely so `verificar.mjs` can exercise them with a fixture — the same reason the
+parsers are. The check that earns its keep is a **cross-validation**: an index
+rising 0.05% per trading day and a rate of 0.05% per day must agree over 12
+months. Two independent code paths (a ratio of two prices; a product of 252
+factors) that currently land 0.0001 p.p. apart. If either starts summing instead
+of compounding, or slips a window edge, that check opens.
+
+The grid is a table, not cards: the reading is comparing the *same window across
+different indicators*, and that is a column. Seven columns do not fit 390px, so
+it scrolls inside `.rolagem` with the name column stuck to the left. That column
+is capped with `max-width` and wraps to two lines on purpose — pinning a
+`min-width` to force the subtitle onto one line covers the neighbouring column
+when scrolled, and "fits on one line" depends on which font the device loaded.
+
+### Probing Yahoo and the BCB (`scripts/sonda-mercado.mjs`)
+
+Neither `query1.finance.yahoo.com` nor `api.bcb.gov.br` is reachable from the
+development sandbox — the egress proxy refuses both. A wrong ticker is
+**invisible**: Yahoo 404s, `allSettled` swallows it, and the row silently leaves
+the screen. So the probe exists and runs on a **GitHub runner**, the one place
+with open network, under `workflow_dispatch` only
+(`.github/workflows/sonda-mercado.yml`). It writes nothing. Run it after
+touching a symbol, a series number, or the window maths, and read the job log.
+
 ## Who chooses the Painel's "Acompanhados de perto"
 
 **The user does**, via the star on each row of the Títulos tab. The choice is
@@ -557,14 +623,18 @@ existing bridge file.
   imports it and exercises all three branches — format.js has no imports of its
   own, so it loads in plain node. Never write either preposition by hand in
   `Mercado.jsx`; the check fails if you do.
-- **Ibovespa**: Yahoo Finance's public chart endpoint (`^BVSP`), request-time.
-  It is **not** in `MACRO` — that list is "BCB SGS series", and the BCB does not
-  publish Ibovespa among them. Guessing an SGS number would have labelled some
-  unrelated series "IBOVESPA", so the Yahoo route was taken instead (the same
-  one Cana-Tracker uses for NY contracts). `extrairSerie()` is pure and
-  fixture-tested: the payload is deeply nested
+- **Bolsas** (`INDICES` in `catalogo.js`): Yahoo Finance's public chart
+  endpoint, request-time — Ibovespa `^BVSP`, S&P 500 `^GSPC`, Nasdaq Composite
+  `^IXIC`, Dow Jones `^DJI`, AEX `^AEX`. They are **not** in `MACRO` — that list
+  is "BCB SGS series", and the BCB does not publish equity indices among them.
+  Guessing an SGS number would have labelled some unrelated series "IBOVESPA",
+  so the Yahoo route was taken instead (the same one Cana-Tracker uses for NY
+  contracts). `IBOVESPA` is derived from `INDICES`, not defined twice.
+  `extrairSerie()` is pure and fixture-tested: the payload is deeply nested
   (`chart.result[0].indicators.quote[0].close`) and a careless refactor returns
   an empty array rather than throwing, which would show "—" with no clue why.
+  Each index is a separate request under `allSettled`; a dead exchange lands in
+  `indisponiveis` rather than vanishing from the screen.
 - **News**: Google News RSS per region, regex-parsed (house rule: no deps),
   request-time with a 20-min in-process cache, best-effort via `allSettled` —
   one dead region never blanks the others. Headlines are context, not data: the
