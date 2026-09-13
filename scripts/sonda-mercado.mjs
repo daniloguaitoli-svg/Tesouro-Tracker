@@ -8,7 +8,7 @@
 //
 // Roda sob workflow_dispatch, não no schedule: é ferramenta de conferência, não
 // parte da coleta. Não escreve nada.
-import { INDICES, JUROS_DIARIOS, macroPorId } from "../server/catalogo.js";
+import { INDICES, JUROS_DIARIOS, INFLACAO, macroPorId } from "../server/catalogo.js";
 import { getMercado } from "../server/datalayer.js";
 
 const ok = (b) => (b ? "ok  " : "FALHA");
@@ -45,6 +45,26 @@ for (const j of [...Object.values(macroPorId), ...JUROS_DIARIOS.map((x) => ({ ..
   await new Promise((r) => setTimeout(r, 300));
 }
 
+console.log("\n=== fontes de inflação (FRED e ECB Data Portal) ===");
+// Identificador de série errado NÃO dá erro visível: o FRED devolve um CSV de
+// uma linha e o BCE um 404, o allSettled engole, e a linha some da tela. Este é
+// o único lugar com rede aberta para os dois hosts.
+for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
+  const url = m.fred
+    ? `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${m.fred}&cosd=2023-01-01`
+    : `https://data-api.ecb.europa.eu/service/data/ICP/${m.ecb}?format=csvdata&startPeriod=2023-01`;
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const txt = r.ok ? await r.text() : "";
+    const linhas = txt.trim() ? txt.trim().split(/\r?\n/).length - 1 : 0;
+    console.log(`  ${marcar(r.ok && linhas > 12)} ${m.id.padEnd(9)} ${(m.fred || m.ecb).padEnd(22)} HTTP ${r.status}  ${linhas} linhas`);
+    if (!r.ok || linhas <= 12) console.log(`      amostra: ${txt.slice(0, 140).replace(/\s+/g, " ")}`);
+  } catch (e) {
+    console.log(`  ${marcar(false)} ${m.id.padEnd(9)} ${(m.fred || m.ecb).padEnd(22)} ${e.message}`);
+  }
+  await new Promise((r) => setTimeout(r, 400));
+}
+
 console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
 {
   const bcb = await import("../server/providers/bcb.js");
@@ -65,15 +85,23 @@ console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
 console.log("\n=== a grade como a tela vai receber ===");
 const m = await getMercado();
 for (const g of m.grupos) {
+  const cols = g.colunas.map((c) => c.id);
   console.log(`\n  [${g.nome}]`);
-  console.log(`  ${"indicador".padEnd(18)} ${"último".padStart(12)} ${"1d".padStart(8)} ${"1sem".padStart(8)} ${"1mês".padStart(8)} ${"ano".padStart(8)} ${"12m".padStart(8)}   base`);
+  console.log(
+    `  ${"indicador".padEnd(18)}${g.comValor ? "último".padStart(13) : ""} ` +
+      g.colunas.map((c) => c.rotulo.padStart(9)).join("") + "   base"
+  );
   for (const l of g.linhas) {
-    const c = (j) => (j && Number.isFinite(j.pct) ? j.pct.toFixed(2) + "%" : "—").padStart(8);
-    console.log(`  ${l.nome.padEnd(18)} ${String(l.valor ?? "—").padStart(12)} ${c(l.var1d)} ${c(l.var1sem)} ${c(l.var1mes)} ${c(l.varAno)} ${c(l.var12m)}   ${l.base}  (${l.data})`);
+    const c = (j) => (j && Number.isFinite(j.pct) ? j.pct.toFixed(2) + "%" : "—").padStart(9);
+    const quando = l.mesReferencia ? `ref. ${l.mesReferencia}` : l.data;
+    console.log(
+      `  ${l.nome.padEnd(18)}${g.comValor ? String(l.valor ?? "—").padStart(13) : ""} ` +
+        cols.map((k) => c(l[k])).join("") + `   ${l.base}  (${quando})`
+    );
     // Janela vazia CONTA como problema. A primeira versão desta sonda imprimia
     // o aviso e saía com "sonda limpa" — foi assim que quatro janelas nulas no
     // câmbio quase passaram por boas.
-    for (const k of ["var1d", "var1sem", "var1mes", "varAno", "var12m"]) {
+    for (const k of cols) {
       if (!l[k]) { console.log(`      ${marcar(false)} ${l.id}.${k} veio null — série curta ou fonte incompleta`); }
     }
   }

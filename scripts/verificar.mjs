@@ -884,6 +884,70 @@ conferir(janelasDePreco([]).var1d === null, "série vazia não explode");
 const mercSrc = await ler("src/components/Mercado.jsx");
 conferir(/retorno acumulado/i.test(mercSrc), "Mercado explica que a coluna de juros é retorno acumulado");
 
+console.log("\ninflação por região");
+const { INFLACAO } = await import("../server/catalogo.js");
+conferir(INFLACAO.length >= 6, `${INFLACAO.length} índices de inflação`);
+conferir(new Set(INFLACAO.map((i) => i.id)).size === INFLACAO.length, "ids de inflação únicos");
+for (const i of INFLACAO) {
+  const fontes = [i.serie, i.fred, i.ecb].filter(Boolean);
+  conferir(fontes.length === 1, `${i.id}: exatamente uma fonte declarada (${fontes.length})`);
+  // `forma` decide se a conta compõe variações ou divide níveis. Trocar isso
+  // não dá erro: dá um número plausível e errado — o SGS lido como índice daria
+  // "variação de 0,32 para 0,41", que é uma inflação de 28%.
+  const esperada = i.serie ? "variacao" : "indice";
+  conferir(i.forma === esperada, `${i.id}: forma "${i.forma}" bate com a fonte (${esperada})`);
+  conferir(!!i.regiao && !!i.nome && !!i.fonte, `${i.id}: região, nome e fonte preenchidos`);
+}
+
+// As duas contas de janela mensal, com fixture.
+const { janelasDeIndiceMensal, janelasDeVariacaoMensal } = util;
+{
+  // Índice: dez/2025 = 100, +0,4% ao mês até ago/2026; ago/2025 = 96.
+  const idx = [{ date: "2025-08-01", close: 96 }, { date: "2025-12-01", close: 100 }];
+  let v = 100;
+  for (let mm = 1; mm <= 8; mm++) { v *= 1.004; idx.push({ date: `2026-${String(mm).padStart(2, "0")}-01`, close: v }); }
+  const a = janelasDeIndiceMensal(idx);
+  conferir(perto(a.mes.pct, 0.4, 1e-9), `índice/mês = 0,4% (${a.mes.pct.toFixed(4)})`);
+  conferir(perto(a.ano.pct, (1.004 ** 8 - 1) * 100, 1e-9), `índice/ano ancora em dezembro (${a.ano.pct.toFixed(4)}%)`);
+  conferir(a.ano.de === "2025-12", `índice/ano parte de ${a.ano.de}, não de janeiro`);
+  conferir(a.doze.de === "2025-08", `índice/12m parte do mesmo mês do ano passado (${a.doze.de})`);
+}
+{
+  // Variação: 12 meses de 0,5% ao mês.
+  const varm = [];
+  for (let mm = 9; mm <= 12; mm++) varm.push({ date: `2025-${mm}-01`, close: 0.5 });
+  for (let mm = 1; mm <= 8; mm++) varm.push({ date: `2026-${String(mm).padStart(2, "0")}-01`, close: 0.5 });
+  const b = janelasDeVariacaoMensal(varm);
+  conferir(b.mes.pct === 0.5, `variação/mês é o próprio mês (${b.mes.pct}%)`);
+  // COMPOR, não somar: doze meses de 0,5% dão 6,1678%, e somados dariam 6,0000%.
+  conferir(perto(b.doze.pct, (1.005 ** 12 - 1) * 100, 1e-9), `variação/12m composta (${b.doze.pct.toFixed(4)}% ≠ 6,0000%)`);
+  conferir(b.ano.de === "2026-01", `variação/ano começa em janeiro (${b.ano.de})`);
+  conferir(janelasDeVariacaoMensal(varm.slice(-3)).doze === null, "menos de 12 meses não vira janela de 12 meses");
+}
+conferir(janelasDeIndiceMensal([]).mes === null, "série de inflação vazia não explode");
+
+// O csvdata do BCE traz AAAA-MM nas séries MENSAIS e AAAA-MM-DD nas diárias. A
+// versão que só aceitava data completa devolvia série VAZIA para o HICP, sem
+// erro — que se lê como fonte fora do ar, não como formato não previsto.
+const bce = globais.parseCsvBce("KEY,TIME_PERIOD,OBS_VALUE\nICP,2026-07,127.34\nICP,2026-08,127.61");
+conferir(bce.ok && bce.pontos.length === 2, `parseCsvBce lê série mensal (${bce.pontos.length} pontos)`);
+conferir(bce.pontos[0].date === "2026-07-01", `mês vira dia 1º (${bce.pontos[0]?.date})`);
+const bceD = globais.parseCsvBce("KEY,TIME_PERIOD,OBS_VALUE\nFM,2026-09-11,2.25");
+conferir(bceD.ok && bceD.pontos[0].date === "2026-09-11", "parseCsvBce continua lendo série diária");
+
+// Cada grupo do Mercado declara as próprias colunas.
+const merc = await datalayer.getMercado();
+for (const g of merc.grupos) {
+  conferir(Array.isArray(g.colunas) && g.colunas.length > 0, `grupo ${g.id} declara colunas (${g.colunas?.length})`);
+  conferir(typeof g.comValor === "boolean", `grupo ${g.id} diz se tem coluna de valor`);
+}
+const gInf = merc.grupos.find((g) => g.id === "inflacao");
+conferir(gInf?.comValor === false, "inflação não mostra o nível do índice, que não diz nada");
+conferir(
+  gInf?.colunas.map((c) => c.id).join(",") === "mes,ano,doze",
+  `inflação tem as três janelas mensais (${gInf?.colunas.map((c) => c.id).join(",")})`
+);
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");
