@@ -65,6 +65,32 @@ for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
   await new Promise((r) => setTimeout(r, 400));
 }
 
+// DIAGNÓSTICO: as três séries do BCE voltaram com exatamente 36 linhas
+// (jan/2023 -> dez/2025), três anos redondos a partir do startPeriod, enquanto
+// o FRED devolveu 44 e chegou em ago/2026. Número redondo assim é limite de
+// API, não dado faltante. Testa variantes para descobrir qual parâmetro manda.
+console.log("\n=== BCE: por que a série para em dezembro? ===");
+for (const [rotulo, qs] of [
+  ["startPeriod=2023-01 (atual)", "?format=csvdata&startPeriod=2023-01"],
+  ["startPeriod=2023-01-01", "?format=csvdata&startPeriod=2023-01-01"],
+  ["lastNObservations=6", "?format=csvdata&lastNObservations=6"],
+  ["sem parâmetro de janela", "?format=csvdata"],
+]) {
+  try {
+    const r = await fetch(`https://data-api.ecb.europa.eu/service/data/ICP/M.U2.N.000000.4.INX${qs}`, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    const txt = r.ok ? await r.text() : "";
+    const linhas = txt.trim() ? txt.trim().split(/\r?\n/) : [];
+    const dados = linhas.slice(1);
+    const per = (l) => (l || "").split(",").find((c) => /^\d{4}-\d{2}(-\d{2})?$/.test(c.trim())) || "?";
+    console.log(`  HTTP ${r.status}  ${String(dados.length).padStart(4)} linhas  ${per(dados[0])} -> ${per(dados[dados.length - 1])}   ${rotulo}`);
+  } catch (e) {
+    console.log(`  erro: ${e.message}   ${rotulo}`);
+  }
+  await new Promise((r) => setTimeout(r, 500));
+}
+
 console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
 {
   const bcb = await import("../server/providers/bcb.js");
@@ -103,6 +129,16 @@ for (const g of m.grupos) {
     // câmbio quase passaram por boas.
     for (const k of cols) {
       if (!l[k]) { console.log(`      ${marcar(false)} ${l.id}.${k} veio null — série curta ou fonte incompleta`); }
+    }
+    // Mês de referência velho CONTA como problema. Na primeira sonda com
+    // inflação, as três linhas de HICP vieram de dezembro — oito meses atrás —
+    // e a sonda disse "limpa", porque só olhava janela nula. Um índice mensal
+    // atrasa uma ou duas publicações; três meses já é outra coisa.
+    if (l.mesReferencia) {
+      const [ay, am] = l.mesReferencia.split("-").map(Number);
+      const hoje = new Date();
+      const meses = (hoje.getUTCFullYear() - ay) * 12 + (hoje.getUTCMonth() + 1 - am);
+      if (meses > 3) console.log(`      ${marcar(false)} ${l.id}: referência ${l.mesReferencia} está ${meses} meses atrás`);
     }
   }
 }
