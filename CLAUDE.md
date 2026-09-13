@@ -416,6 +416,31 @@ more attempts only delay the error that needs to surface), and the retry covers
 only the connection — once the body starts streaming, a reopen would duplicate
 points.
 
+**And when all four attempts fail, that is still not a failure.** The collector
+catches it and checks how long ago the last *successful* collection wrote
+`dados/historico.json`:
+
+| Outcome | Files | Exit |
+|---|---|---|
+| collected | written | 0 |
+| unreachable, last collection ≤ `LIMITE_DIAS_FONTE_FORA` (3d) | **nothing written** | 0, loud `console.warn` |
+| unreachable, older than that | nothing written | 1 — a real defect, email it |
+| **file arrived but no bond parsed** | nothing written | **1, always — no tolerance** |
+
+Same number and same reasoning as `LIMITE_DIAS_BLOQUEIO` in the CEPEA collectors
+of the sibling repos; keeping the four identical is worth more than tuning each.
+The last row is the important distinction: a refused connection is weather and
+fixes itself in the next window three hours later, but a file that *arrives and
+cannot be understood* never fixes itself by waiting, and writing empty results
+over good data would be worse than failing. Before this, a one-minute outage
+sent a failure email — and an alert that always cries wolf stops being read,
+so the day it tells the truth goes unnoticed (13/09/2026 22:28 was one such
+outage; the windows either side of it succeeded).
+
+Nothing is written on a tolerated outage, so there is no diff, no commit and no
+pointless deploy. The workflow also has `workflow_dispatch`, so a lost window
+can be retried by hand instead of waiting three hours.
+
 ### Parsing is tolerant, and fails loudly
 
 `providers/tesouro.js` detects the separator and finds columns by **regex on the

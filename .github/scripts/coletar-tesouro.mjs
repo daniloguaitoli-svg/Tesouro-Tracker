@@ -31,7 +31,7 @@
 //   node .github/scripts/coletar-tesouro.mjs --dry-run   # coleta e só relata
 //   TESOURO_DESDE=2015-01-01 node ... --dry-run             # janela maior
 
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, readFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { varrerSerie, URL_CSV } from "../../server/providers/tesouro.js";
@@ -69,24 +69,79 @@ console.log(URL_CSV);
 
 const series = new Map(); // slug -> { tipo, vencimento, comCupom, serie, ultimo }
 
-const resumo = await varrerSerie({
-  desdeISO: DESDE,
-  aoLer(p) {
-    let alvo = series.get(p.slug);
-    if (!alvo) {
-      alvo = { tipo: p.tipo, vencimento: p.vencimento, comCupom: p.comCupom, cupomAnual: p.cupomAnual, serie: {}, ultimo: null };
-      series.set(p.slug, alvo);
-    }
-    // Referência do app: a taxa/PU de COMPRA (recompra do Tesouro), que é a que
-    // continua sendo publicada mesmo depois que o título sai de oferta. Cai
-    // para a de venda quando a de compra falta.
-    const taxa = p.taxaCompra ?? p.taxaVenda;
-    const pu = p.puCompra ?? p.puVenda ?? p.puBase;
-    if (taxa == null && pu == null) return;
-    alvo.serie[p.data] = [arred(taxa, 4), arred(pu, 2)];
-    if (!alvo.ultimo || p.data > alvo.ultimo.data) alvo.ultimo = p;
-  },
-});
+// Quantos dias o dado versionado pode ficar sem renovar antes de a fonte fora
+// do ar virar defeito de verdade. Mesmo número e mesma ideia do
+// LIMITE_DIAS_BLOQUEIO do coletor do CEPEA nos repositórios irmãos: manter os
+// quatro iguais vale mais que afinar cada um.
+const LIMITE_DIAS_FONTE_FORA = 3;
+
+// Há quantos dias a última coleta BEM-SUCEDIDA gravou o arquivo. Ausência de
+// arquivo (primeira execução) conta como infinito: aí uma fonte fora do ar é
+// sim um problema que precisa aparecer.
+async function diasDesdeUltimaColeta() {
+  try {
+    const h = JSON.parse(await readFile(join(DIR, "historico.json"), "utf-8"));
+    const t = Date.parse(h.atualizadoEm);
+    return Number.isFinite(t) ? (Date.now() - t) / 86400000 : Infinity;
+  } catch {
+    return Infinity;
+  }
+}
+
+// A FONTE FORA DO AR NÃO É DEFEITO — até certo ponto.
+//
+// tesourotransparente.gov.br recusa conexão de vez em quando (aconteceu quase
+// todo dia entre 29/08 e 02/09/2026, e em 13/09 às 22:28). varrerSerie já tenta
+// quatro vezes com espera crescente; quando nem assim vai, o que restava era
+// sair com erro — e isso mandava email sobre um soluço de rede que se conserta
+// sozinho na janela seguinte, três horas depois. Email que sempre mente deixa
+// de ser lido, e aí o dia em que ele disser a verdade passa batido.
+//
+// Então: enquanto o dado versionado estiver fresco, avisa alto e sai em paz,
+// SEM GRAVAR NADA (sem diff, sem commit, sem deploy à toa). Passou do limite,
+// aí sim é defeito e o email tem de chegar.
+//
+// Isto vale só para a fonte INALCANÇÁVEL. Arquivo que chega e não se entende é
+// outra coisa — continua fatal logo abaixo, porque formato que mudou não se
+// conserta esperando.
+let resumo;
+try {
+  resumo = await varrerSerie({
+    desdeISO: DESDE,
+    aoLer(p) {
+      let alvo = series.get(p.slug);
+      if (!alvo) {
+        alvo = { tipo: p.tipo, vencimento: p.vencimento, comCupom: p.comCupom, cupomAnual: p.cupomAnual, serie: {}, ultimo: null };
+        series.set(p.slug, alvo);
+      }
+      // Referência do app: a taxa/PU de COMPRA (recompra do Tesouro), que é a que
+      // continua sendo publicada mesmo depois que o título sai de oferta. Cai
+      // para a de venda quando a de compra falta.
+      const taxa = p.taxaCompra ?? p.taxaVenda;
+      const pu = p.puCompra ?? p.puVenda ?? p.puBase;
+      if (taxa == null && pu == null) return;
+      alvo.serie[p.data] = [arred(taxa, 4), arred(pu, 2)];
+      if (!alvo.ultimo || p.data > alvo.ultimo.data) alvo.ultimo = p;
+    },
+  });
+} catch (erro) {
+  const dias = await diasDesdeUltimaColeta();
+  const desde = Number.isFinite(dias) ? `${dias.toFixed(1)} dia(s) atrás` : "nunca";
+  console.error(`\nTesouro Transparente inalcançável: ${erro.message}`);
+  console.error(`Última coleta bem-sucedida: ${desde}.`);
+  if (dias > LIMITE_DIAS_FONTE_FORA) {
+    console.error(
+      `Passou de ${LIMITE_DIAS_FONTE_FORA} dias sem coleta — isso já não é soluço de rede. ` +
+        `Confira se a URL do CSV mudou (${URL_CSV}).`
+    );
+    process.exit(1);
+  }
+  console.warn(
+    `AVISO: nada gravado nesta execução. Dentro do limite de ${LIMITE_DIAS_FONTE_FORA} dias, ` +
+      `então saindo com sucesso — a próxima janela tenta de novo em ~3 horas.`
+  );
+  process.exit(0);
+}
 
 console.log(
   `\nlidas ${resumo.linhas.toLocaleString("pt-BR")} linhas (${(resumo.bytes / 1048576).toFixed(1)} MB), ` +
@@ -94,6 +149,9 @@ console.log(
 );
 console.log(`separador ${JSON.stringify(resumo.separador)} · colunas ${JSON.stringify(resumo.colunas)}`);
 
+// Fatal de propósito, e sem tolerância nenhuma: o arquivo CHEGOU e não foi
+// entendido. Isso não passa esperando, e gravar por cima do dado bom com um
+// resultado vazio seria pior que falhar.
 if (series.size === 0) {
   console.error("\nNenhum título reconhecido — o formato do arquivo pode ter mudado.");
   process.exit(1);

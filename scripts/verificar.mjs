@@ -547,6 +547,37 @@ conferir(
   `pelo menos 4 janelas por dia, para uma execução perdida não custar o dia (horas: ${horas})`
 );
 
+// Botão de "rodar agora": sem ele, execução perdida por fonte fora do ar só se
+// recupera esperando a próxima janela. Exatamente UMA vez — chave repetida em
+// YAML é ambígua e o GitHub pode recusar o arquivo inteiro, o que é pior que a
+// falta do gatilho (foi o que quase entrou ao acrescentá-lo sem olhar o resto).
+const nDispatch = (wf.match(/^\s*workflow_dispatch:/gm) || []).length;
+conferir(nDispatch === 1, `workflow_dispatch declarado uma única vez (${nDispatch})`);
+
+// FONTE FORA DO AR NÃO É DEFEITO, formato quebrado É. O coletor tem de separar
+// os dois: uma recusa de conexão só reprova depois de dias sem coleta, mas um
+// arquivo que chega e não se entende reprova na hora.
+const coletor = await ler(".github/scripts/coletar-tesouro.mjs");
+const limite = coletor.match(/LIMITE_DIAS_FONTE_FORA\s*=\s*(\d+)/)?.[1];
+conferir(!!limite, `tolerância a fonte fora do ar declarada (${limite} dias)`);
+// Recorta o bloco catch inteiro e confere os DOIS desfechos dentro dele, em vez
+// de adivinhar uma distância em caracteres — o primeiro palpite deu 700 e o
+// exit(0) estava logo depois disso, reprovando um código correto.
+const catchFonte = coletor.slice(coletor.indexOf("} catch (erro) {"), coletor.indexOf("// ---------- 2."));
+conferir(/process\.exit\(0\)/.test(catchFonte), "fonte inalcançável dentro do limite sai com sucesso");
+conferir(/process\.exit\(1\)/.test(catchFonte), "fonte inalcançável além do limite ainda reprova");
+conferir(
+  catchFonte.indexOf("process.exit(1)") < catchFonte.indexOf("process.exit(0)"),
+  "reprova só quando passa do limite; o sucesso é o caminho de saída"
+);
+conferir(
+  /series\.size === 0\) \{[\s\S]{0,200}?process\.exit\(1\)/.test(coletor),
+  "formato irreconhecível continua fatal, sem tolerância"
+);
+// O AVISO tem de ser gritado, não sussurrado: é o único sinal de que a coleta
+// não rodou num dia em que o job aparece verde.
+conferir(/console\.warn\(/.test(coletor), "a saída tolerante avisa alto (console.warn)");
+
 // dados/ é commitado DE PROPÓSITO — é a ponte inteira. Ignorá-lo esvazia a
 // produção e deixa o dev perfeito, que é o pior formato possível de defeito.
 for (const arq of [".gitignore", ".vercelignore"]) {

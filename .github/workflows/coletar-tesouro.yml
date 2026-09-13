@@ -41,6 +41,9 @@ on:
     # gratuitos e ilimitados), o job leva ~40s e só COMMITA quando algum número
     # mudou — então não gera deploy nem ruído à toa.
     - cron: "23 11,14,17,20,23 * * *"
+
+  # Botão de "rodar agora", para não depender da próxima janela quando uma
+  # execução se perde — como em 13/09/2026, com o CSV inalcançável às 22:28.
   workflow_dispatch:
   # Numa branch de trabalho que NÃO seja a padrão, o job roda em DRY-RUN: baixa,
   # parseia e relata, sem gravar nem commitar. É como se confere que os parsers
