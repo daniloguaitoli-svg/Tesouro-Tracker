@@ -297,11 +297,39 @@ spreads across 34 years; on the duration axis they all fall between ~3.5y and
 ~13.4y. Buying term is not buying interest-rate risk in the same proportion, and
 the term axis hides that completely.
 
-What it does **not** fix: zero-coupon and coupon bonds still don't lie on one
-curve in duration space either (the 2035 zero at d=8.68y yields 7.64% between
-two coupon bonds at 7.55% and 7.45%). The remaining zigzag is real pricing, not
-noise, and the UI says so. Splitting the polyline per family is the actual fix
-and has not been done.
+### One polyline per family
+
+Zero-coupon and coupon bonds do **not** lie on one curve, on either axis, and
+the chart no longer pretends they do: `separarFamilias()` splits every series
+into two polylines before drawing.
+
+The old single line was not merely imprecise, it was drawing an artefact. Five
+NTN-B maturities (2032, 2035, 2040, 2045, 2050) exist in **both** forms — same
+date, different rates — so at those terms the polyline jumped vertically at a
+constant x and came back. That zigzag was the line stitching two curves
+together, not the shape of the market. Seven such terms exist across the two
+families today; `verificar.mjs` asserts at least one still does, because if that
+ever stops being true the reason for the split has gone with it.
+
+Split, both lines are smooth and the **gap between them** becomes the readable
+quantity: on the long end the coupon bond yields a consistent ~0.07 p.p. more
+(13.9y: 7.45% vs 7.37%; 18.7y: 7.44% vs 7.37%; 23.9y: 7.43% vs 7.36%).
+
+Two details are load-bearing, both checked:
+
+- **Markers come from the full point list, not from the groups.** A family with
+  a single point draws no line — but its marker must still appear, or the bond
+  vanishes from the chart entirely.
+- **Every curve point carries `comCupom` as a boolean.** Without it the splitter
+  silently lumps everything into one group and the stitching comes back with no
+  visible failure.
+
+Point shape encodes the family (filled = zero-coupon, ring = coupon) and size
+encodes ⭐. The filled dot's radius is 2.6 against a 2px line: at the old
+radius 2 the disc disappeared into the line it sat on. The implied-inflation
+chart has no families — its points are derived from both sides and carry no
+`comCupom` — so `separarFamilias` returns it untouched and the legend drops the
+shape entries.
 
 ### The legend draws the real line
 

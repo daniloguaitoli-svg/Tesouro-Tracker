@@ -196,15 +196,20 @@ export function Curva({ marcados }) {
             comprar prazo não é comprar risco na mesma proporção. Dias corridos/365, e
             calculada na data de cada curva, porque a duration encurta com o tempo.
             <br />
-            O serrilhado que sobra é real, não ruído: zero-cupom e com cupom não caem sobre
-            a mesma curva nem aqui — no mesmo risco de juros, o mercado cobra taxas um pouco
-            diferentes dos dois.
+            As duas famílias continuam em linhas separadas aqui: no mesmo risco de juros, o
+            mercado não cobra a mesma taxa de quem paga cupom e de quem não paga.
           </>
         ) : (
           <>
-            Cada curva mistura títulos com e sem cupom: dois pontos no mesmo prazo podem ter
-            taxas diferentes por isso — e as durations serão bem diferentes. Veja{" "}
-            <strong>por duration</strong> para compará-los na mesma régua.
+            Cada família tem a <strong>sua própria linha</strong> — ponto cheio sem cupom,
+            anel com cupom. Elas não são uma curva só: cinco vencimentos da NTN-B existem
+            nas duas formas, com a mesma data e taxas diferentes, e ligá-los numa linha só
+            produzia um serrilhado que era desenho, não mercado.
+            <br />
+            A <strong>distância entre as duas linhas</strong> é o que se ganha ou se perde
+            por receber cupom. No longo ela é consistente e pequena — cerca de 0,07 p.p. a
+            mais no com cupom. Mesmo prazo, note, não é mesmo risco: veja{" "}
+            <strong>por duration</strong> para comparar os dois na mesma régua.
           </>
         )}{" "}
         {dados.aviso}

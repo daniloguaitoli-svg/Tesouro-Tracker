@@ -24,8 +24,13 @@ export const TRACEJADO = "4 3";
 // declarado é o vão que aparece, e 6+5 fecha certinho nos 28px da amostra:
 // três traços cheios, sem sobra picada na ponta.
 export const TRACEJADO_LEGENDA = "6 5";
-const R_PONTO = 2;
-const R_DESTAQUE = 3.4;
+// O ponto cheio precisa ser visivelmente MAIOR que a linha em que se apoia: a
+// linha de hoje tem 2px, então um raio de 2 dava um disco de 4px que sumia
+// dentro dela — na legenda e no gráfico. 2.6 destaca sem sujar o desenho.
+const R_PONTO = 2.6;
+const R_DESTAQUE = 4.2;
+const R_ANEL = 2.9;
+const R_ANEL_DESTAQUE = 4.4;
 
 const desenhaveis = (series, campoX) =>
   (series || [])
@@ -36,6 +41,33 @@ const desenhaveis = (series, campoX) =>
         .sort((a, b) => a[campoX] - b[campoX]),
     }))
     .filter((s) => s.pontos.length >= 2);
+
+// Zero-cupom e com cupom NÃO caem sobre a mesma curva. Cinco vencimentos da
+// NTN-B (2032, 2035, 2040, 2045 e 2050) existem nas DUAS formas, com a mesma
+// data e taxas diferentes — a polilinha única pulava na vertical no mesmo x,
+// ida e volta, e aquele serrilhado não era o formato da curva, era o desenho
+// costurando duas curvas diferentes. Separadas, cada uma fica lisa e a
+// distância entre elas passa a ser legível: é o que o mercado cobra a mais (ou
+// a menos) por receber cupom.
+//
+// A inflação implícita é derivada dos dois lados e não tem família: seus pontos
+// não trazem `comCupom`, e aí não há nada a separar.
+export function separarFamilias(pontos) {
+  const com = pontos.filter((p) => p.comCupom === true);
+  const sem = pontos.filter((p) => p.comCupom === false);
+  return com.length && sem.length ? [sem, com] : [pontos];
+}
+
+// Ponto cheio = sem cupom, anel = com cupom. O anel é preenchido com a cor do
+// cartão de propósito: sem isso a linha atravessa o miolo e ele vira bolinha.
+function Marca({ x, y, comCupom, destaque, cor }) {
+  const c = destaque ? "var(--accent)" : cor;
+  return comCupom ? (
+    <circle cx={x} cy={y} r={destaque ? R_ANEL_DESTAQUE : R_ANEL} fill="var(--surface)" stroke={c} strokeWidth="1.5" />
+  ) : (
+    <circle cx={x} cy={y} r={destaque ? R_DESTAQUE : R_PONTO} fill={c} />
+  );
+}
 
 export function CurvaChart({
   series,
@@ -85,33 +117,32 @@ export function CurvaChart({
           {a.toFixed(0)}{sufixoX}
         </text>
       ))}
-      {comDados.map((s) => {
-        const d = s.pontos.map((p, i) => `${i ? "L" : "M"}${px(p[campoX]).toFixed(1)} ${py(p.taxa).toFixed(1)}`).join(" ");
-        return (
-          <g key={s.id}>
-            <path
-              d={d}
-              fill="none"
-              stroke={s.cor}
-              strokeWidth={s.forte ? 2 : 1.4}
-              strokeDasharray={s.tracejado ? TRACEJADO : undefined}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              opacity={s.forte ? 1 : 0.75}
-            />
-            {s.forte &&
-              s.pontos.map((p, i) => (
-                <circle
-                  key={i}
-                  cx={px(p[campoX])}
-                  cy={py(p.taxa)}
-                  r={p.destaque ? R_DESTAQUE : R_PONTO}
-                  fill={p.destaque ? "var(--accent)" : s.cor}
-                />
-              ))}
-          </g>
-        );
-      })}
+      {comDados.map((s) => (
+        <g key={s.id}>
+          {/* Uma polilinha por família. Uma família com um ponto só não vira
+              linha — mas o marcador dela continua na tela, senão o título
+              simplesmente sumiria do gráfico. */}
+          {separarFamilias(s.pontos).map((grupo, gi) =>
+            grupo.length < 2 ? null : (
+              <path
+                key={gi}
+                d={grupo.map((p, i) => `${i ? "L" : "M"}${px(p[campoX]).toFixed(1)} ${py(p.taxa).toFixed(1)}`).join(" ")}
+                fill="none"
+                stroke={s.cor}
+                strokeWidth={s.forte ? 2 : 1.4}
+                strokeDasharray={s.tracejado ? TRACEJADO : undefined}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity={s.forte ? 1 : 0.75}
+              />
+            )
+          )}
+          {s.forte &&
+            s.pontos.map((p, i) => (
+              <Marca key={i} x={px(p[campoX])} y={py(p.taxa)} comCupom={p.comCupom === true} destaque={p.destaque} cor={s.cor} />
+            ))}
+        </g>
+      ))}
     </svg>
   );
 }
@@ -132,6 +163,11 @@ export function CurvaLegenda({ series, campoX = "anos" }) {
   // O ponto maior só entra na legenda se houver algum na tela — explicar um
   // marcador que não aparece é ruído.
   const temDestaque = itens.some((s) => s.forte && s.pontos.some((p) => p.destaque));
+  // A forma do ponto só precisa de explicação quando as duas famílias estão na
+  // tela — na inflação implícita não há família nenhuma.
+  const temFamilias = itens.some(
+    (s) => s.forte && s.pontos.some((p) => p.comCupom === true) && s.pontos.some((p) => p.comCupom === false)
+  );
 
   return (
     <div className="legenda">
@@ -153,16 +189,38 @@ export function CurvaLegenda({ series, campoX = "anos" }) {
           {s.rotulo}
         </span>
       ))}
+      {/* As entradas de PONTO vêm todas sobre um pedaço da linha de hoje, que é
+          o único lugar onde há marcador — as três ficam alinhadas entre si e
+          com as entradas de linha acima. */}
+      {temFamilias && (
+        <>
+          <span className="legenda-item">
+            <svg className="legenda-traco" viewBox="0 0 30 12" aria-hidden="true">
+              <line x1="1" y1="6" x2="29" y2="6" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <Marca x={15} y={6} comCupom={false} cor="var(--accent)" />
+            </svg>
+            sem cupom
+          </span>
+          <span className="legenda-item">
+            <svg className="legenda-traco" viewBox="0 0 30 12" aria-hidden="true">
+              <line x1="1" y1="6" x2="29" y2="6" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              <Marca x={15} y={6} comCupom cor="var(--accent)" />
+            </svg>
+            com cupom
+          </span>
+        </>
+      )}
       {temDestaque && (
         <span className="legenda-item">
-          {/* Ponto MAIOR SOBRE a linha de hoje, que é exatamente como aparece no
-              gráfico — um ponto solto flutuando não é a mesma coisa e ainda
-              desalinhava a amostra em relação às outras. */}
+          {/* Aqui a amostra mostra a REGRA (pequeno → grande) e não um caso: o
+              título acompanhado pode ser de qualquer das duas famílias, então
+              desenhar só o ponto cheio maior estaria errado para metade deles. */}
           <svg className="legenda-traco" viewBox="0 0 30 12" aria-hidden="true">
-            <line x1="1" y1="6" x2="29" y2="6" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="15" cy="6" r={R_DESTAQUE + 1.4} fill="var(--accent)" />
+            <line x1="1" y1="6" x2="29" y2="6" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="9" cy="6" r={R_PONTO} fill="var(--accent)" />
+            <circle cx="21" cy="6" r={R_DESTAQUE} fill="var(--accent)" />
           </svg>
-          acompanhado de perto
+          maior = acompanhado
         </span>
       )}
     </div>

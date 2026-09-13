@@ -698,6 +698,44 @@ conferir(
   `amostra de ${cssLegenda}px cabe ${((Number(cssLegenda) - 2) / periodo).toFixed(1)} traços`
 );
 
+console.log("\nfamílias separadas na curva");
+// A polilinha única costurava DUAS curvas. Cinco vencimentos da NTN-B existem
+// com e sem cupom na mesma data e com taxas diferentes, então a linha pulava na
+// vertical no mesmo x, ida e volta — o serrilhado era o desenho, não o mercado.
+// Primeiro: provar que a causa continua nos dados (se um dia sumir, o motivo
+// desta separação sumiu junto e o comentário passa a mentir).
+let paresMesmoPrazo = 0;
+for (const c of curva.curvas) {
+  const porPrazo = new Map();
+  for (const p2 of c.agora) {
+    const k = p2.anos.toFixed(2);
+    (porPrazo.get(k) || porPrazo.set(k, []).get(k)).push(p2);
+  }
+  for (const grupo of porPrazo.values()) {
+    const fam = new Set(grupo.map((g) => g.comCupom));
+    if (fam.size > 1) paresMesmoPrazo += 1;
+  }
+}
+conferir(paresMesmoPrazo >= 1, `há prazo com as duas famílias e taxas diferentes (${paresMesmoPrazo})`);
+// Sem `comCupom` booleano em todo ponto o separador jogaria tudo num grupo só e
+// a linha voltaria a costurar as duas famílias, calada.
+for (const c of curva.curvas) {
+  const semCampo = c.agora.filter((p2) => typeof p2.comCupom !== "boolean").length;
+  conferir(semCampo === 0, `${c.id}: todo ponto traz comCupom booleano (${semCampo} sem)`);
+}
+// E o gráfico tem de de fato separar: uma polilinha POR grupo, e os marcadores
+// vindos da lista inteira — uma família com um ponto só não vira linha, mas o
+// título não pode sumir da tela por causa disso.
+conferir(/export function separarFamilias/.test(chartSrc), "CurvaChart exporta separarFamilias");
+conferir(
+  /separarFamilias\(s\.pontos\)\.map\(/.test(chartSrc),
+  "cada série vira uma polilinha por família"
+);
+conferir(
+  /s\.forte &&\s*\n?\s*s\.pontos\.map\(/.test(chartSrc),
+  "os marcadores saem da lista completa de pontos, não dos grupos"
+);
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");
