@@ -9,6 +9,7 @@
 // Roda sob workflow_dispatch, não no schedule: é ferramenta de conferência, não
 // parte da coleta. Não escreve nada.
 import { INDICES, JUROS_DIARIOS, INFLACAO, macroPorId } from "../server/catalogo.js";
+import * as globais from "../server/providers/globais.js";
 import { getMercado } from "../server/datalayer.js";
 
 const ok = (b) => (b ? "ok  " : "FALHA");
@@ -65,36 +66,61 @@ for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
   await new Promise((r) => setTimeout(r, 400));
 }
 
-// O BCE está descartado como fonte de HICP: TODA série do dataflow ICP termina
-// em 2025-12, tanto o índice (INX) quanto a taxa anual (ANR), para U2, NL e IT.
-// Não é escolha de chave nem limite de API — sem parâmetro de janela a série
-// vem inteira, 1996-01 -> 2025-12, e para ali.
+// O BCE e o EUROSTAT estão descartados como fonte de HICP: os dois param em
+// 2025-12 para U2, NL e IT (medido 13/09/2026). Esta seção procura ALTERNATIVA
+// que chegue ao mês corrente, por três caminhos:
 //
-// Então sonda o EUROSTAT, que é quem de fato produz o HICP (o BCE republica).
-// API de disseminação, sem chave, formato JSON-stat.
-console.log("\n=== Eurostat: o HICP chega ao mês corrente? ===");
-for (const geo of ["EA", "NL", "IT"]) {
-  const url =
-    "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_midx" +
-    `?format=JSON&lang=EN&unit=I15&coicop=CP00&geo=${geo}&sinceTimePeriod=2023-01`;
+//   1. espelhos no FRED — de longe o melhor desfecho, porque o caminho já está
+//      integrado e provado atual para o CPI americano. Os espelhos de origem
+//      Eurostat (sufixo NEST) provavelmente herdam o mesmo corte; os de origem
+//      OCDE são calculados de outra submissão e podem ir além.
+//   2. OCDE direto.
+//   3. institutos nacionais — CBS na Holanda, ISTAT na Itália. Publicam o CPI
+//      NACIONAL, que não é HICP: metodologias diferentes, e no caso holandês a
+//      diferença é grande (habitação do proprietário). Serve como último
+//      recurso, e se for usado a tela tem de dizer que mudou de régua.
+//      Para a Zona do Euro não existe instituto nacional — só Eurostat.
+console.log("\n=== alternativas de inflação para Europa ===");
+const alvo = (iso) => (iso >= "2026-06" ? "ATUAL" : "velho");
+for (const [rotulo, url, tipo] of [
+  ["FRED HICP zona euro (Eurostat)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CP0000EZ19M086NEST&cosd=2024-01-01", "fred"],
+  ["FRED CPI zona euro (OCDE)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=EA19CPALTT01GYM&cosd=2024-01-01", "fred"],
+  ["FRED HICP Holanda (Eurostat)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CP0000NLM086NEST&cosd=2024-01-01", "fred"],
+  ["FRED CPI Holanda (OCDE)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NLDCPIALLMINMEI&cosd=2024-01-01", "fred"],
+  ["FRED HICP Italia (Eurostat)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CP0000ITM086NEST&cosd=2024-01-01", "fred"],
+  ["FRED CPI Italia (OCDE)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ITACPIALLMINMEI&cosd=2024-01-01", "fred"],
+]) {
   try {
     const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
     const txt = await r.text();
-    let ultimo = "?";
-    let n = 0;
-    if (r.ok) {
-      const j = JSON.parse(txt);
-      const idx = j?.dimension?.time?.category?.index || {};
-      const periodos = Object.keys(idx).sort();
-      n = periodos.length;
-      ultimo = periodos[periodos.length - 1] || "?";
-    }
-    console.log(`  ${marcar(r.ok && n > 12)} geo=${geo.padEnd(3)} HTTP ${r.status}  ${String(n).padStart(3)} períodos  último ${ultimo}`);
-    if (!r.ok) console.log(`      amostra: ${txt.slice(0, 140).replace(/\s+/g, " ")}`);
+    const res = globais.parseCsvFred(txt);
+    const ult = res.pontos[res.pontos.length - 1];
+    const quando = ult ? ult.date.slice(0, 7) : "?";
+    console.log(
+      `  HTTP ${r.status}  ${String(res.pontos.length).padStart(3)} pts  último ${quando.padEnd(8)} ${ult ? alvo(quando).padEnd(6) : "      "} ${rotulo}`
+    );
+    if (!res.ok) console.log(`      ${res.motivo} · ${txt.slice(0, 100).replace(/\s+/g, " ")}`);
   } catch (e) {
-    console.log(`  ${marcar(false)} geo=${geo.padEnd(3)} ${e.message}`);
+    console.log(`  erro ${e.message}  ${rotulo}`);
   }
-  await new Promise((r) => setTimeout(r, 600));
+  await new Promise((r) => setTimeout(r, 400));
+}
+
+// Institutos nacionais, sem chave.
+for (const [rotulo, url] of [
+  ["CBS Holanda (OData 83131NED)", "https://opendata.cbs.nl/ODataApi/odata/83131NED/TypedDataSet?$select=Perioden,CPI_1&$top=3&$filter=substringof('MM',Perioden)"],
+  ["ISTAT Italia (SDMX NIC)", "https://esploradati.istat.it/SDMXWS/rest/data/IT1,163_156_DF_DCSP_NIC1B2015_1,1.0/M.IT.NIC.4.00.0.0?format=csv&startPeriod=2026-01"],
+]) {
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Accept: "*/*" } });
+    const txt = await r.text();
+    const per = [...txt.matchAll(/(20\d\d)[-\s]?(?:MM)?(\d\d)/g)].map((m) => `${m[1]}-${m[2]}`).sort();
+    console.log(`  HTTP ${r.status}  ${String(txt.length).padStart(6)} bytes  último período visto ${per[per.length - 1] || "?"}   ${rotulo}`);
+    if (!r.ok || !per.length) console.log(`      amostra: ${txt.slice(0, 160).replace(/\s+/g, " ")}`);
+  } catch (e) {
+    console.log(`  erro ${e.message}  ${rotulo}`);
+  }
+  await new Promise((r) => setTimeout(r, 500));
 }
 
 console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
