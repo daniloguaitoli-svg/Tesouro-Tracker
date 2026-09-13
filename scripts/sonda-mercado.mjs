@@ -65,28 +65,34 @@ for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
   await new Promise((r) => setTimeout(r, 400));
 }
 
-// DIAGNÓSTICO: as três séries do BCE voltaram com exatamente 36 linhas
-// (jan/2023 -> dez/2025), três anos redondos a partir do startPeriod, enquanto
-// o FRED devolveu 44 e chegou em ago/2026. Número redondo assim é limite de
-// API, não dado faltante. Testa variantes para descobrir qual parâmetro manda.
-console.log("\n=== BCE: por que a série para em dezembro? ===");
-for (const [rotulo, qs] of [
-  ["startPeriod=2023-01 (atual)", "?format=csvdata&startPeriod=2023-01"],
-  ["startPeriod=2023-01-01", "?format=csvdata&startPeriod=2023-01-01"],
-  ["lastNObservations=6", "?format=csvdata&lastNObservations=6"],
-  ["sem parâmetro de janela", "?format=csvdata"],
+// DIAGNÓSTICO do BCE. Ficou provado que NÃO é limite de API: sem parâmetro de
+// janela a série vem inteira, 1996-01 -> 2025-12. A chave .4.INX simplesmente
+// termina em dezembro de 2025 — cheiro de rebase do HICP, em que o índice velho
+// é descontinuado e a continuação vive em outra chave. Sonda candidatas até
+// achar uma que alcance o mês corrente.
+console.log("\n=== BCE: qual chave do HICP continua viva? ===");
+for (const chave of [
+  "M.U2.N.000000.4.INX",
+  "M.U2.N.000000.4.ANR",
+  "M.U2.Y.000000.4.INX",
+  "M.U2.N.000000.4.MOM",
+  "M.U2.N.000000.0.INX",
+  "M.NL.N.000000.4.ANR",
+  "M.IT.N.000000.4.ANR",
 ]) {
   try {
-    const r = await fetch(`https://data-api.ecb.europa.eu/service/data/ICP/M.U2.N.000000.4.INX${qs}`, {
+    const r = await fetch(`https://data-api.ecb.europa.eu/service/data/ICP/${chave}?format=csvdata&lastNObservations=3`, {
       headers: { "User-Agent": "Mozilla/5.0" },
     });
     const txt = r.ok ? await r.text() : "";
-    const linhas = txt.trim() ? txt.trim().split(/\r?\n/) : [];
-    const dados = linhas.slice(1);
-    const per = (l) => (l || "").split(",").find((c) => /^\d{4}-\d{2}(-\d{2})?$/.test(c.trim())) || "?";
-    console.log(`  HTTP ${r.status}  ${String(dados.length).padStart(4)} linhas  ${per(dados[0])} -> ${per(dados[dados.length - 1])}   ${rotulo}`);
+    const dados = txt.trim() ? txt.trim().split(/\r?\n/).slice(1) : [];
+    const campos = (l) => (l || "").split(",");
+    const per = (l) => campos(l).find((c) => /^\d{4}-\d{2}(-\d{2})?$/.test(c.trim())) || "?";
+    const ultimo = dados[dados.length - 1];
+    const valor = ultimo ? campos(ultimo)[campos(ultimo).length - 1] : "";
+    console.log(`  HTTP ${r.status}  ${String(dados.length).padStart(2)} obs  último ${per(ultimo).padEnd(8)} = ${String(valor).slice(0, 12).padEnd(12)} ${chave}`);
   } catch (e) {
-    console.log(`  erro: ${e.message}   ${rotulo}`);
+    console.log(`  erro ${e.message}  ${chave}`);
   }
   await new Promise((r) => setTimeout(r, 500));
 }
