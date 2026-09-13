@@ -748,6 +748,25 @@ for (const c of curva.curvas) {
   }
 }
 conferir(paresMesmoPrazo >= 1, `há prazo com as duas famílias e taxas diferentes (${paresMesmoPrazo})`);
+// Depois da separação, cada curva de IPCA+ carrega UMA família só. É o que a
+// separação criou, e o que quebraria se alguém juntasse FAMILIAS_CURVA de novo.
+for (const c of curva.curvas.filter((x) => x.id.startsWith("ipca-"))) {
+  const familias = new Set(c.agora.map((p) => p.comCupom));
+  conferir(familias.size === 1, `${c.id}: uma família só na curva (${[...familias].join("/")})`);
+  const esperado = c.id === "ipca-com-cupom";
+  conferir([...familias][0] === esperado, `${c.id}: a família é a que o nome promete`);
+}
+// A implícita continua saindo da curva real INTEIRA, não de metade dela: ela
+// tem de alcançar prazos que só existem numa das duas famílias.
+const prazosImp = new Set((curva.implicita?.agora || []).map((p) => p.anos.toFixed(2)));
+const soSemCupom = new Set(
+  (curva.curvas.find((c) => c.id === "ipca-sem-cupom")?.agora || []).map((p) => p.anos.toFixed(2))
+);
+conferir(prazosImp.size >= 2, `inflação implícita com ${prazosImp.size} prazos`);
+conferir(
+  [...prazosImp].some((a) => !soSemCupom.has(a)),
+  "a implícita usa a curva real inteira, não só a sem cupom"
+);
 // Sem `comCupom` booleano em todo ponto o separador jogaria tudo num grupo só e
 // a linha voltaria a costurar as duas famílias, calada.
 for (const c of curva.curvas) {

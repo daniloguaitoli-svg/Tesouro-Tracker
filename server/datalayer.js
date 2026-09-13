@@ -259,10 +259,27 @@ export async function getDetalhe(slug, tf = "1A") {
 // ponto a ponto — a diferença entre elas é a inflação implícita. A LFT fica
 // fora das duas: o "preço" dela é um spread sobre a Selic, não um ponto de
 // curva.
+//
+// E o IPCA+ vem em DUAS curvas, não uma. Zero-cupom e com cupom nunca caíram
+// sobre a mesma curva — cinco vencimentos existem nas duas formas, com a mesma
+// data e taxas diferentes. Desenhá-los juntos já tinha sido resolvido no
+// gráfico (uma polilinha por família); em curvas separadas cada uma ganha
+// também o próprio eixo Y, que é o que deixa a forma de cada uma legível em
+// vez de espremida pela amplitude da outra.
+//
+// A prefixada fica inteira: LTN e NTN-F continuam no mesmo quadro, com as duas
+// polilinhas. São só oito títulos, e separá-los deixaria duas curvas magras.
 const FAMILIAS_CURVA = [
-  { id: "real", nome: "Real (IPCA+)", tipos: ["ipca", "ipca-juros"], sufixo: "a.a. + IPCA" },
+  { id: "ipca-sem-cupom", nome: "IPCA+ sem cupom", tipos: ["ipca"], sufixo: "a.a. + IPCA" },
+  { id: "ipca-com-cupom", nome: "IPCA+ com cupom", tipos: ["ipca-juros"], sufixo: "a.a. + IPCA" },
   { id: "prefixada", nome: "Prefixada (nominal)", tipos: ["prefixado", "prefixado-juros"], sufixo: "a.a." },
 ];
+
+// Os tipos que formam a curva real INTEIRA. A separação acima é de tela; a
+// inflação implícita continua saindo da curva real completa, como sempre saiu.
+// Trocar a base dela junto com um ajuste visual mexeria, calado, no número que
+// decide entre IPCA+ e Prefixado.
+const TIPOS_REAL = ["ipca", "ipca-juros"];
 
 // Interpola uma curva (ordenada por prazo) num prazo qualquer, linearmente.
 // Devolve null FORA do intervalo observado — extrapolar a ponta longa de uma
@@ -386,7 +403,8 @@ export async function getCurva() {
   };
 
   const curvas = FAMILIAS_CURVA.map((f) => ({ id: f.id, nome: f.nome, sufixo: f.sufixo, ...montarCurva(f.tipos) }));
-  const real = curvas.find((c) => c.id === "real");
+  // Curva real combinada: NÃO vai para a tela, existe só para a implícita.
+  const real = montarCurva(TIPOS_REAL);
   const prefixada = curvas.find((c) => c.id === "prefixada");
 
   return {

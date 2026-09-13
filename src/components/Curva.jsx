@@ -112,6 +112,12 @@ export function Curva({ marcados }) {
   const curva = disponiveis.find((c) => c.id === familiaId) || disponiveis[0];
   if (!curva) return <AguardandoColeta />;
 
+  // Este quadro mistura as duas famílias? Depois da separação do IPCA+, só a
+  // prefixada mistura — mas a pergunta é feita aos DADOS, não ao id da curva,
+  // para o texto continuar certo se as famílias mudarem de arranjo.
+  const misturada =
+    curva.agora.some((p) => p.comCupom === true) && curva.agora.some((p) => p.comCupom === false);
+
   const series = [
     { id: "1a", rotulo: "há um ano", pontos: curva.umAnoAtras, cor: "var(--muted)", tracejado: true },
     { id: "1m", rotulo: "há um mês", pontos: curva.umMesAtras, cor: "var(--accent-2)" },
@@ -195,21 +201,32 @@ export function Curva({ marcados }) {
             semestrais cabe numa faixa estreita, por mais longo que seja o vencimento:
             comprar prazo não é comprar risco na mesma proporção. Dias corridos/365, e
             calculada na data de cada curva, porque a duration encurta com o tempo.
-            <br />
-            As duas famílias continuam em linhas separadas aqui: no mesmo risco de juros, o
-            mercado não cobra a mesma taxa de quem paga cupom e de quem não paga.
+            {misturada && (
+              <>
+                <br />
+                As duas famílias continuam em linhas separadas aqui: no mesmo risco de
+                juros, o mercado não cobra a mesma taxa de quem paga cupom e de quem não.
+              </>
+            )}
+          </>
+        ) : misturada ? (
+          <>
+            LTN e NTN-F dividem este quadro, cada uma com a <strong>sua própria linha</strong>{" "}
+            — ponto cheio sem cupom, anel com cupom. Elas não são uma curva só, e ligá-las
+            numa linha produzia um serrilhado que era desenho, não mercado. A distância
+            entre as duas é o que se ganha ou se perde por receber cupom. Mesmo prazo não é
+            mesmo risco: veja <strong>por duration</strong> para compará-las na mesma régua.
           </>
         ) : (
           <>
-            Cada família tem a <strong>sua própria linha</strong> — ponto cheio sem cupom,
-            anel com cupom. Elas não são uma curva só: cinco vencimentos da NTN-B existem
-            nas duas formas, com a mesma data e taxas diferentes, e ligá-los numa linha só
-            produzia um serrilhado que era desenho, não mercado.
+            O IPCA+ tem <strong>um quadro para cada família</strong>, e não um só, porque
+            elas não formam uma curva única: cinco vencimentos da NTN-B existem nas duas
+            formas, com a mesma data e taxas diferentes. Juntas, o desenho serrilhava e cada
+            uma ficava espremida pela amplitude da outra. Compare as duas trocando o chip
+            acima — no longo, a com cupom paga cerca de 0,07 p.p. a mais.
             <br />
-            A <strong>distância entre as duas linhas</strong> é o que se ganha ou se perde
-            por receber cupom. No longo ela é consistente e pequena — cerca de 0,07 p.p. a
-            mais no com cupom. Mesmo prazo, note, não é mesmo risco: veja{" "}
-            <strong>por duration</strong> para comparar os dois na mesma régua.
+            Mesmo prazo não é mesmo risco: veja <strong>por duration</strong> para pôr as
+            duas na mesma régua.
           </>
         )}{" "}
         {dados.aviso}
