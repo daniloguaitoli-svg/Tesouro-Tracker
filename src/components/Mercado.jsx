@@ -176,7 +176,13 @@ export function Mercado() {
         número se refere, que não é o mês corrente e nem sempre é o mesmo entre regiões.
         Europa e Holanda e Itália vêm pelo HICP, harmonizado justamente para se comparar
         entre países; os Estados Unidos pelo CPI-U sem ajuste sazonal, que é o índice a que
-        os TIPS são indexados — o análogo do IPCA para a NTN-B.{" "}
+        os TIPS são indexados — o análogo do IPCA para a NTN-B.
+        <br />
+        <strong>A coluna do mês carrega sazonalidade</strong> nas séries sem ajuste
+        sazonal, que são as de fora do Brasil: em julho de 2026 a Holanda marcou +1,61% e a
+        Itália −0,97%, e isso são saldos de verão e energia, não divergência de inflação —
+        em 12 meses as três europeias ficam entre 2,91% e 2,95%. Para comparar países, use
+        a janela de 12 meses.{" "}
         {dados.aviso}
       </div>
     </div>
