@@ -545,6 +545,52 @@ is capped with `max-width` and wraps to two lines on purpose — pinning a
 `min-width` to force the subtitle onto one line covers the neighbouring column
 when scrolled, and "fits on one line" depends on which font the device loaded.
 
+### Inflation, and the European data that stops in December
+
+`INFLACAO` in `catalogo.js` carries six indicators on three monthly windows —
+month, YTD, 12 months. Why each one was chosen is commented there; the short
+version: **IPCA** because it is the index that corrects the NTN-B (the other
+half of "IPCA+ 7.6% real"), **IGP-M** beside it because it measures something
+else (wholesale and FX, the rent index), **CPI-U NSA** for the US because it is
+the index TIPS are indexed to — the exact analogue of IPCA/NTN-B — and **HICP**
+for the euro area, Netherlands and Italy because it is harmonised: comparing the
+Dutch national CPI (which includes owner-occupied housing) with the Italian one
+would be comparing methodologies and calling the difference inflation.
+
+**Two shapes of series, and it changes the arithmetic.** The SGS publishes each
+month's *variation* in %; FRED and the ECB publish the *level* of an index. One
+side compounds, the other divides. `forma` in the catalogue says which, and
+`util.js` has a function per shape (`janelasDeVariacaoMensal`,
+`janelasDeIndiceMensal`). Getting `forma` wrong does not throw — it produces a
+plausible wrong number (an SGS series read as an index gives "0.32 → 0.41",
+28% inflation), so `verificar.mjs` asserts it matches the source.
+
+Window rules: the month is the last month against the previous one; **YTD is
+against December of the previous year**; 12 months is the same month a year
+earlier. Compounding, never summing — twelve months of 0.5% is 6.17%, not 6.00%.
+
+**The three European rows are nine months stale, and that is the source, not
+us.** Measured 13/09/2026 and worth not re-litigating:
+
+- not the key — `INX` and `ANR`, for U2, NL and IT, all stop at the same month;
+- not an API limit — with no window parameter the ECB returns the whole series,
+  1996-01 → 2025-12, and stops there;
+- not the ECB — **Eurostat**, which produces HICP and from whom the ECB
+  republishes, returns the identical last period for all three regions.
+
+Two independent sources agreeing is enough. Brazil and the US are current
+(2026-08). So each inflation row carries `desatualizado`/`mesesAtras` and the
+screen prints "· N meses atrás" in the down colour next to the reference month —
+the same principle as bond prices carrying their lag. And
+`atrasoConhecidoMeses` in the catalogue makes the probe fail only if the lag
+*worsens*: leaving it permanently red would kill the signal, and if publication
+resumes the number falls on its own with nothing to change.
+
+Each row also carries its own **reference month**, which is not the current
+month and is not the same across regions — institutes publish on their own
+schedules, and comparing Dutch August with Brazilian July without saying so is
+exactly the silent error this screen exists to avoid.
+
 ### Probing Yahoo and the BCB (`scripts/sonda-mercado.mjs`)
 
 Neither `query1.finance.yahoo.com` nor `api.bcb.gov.br` is reachable from the

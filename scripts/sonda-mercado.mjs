@@ -144,7 +144,17 @@ for (const g of m.grupos) {
       const [ay, am] = l.mesReferencia.split("-").map(Number);
       const hoje = new Date();
       const meses = (hoje.getUTCFullYear() - ay) * 12 + (hoje.getUTCMonth() + 1 - am);
-      if (meses > 3) console.log(`      ${marcar(false)} ${l.id}: referência ${l.mesReferencia} está ${meses} meses atrás`);
+      // Reprova só se PIORAR além do atraso já medido e registrado no catálogo.
+      // O HICP europeu está nove meses atrás por decisão de quem publica, não
+      // por defeito daqui; deixar a sonda vermelha para sempre por isso mataria
+      // o sinal dela. Se a publicação voltar, o número cai e nada precisa ser
+      // mexido; se atrasar mais, aparece.
+      const limite = INFLACAO.find((x) => x.id === l.id)?.atrasoConhecidoMeses ?? 3;
+      if (meses > limite) {
+        console.log(`      ${marcar(false)} ${l.id}: referência ${l.mesReferencia} está ${meses} meses atrás (limite ${limite})`);
+      } else if (meses > 3) {
+        console.log(`      aviso  ${l.id}: ${meses} meses atrás — atraso conhecido da fonte, dentro do registrado`);
+      }
     }
   }
 }

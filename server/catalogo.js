@@ -251,11 +251,30 @@ export const INFLACAO = [
     nota: "Puxa atacado e câmbio; é o índice dos aluguéis." },
   { id: "cpi-eua", regiao: "Estados Unidos", nome: "CPI-U", forma: "indice", fred: "CPIAUCNS", fonte: "FRED / St. Louis Fed (CPIAUCNS)",
     nota: "Sem ajuste sazonal — é a manchete do BLS e o índice a que os TIPS são indexados." },
+  // ATRASO MEDIDO, NÃO SUPOSTO (13/09/2026). As três linhas europeias param em
+  // dezembro de 2025, nove meses atrás, e isso NÃO é defeito daqui:
+  //
+  //   - não é a chave: INX e ANR, para U2, NL e IT, todas param no mesmo mês;
+  //   - não é limite de API: sem parâmetro de janela a série vem inteira,
+  //     1996-01 -> 2025-12, e para ali;
+  //   - não é o BCE: o EUROSTAT, que é quem produz o HICP e de quem o BCE
+  //     republica, devolve exatamente o mesmo último período pelas três
+  //     regiões.
+  //
+  // Duas fontes independentes concordando é evidência suficiente: o dado
+  // europeu não existe depois de dezembro. Brasil e EUA seguem em agosto/2026.
+  //
+  // `atrasoConhecidoMeses` faz a sonda reprovar só se PIORAR — se a publicação
+  // voltar, o número cai sozinho e nada precisa ser mexido. A tela, essa,
+  // mostra o atraso em vermelho de qualquer jeito.
   { id: "hicp-ze", regiao: "Zona do Euro", nome: "HICP", forma: "indice", ecb: "M.U2.N.000000.4.INX", fonte: "ECB Data Portal (ICP, U2)",
+    atrasoConhecidoMeses: 9,
     nota: "Índice harmonizado: mesma cesta e mesmo método em todos os países." },
   { id: "hicp-nl", regiao: "Holanda", nome: "HICP", forma: "indice", ecb: "M.NL.N.000000.4.INX", fonte: "ECB Data Portal (ICP, NL)",
+    atrasoConhecidoMeses: 9,
     nota: "HICP, não o CPI do CBS — aquele inclui habitação do proprietário e diverge." },
   { id: "hicp-it", regiao: "Itália", nome: "HICP", forma: "indice", ecb: "M.IT.N.000000.4.INX", fonte: "ECB Data Portal (ICP, IT)",
+    atrasoConhecidoMeses: 9,
     nota: "Comparável ponto a ponto com a Zona do Euro e a Holanda." },
 ];
 
