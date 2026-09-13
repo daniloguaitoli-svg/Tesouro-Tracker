@@ -77,6 +77,9 @@ function Grade({ grupo }) {
                   <span className="muted" style={{ fontSize: 11 }}>
                     {l.sub}
                     {l.mesReferencia ? ` · ref. ${mesBR(l.mesReferencia)}` : l.data ? ` · ${dataBR(l.data)}` : ""}
+                    {l.desatualizado && (
+                      <span className="down"> · {l.mesesAtras} meses atrás</span>
+                    )}
                   </span>
                 </td>
                 {grupo.comValor && (

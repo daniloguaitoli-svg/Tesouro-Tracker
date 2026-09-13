@@ -541,6 +541,13 @@ function retornoUmDia(pontosDiarios) {
   return { pct: ult.close, de: ult.date, ate: ult.date };
 }
 
+// Quantos meses separam AAAA-MM de hoje.
+function mesesDesde(mesISO) {
+  const [ay, am] = String(mesISO).split("-").map(Number);
+  const hoje = new Date();
+  return (hoje.getUTCFullYear() - ay) * 12 + (hoje.getUTCMonth() + 1 - am);
+}
+
 export function janelasDePreco(pontos) {
   return {
     var1d: variacaoUmDia(pontos),
@@ -693,6 +700,12 @@ export async function getMercado() {
       nome: meta.nome,
       sub: meta.regiao,
       mesReferencia: d?.mesReferencia ?? null,
+      // Índice mensal atrasa uma ou duas publicações; mais que isso a tela tem
+      // de DIZER, senão um número de meses atrás aparece com a mesma cara de um
+      // de ontem. É a mesma regra dos preços dos títulos, que carregam
+      // `desatualizado` em vez de sumirem ou fingirem frescor.
+      desatualizado: d?.mesReferencia ? mesesDesde(d.mesReferencia) > 3 : false,
+      mesesAtras: d?.mesReferencia ? mesesDesde(d.mesReferencia) : null,
       valor: null,
       unidade: "%_MES",
       base: "inflacao",

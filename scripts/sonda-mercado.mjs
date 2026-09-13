@@ -65,36 +65,36 @@ for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
   await new Promise((r) => setTimeout(r, 400));
 }
 
-// DIAGNÓSTICO do BCE. Ficou provado que NÃO é limite de API: sem parâmetro de
-// janela a série vem inteira, 1996-01 -> 2025-12. A chave .4.INX simplesmente
-// termina em dezembro de 2025 — cheiro de rebase do HICP, em que o índice velho
-// é descontinuado e a continuação vive em outra chave. Sonda candidatas até
-// achar uma que alcance o mês corrente.
-console.log("\n=== BCE: qual chave do HICP continua viva? ===");
-for (const chave of [
-  "M.U2.N.000000.4.INX",
-  "M.U2.N.000000.4.ANR",
-  "M.U2.Y.000000.4.INX",
-  "M.U2.N.000000.4.MOM",
-  "M.U2.N.000000.0.INX",
-  "M.NL.N.000000.4.ANR",
-  "M.IT.N.000000.4.ANR",
-]) {
+// O BCE está descartado como fonte de HICP: TODA série do dataflow ICP termina
+// em 2025-12, tanto o índice (INX) quanto a taxa anual (ANR), para U2, NL e IT.
+// Não é escolha de chave nem limite de API — sem parâmetro de janela a série
+// vem inteira, 1996-01 -> 2025-12, e para ali.
+//
+// Então sonda o EUROSTAT, que é quem de fato produz o HICP (o BCE republica).
+// API de disseminação, sem chave, formato JSON-stat.
+console.log("\n=== Eurostat: o HICP chega ao mês corrente? ===");
+for (const geo of ["EA", "NL", "IT"]) {
+  const url =
+    "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_midx" +
+    `?format=JSON&lang=EN&unit=I15&coicop=CP00&geo=${geo}&sinceTimePeriod=2023-01`;
   try {
-    const r = await fetch(`https://data-api.ecb.europa.eu/service/data/ICP/${chave}?format=csvdata&lastNObservations=3`, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
-    const txt = r.ok ? await r.text() : "";
-    const dados = txt.trim() ? txt.trim().split(/\r?\n/).slice(1) : [];
-    const campos = (l) => (l || "").split(",");
-    const per = (l) => campos(l).find((c) => /^\d{4}-\d{2}(-\d{2})?$/.test(c.trim())) || "?";
-    const ultimo = dados[dados.length - 1];
-    const valor = ultimo ? campos(ultimo)[campos(ultimo).length - 1] : "";
-    console.log(`  HTTP ${r.status}  ${String(dados.length).padStart(2)} obs  último ${per(ultimo).padEnd(8)} = ${String(valor).slice(0, 12).padEnd(12)} ${chave}`);
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const txt = await r.text();
+    let ultimo = "?";
+    let n = 0;
+    if (r.ok) {
+      const j = JSON.parse(txt);
+      const idx = j?.dimension?.time?.category?.index || {};
+      const periodos = Object.keys(idx).sort();
+      n = periodos.length;
+      ultimo = periodos[periodos.length - 1] || "?";
+    }
+    console.log(`  ${marcar(r.ok && n > 12)} geo=${geo.padEnd(3)} HTTP ${r.status}  ${String(n).padStart(3)} períodos  último ${ultimo}`);
+    if (!r.ok) console.log(`      amostra: ${txt.slice(0, 140).replace(/\s+/g, " ")}`);
   } catch (e) {
-    console.log(`  erro ${e.message}  ${chave}`);
+    console.log(`  ${marcar(false)} geo=${geo.padEnd(3)} ${e.message}`);
   }
-  await new Promise((r) => setTimeout(r, 500));
+  await new Promise((r) => setTimeout(r, 600));
 }
 
 console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
