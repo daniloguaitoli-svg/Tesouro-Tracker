@@ -268,19 +268,25 @@ export async function getDetalhe(slug, tf = "1A") {
 // também o próprio eixo Y, que é o que deixa a forma de cada uma legível em
 // vez de espremida pela amplitude da outra.
 //
-// A prefixada fica inteira: LTN e NTN-F continuam no mesmo quadro, com as duas
-// polilinhas. São só oito títulos, e separá-los deixaria duas curvas magras.
+// A prefixada segue a mesma regra: LTN num quadro, NTN-F noutro. São curvas
+// magras — três e cinco pontos hoje — e é o preço de não misturar duas coisas
+// que o mercado preça diferente.
 const FAMILIAS_CURVA = [
   { id: "ipca-sem-cupom", nome: "IPCA+ sem cupom", tipos: ["ipca"], sufixo: "a.a. + IPCA" },
   { id: "ipca-com-cupom", nome: "IPCA+ com cupom", tipos: ["ipca-juros"], sufixo: "a.a. + IPCA" },
-  { id: "prefixada", nome: "Prefixada (nominal)", tipos: ["prefixado", "prefixado-juros"], sufixo: "a.a." },
+  { id: "pre-sem-cupom", nome: "Prefixado sem cupom", tipos: ["prefixado"], sufixo: "a.a." },
+  { id: "pre-com-cupom", nome: "Prefixado com cupom", tipos: ["prefixado-juros"], sufixo: "a.a." },
 ];
 
-// Os tipos que formam a curva real INTEIRA. A separação acima é de tela; a
-// inflação implícita continua saindo da curva real completa, como sempre saiu.
-// Trocar a base dela junto com um ajuste visual mexeria, calado, no número que
-// decide entre IPCA+ e Prefixado.
+// Os tipos que formam cada curva INTEIRA. A separação acima é de tela; a
+// inflação implícita continua saindo das duas curvas completas, como sempre
+// saiu. Trocar a base dela junto com um ajuste visual mexeria, calado, no
+// número que decide entre IPCA+ e Prefixado.
+//
+// Estas duas listas são a razão de a implícita não ter quebrado ao separar as
+// curvas: ela nunca leu de `curvas`, lê daqui.
 const TIPOS_REAL = ["ipca", "ipca-juros"];
+const TIPOS_PREFIXADA = ["prefixado", "prefixado-juros"];
 
 // Interpola uma curva (ordenada por prazo) num prazo qualquer, linearmente.
 // Devolve null FORA do intervalo observado — extrapolar a ponta longa de uma
@@ -404,9 +410,9 @@ export async function getCurva() {
   };
 
   const curvas = FAMILIAS_CURVA.map((f) => ({ id: f.id, nome: f.nome, sufixo: f.sufixo, ...montarCurva(f.tipos) }));
-  // Curva real combinada: NÃO vai para a tela, existe só para a implícita.
+  // Curvas combinadas: NÃO vão para a tela, existem só para a implícita.
   const real = montarCurva(TIPOS_REAL);
-  const prefixada = curvas.find((c) => c.id === "prefixada");
+  const prefixada = montarCurva(TIPOS_PREFIXADA);
 
   return {
     fetchedAt: new Date().toISOString(),

@@ -735,27 +735,41 @@ console.log("\nfamílias separadas na curva");
 // vertical no mesmo x, ida e volta — o serrilhado era o desenho, não o mercado.
 // Primeiro: provar que a causa continua nos dados (se um dia sumir, o motivo
 // desta separação sumiu junto e o comentário passa a mentir).
-let paresMesmoPrazo = 0;
-for (const c of curva.curvas) {
+// Depois de separar as QUATRO curvas, nenhuma delas mistura famílias — então a
+// prova de que a separação se justifica não pode mais sair de uma curva
+// isolada. Sai da UNIÃO de cada par: se existe prazo em que as duas formas
+// coexistem com taxas diferentes, ligá-las numa linha só era o defeito.
+const PARES = [
+  ["ipca-sem-cupom", "ipca-com-cupom"],
+  ["pre-sem-cupom", "pre-com-cupom"],
+];
+for (const [semId, comId] of PARES) {
+  const sem = curva.curvas.find((c) => c.id === semId)?.agora || [];
+  const com = curva.curvas.find((c) => c.id === comId)?.agora || [];
   const porPrazo = new Map();
-  for (const p2 of c.agora) {
+  for (const p2 of [...sem, ...com]) {
     const k = p2.anos.toFixed(2);
     (porPrazo.get(k) || porPrazo.set(k, []).get(k)).push(p2);
   }
-  for (const grupo of porPrazo.values()) {
-    const fam = new Set(grupo.map((g) => g.comCupom));
-    if (fam.size > 1) paresMesmoPrazo += 1;
-  }
+  const coincidem = [...porPrazo.values()].filter((g) => new Set(g.map((x) => x.comCupom)).size > 1);
+  const divergem = coincidem.filter((g) => new Set(g.map((x) => x.taxa)).size > 1);
+  conferir(
+    coincidem.length >= 1,
+    `${semId.split("-")[0]}: ${coincidem.length} prazo(s) com as duas formas — é o que justifica separar`
+  );
+  conferir(
+    divergem.length >= 1,
+    `${semId.split("-")[0]}: nesses prazos as taxas de fato diferem (${divergem.length})`
+  );
 }
-conferir(paresMesmoPrazo >= 1, `há prazo com as duas famílias e taxas diferentes (${paresMesmoPrazo})`);
-// Depois da separação, cada curva de IPCA+ carrega UMA família só. É o que a
-// separação criou, e o que quebraria se alguém juntasse FAMILIAS_CURVA de novo.
-for (const c of curva.curvas.filter((x) => x.id.startsWith("ipca-"))) {
+// Cada curva carrega UMA família só, e a família que o nome promete.
+for (const c of curva.curvas) {
   const familias = new Set(c.agora.map((p) => p.comCupom));
   conferir(familias.size === 1, `${c.id}: uma família só na curva (${[...familias].join("/")})`);
-  const esperado = c.id === "ipca-com-cupom";
-  conferir([...familias][0] === esperado, `${c.id}: a família é a que o nome promete`);
+  conferir([...familias][0] === c.id.endsWith("com-cupom"), `${c.id}: a família é a que o nome promete`);
 }
+conferir(curva.curvas.length === 4, `quatro curvas na tela (${curva.curvas.map((c) => c.id).join(", ")})`);
+
 // A implícita continua saindo da curva real INTEIRA, não de metade dela: ela
 // tem de alcançar prazos que só existem numa das duas famílias.
 const prazosImp = new Set((curva.implicita?.agora || []).map((p) => p.anos.toFixed(2)));
@@ -766,6 +780,18 @@ conferir(prazosImp.size >= 2, `inflação implícita com ${prazosImp.size} prazo
 conferir(
   [...prazosImp].some((a) => !soSemCupom.has(a)),
   "a implícita usa a curva real inteira, não só a sem cupom"
+);
+// E o mesmo do lado NOMINAL. Esta é a regressão que a separação da prefixada
+// quase causou: a implícita lia `curvas.find(id === "prefixada")`, que deixou
+// de existir ao virar dois quadros — teria devolvido undefined e a curva
+// implícita inteira sumiria, sem erro. Agora ela lê TIPOS_PREFIXADA, e isto
+// prova que os dois lados nominais entraram: há mais prazos na implícita do
+// que em qualquer das duas curvas prefixadas isolada.
+const preSem = curva.curvas.find((c) => c.id === "pre-sem-cupom")?.agora?.length ?? 0;
+const preCom = curva.curvas.find((c) => c.id === "pre-com-cupom")?.agora?.length ?? 0;
+conferir(
+  prazosImp.size > Math.max(preSem, preCom) - 1 && prazosImp.size > 1,
+  `a implícita usa as duas curvas prefixadas (${prazosImp.size} prazos vs ${preSem}/${preCom})`
 );
 // Sem `comCupom` booleano em todo ponto o separador jogaria tudo num grupo só e
 // a linha voltaria a costurar as duas famílias, calada.

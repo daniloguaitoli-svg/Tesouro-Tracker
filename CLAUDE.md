@@ -297,11 +297,34 @@ spreads across 34 years; on the duration axis they all fall between ~3.5y and
 ~13.4y. Buying term is not buying interest-rate risk in the same proportion, and
 the term axis hides that completely.
 
+### Four curves: each indexation split by coupon
+
+`FAMILIAS_CURVA` has four entries — IPCA+ sem/com cupom, Prefixado sem/com
+cupom — because zero-coupon and coupon bonds do not lie on one curve in either
+indexation. Five NTN-B maturities and two LTN/NTN-F maturities exist in **both**
+forms, same date, different rates; `verificar.mjs` asserts that overlap still
+exists for each pair, since it is the whole justification for splitting.
+
+Separate frames (rather than two polylines in one) also give each family its own
+Y axis, which is what makes a thin curve legible instead of squashed by the
+other's amplitude. The prefixado curves are thin — three and five points — and
+that is the accepted cost of not mixing two things the market prices apart.
+
+**`TIPOS_REAL` and `TIPOS_PREFIXADA` are why the implied inflation survived
+this.** `implicita` never reads `curvas`; it builds both combined curves itself.
+The prefixado split would otherwise have been a silent kill: the old code did
+`curvas.find(c => c.id === "prefixada")`, which stopped existing when that id
+became two, and `undefined` would have emptied the whole implied-inflation
+curve without an error. `verificar.mjs` now asserts the implícita spans more
+terms than either prefixado curve alone, which can only be true if both fed it.
+
 ### One polyline per family
 
-Zero-coupon and coupon bonds do **not** lie on one curve, on either axis, and
-the chart no longer pretends they do: `separarFamilias()` splits every series
-into two polylines before drawing.
+Within a frame that still mixes families, `separarFamilias()` splits every
+series into two polylines before drawing. After the four-way split above no
+frame does — but the mechanism stays, and the legend's shape entries appear only
+when a frame actually holds both, because the check is made against the data
+rather than the curve id.
 
 The old single line was not merely imprecise, it was drawing an artefact. Five
 NTN-B maturities (2032, 2035, 2040, 2045, 2050) exist in **both** forms — same

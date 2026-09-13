@@ -128,8 +128,9 @@ export function Curva({ marcados }) {
     <div>
       <div className="section-title">Curva de juros</div>
       <p className="section-sub">
-        Taxa por prazo até o vencimento. As duas curvas não se comparam ponto a ponto: a
-        diferença entre a nominal e a real é a inflação que o mercado embute.
+        Taxa por prazo até o vencimento, em quatro curvas: cada indexação em dois quadros,
+        com cupom e sem. Real e nominal não se comparam ponto a ponto — a diferença entre
+        elas é a inflação que o mercado embute, logo abaixo.
       </p>
       {disponiveis.length > 1 && (
         <div className="chips" style={{ marginBottom: 8 }}>
@@ -211,22 +212,22 @@ export function Curva({ marcados }) {
           </>
         ) : misturada ? (
           <>
-            LTN e NTN-F dividem este quadro, cada uma com a <strong>sua própria linha</strong>{" "}
-            — ponto cheio sem cupom, anel com cupom. Elas não são uma curva só, e ligá-las
-            numa linha produzia um serrilhado que era desenho, não mercado. A distância
-            entre as duas é o que se ganha ou se perde por receber cupom. Mesmo prazo não é
-            mesmo risco: veja <strong>por duration</strong> para compará-las na mesma régua.
+            Este quadro tem as duas famílias, cada uma com a{" "}
+            <strong>sua própria linha</strong> — ponto cheio sem cupom, anel com cupom.
+            Elas não são uma curva só, e ligá-las numa linha produzia um serrilhado que era
+            desenho, não mercado.
           </>
         ) : (
           <>
-            O IPCA+ tem <strong>um quadro para cada família</strong>, e não um só, porque
-            elas não formam uma curva única: cinco vencimentos da NTN-B existem nas duas
-            formas, com a mesma data e taxas diferentes. Juntas, o desenho serrilhava e cada
-            uma ficava espremida pela amplitude da outra. Compare as duas trocando o chip
-            acima — no longo, a com cupom paga cerca de 0,07 p.p. a mais.
+            <strong>Cada família tem o seu quadro</strong> — com cupom e sem cupom, nas duas
+            indexações — porque elas não formam uma curva única: há vencimentos que existem
+            nas duas formas, com a mesma data e taxas diferentes. Juntas, o desenho
+            serrilhava e cada curva ficava espremida pela amplitude da outra. Compare-as
+            trocando o chip acima; nas NTN-B longas, a com cupom paga cerca de 0,07 p.p.
+            a mais.
             <br />
-            Mesmo prazo não é mesmo risco: veja <strong>por duration</strong> para pôr as
-            duas na mesma régua.
+            Mesmo prazo não é mesmo risco — um título com cupom devolve parte do dinheiro
+            antes. Veja <strong>por duration</strong> para pôr os dois na mesma régua.
           </>
         )}{" "}
         {dados.aviso}
