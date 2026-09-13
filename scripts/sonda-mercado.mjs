@@ -70,8 +70,11 @@ for (const g of m.grupos) {
   for (const l of g.linhas) {
     const c = (j) => (j && Number.isFinite(j.pct) ? j.pct.toFixed(2) + "%" : "—").padStart(8);
     console.log(`  ${l.nome.padEnd(18)} ${String(l.valor ?? "—").padStart(12)} ${c(l.var1d)} ${c(l.var1sem)} ${c(l.var1mes)} ${c(l.varAno)} ${c(l.var12m)}   ${l.base}  (${l.data})`);
+    // Janela vazia CONTA como problema. A primeira versão desta sonda imprimia
+    // o aviso e saía com "sonda limpa" — foi assim que quatro janelas nulas no
+    // câmbio quase passaram por boas.
     for (const k of ["var1d", "var1sem", "var1mes", "varAno", "var12m"]) {
-      if (!l[k]) console.log(`      AVISO ${l.id}.${k} veio null — série curta ou fonte incompleta`);
+      if (!l[k]) { console.log(`      ${marcar(false)} ${l.id}.${k} veio null — série curta ou fonte incompleta`); }
     }
   }
 }

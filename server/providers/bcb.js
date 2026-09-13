@@ -27,9 +27,34 @@ export async function serie(cod, { dias = 2000 } = {}) {
   const ini = ddmmyyyy(new Date(Date.now() - dias * 864e5));
   const fim = ddmmyyyy(new Date());
   const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${ini}&dataFinal=${fim}`;
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`BCB indisponível (HTTP ${r.status})`);
-  const bruto = await r.json();
+
+  // O SGS ESTRANGULA requisições concorrentes, e o faz da pior maneira: devolve
+  // HTTP 200 com uma página de erro em XML no corpo. Sem tratamento o
+  // `r.json()` estoura, o allSettled de quem chamou engole, e a linha
+  // simplesmente some da tela — foi o que aconteceu com o USD/BRL e o IPCA na
+  // primeira sonda, com a série respondendo 200 quando pedida sozinha.
+  //
+  // Então: tenta de novo, com espera crescente, e trata corpo-não-JSON como
+  // falha do mesmo tipo. Um 4xx não é retentado (se a série mudou de número,
+  // insistir só adia o erro que precisa aparecer).
+  const bruto = await (async () => {
+    let ultimoErro;
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      if (tentativa) await new Promise((r) => setTimeout(r, 400 * 2 ** tentativa));
+      const r = await fetch(url);
+      if (r.status >= 400 && r.status < 500) throw new Error(`BCB série ${cod}: HTTP ${r.status}`);
+      if (!r.ok) { ultimoErro = new Error(`BCB indisponível (HTTP ${r.status})`); continue; }
+      const texto = await r.text();
+      try {
+        return JSON.parse(texto);
+      } catch {
+        // Guarda o começo do corpo no erro: é o que diz se foi estrangulamento
+        // ou se o formato mudou de vez.
+        ultimoErro = new Error(`BCB série ${cod}: resposta não-JSON (${texto.slice(0, 60).replace(/\s+/g, " ")})`);
+      }
+    }
+    throw ultimoErro;
+  })();
   const pontos = bruto
     .map((p) => ({ date: isoDeBR(p.data), close: Number(p.valor) }))
     .filter((p) => p.date && Number.isFinite(p.close));

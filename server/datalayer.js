@@ -547,11 +547,23 @@ export const JANELAS = ["var1d", "var1sem", "var1mes", "varAno", "var12m"];
 export async function getMercado() {
   // Tudo em paralelo e tudo tolerante: macro (BCB), as cinco bolsas (Yahoo) e
   // as duas séries diárias de juros. Nenhuma fonte pode derrubar as outras.
-  const [macro, indices, diarios] = await Promise.all([
+  //
+  // As séries do SGS são lidas AQUI, inteiras, e não aproveitadas de `getMacro`:
+  // aquele payload devolve `pontos: dado.pontos.slice(-120)`, e 120 pontos
+  // diários são uns seis meses. Calcular as janelas em cima do array cortado
+  // dava 1 semana e 1 mês certos e `null` calado em "no ano" e "12 meses" —
+  // exatamente a armadilha que o CLAUDE.md descreve, e na qual esta tela caiu.
+  // O bcb.serie tem cache em processo, então ler de novo não custa requisição.
+  const SERIES_CAMBIO = ["usdbrl", "eurbrl"].map((id) => ({ id, serie: macroPorId[id].serie }));
+  const [macro, indices, brutas] = await Promise.all([
     getMacro().catch(() => ({ indicadores: {} })),
     todosIndices().catch(() => []),
-    Promise.allSettled(JUROS_DIARIOS.map((j) => bcb.serie(j.serie, { dias: 800 }).then((pts) => [j, pts]))),
+    Promise.allSettled(
+      [...SERIES_CAMBIO, ...JUROS_DIARIOS].map((x) => bcb.serie(x.serie, { dias: 800 }).then((pts) => [x.id, pts]))
+    ),
   ]);
+  const serieDe = {};
+  for (const r of brutas) if (r.status === "fulfilled" && r.value) serieDe[r.value[0]] = r.value[1];
   const ind = macro.indicadores || {};
   const g = cache.globais();
 
@@ -568,39 +580,33 @@ export async function getMercado() {
     : null;
 
   // --- Câmbio: PTAX, preço puro.
-  const cambio = ["usdbrl", "eurbrl"]
-    .map((id) => {
-      const d = ind[id];
-      if (!d) return null;
-      const meta = macroPorId[id];
-      return {
-        id,
-        nome: meta.nome,
-        sub: "PTAX venda",
-        valor: d.valor,
-        casas: 4,
-        unidade: "BRL",
-        data: d.data,
-        base: "preco",
-        ...janelasDePreco(d.pontos),
-        fonte: `BCB / SGS (série ${meta.serie})`,
-      };
-    })
-    .filter(Boolean);
+  //
+  // A linha sai SEMPRE, mesmo sem dado — mesma regra da Moldura do Painel: uma
+  // linha que some reflui a grade e esconde que a fonte caiu. Sem dado ela
+  // mostra "—" e o id entra em `indisponiveis`.
+  const cambio = SERIES_CAMBIO.map(({ id }) => {
+    const meta = macroPorId[id];
+    const pts = serieDe[id] || [];
+    const ult = pts[pts.length - 1];
+    return {
+      id,
+      nome: meta.nome,
+      sub: "PTAX venda",
+      valor: ind[id]?.valor ?? ult?.close ?? null,
+      casas: 4,
+      unidade: "BRL",
+      data: ind[id]?.data ?? ult?.date ?? null,
+      base: "preco",
+      ...janelasDePreco(pts),
+      fonte: `BCB / SGS (série ${meta.serie})`,
+    };
+  });
 
   // --- Juros: nível anualizado na coluna do valor, retorno composto nas
   // janelas. As duas metades vêm de séries diferentes do mesmo SGS.
-  const porIdDiario = {};
-  for (const r of diarios) {
-    if (r.status !== "fulfilled" || !r.value) continue;
-    const [meta, pts] = r.value;
-    porIdDiario[meta.id] = { meta, pts };
-  }
   const juros = JUROS_DIARIOS.map((j) => {
     const nivel = ind[j.id];
-    const diario = porIdDiario[j.id];
-    if (!nivel && !diario) return null;
-    const pts = diario?.pts || [];
+    const pts = serieDe[j.id] || [];
     return {
       id: j.id,
       nome: j.nome,
@@ -613,12 +619,20 @@ export async function getMercado() {
       ...janelasDeRetorno(pts),
       fonte: `BCB / SGS (séries ${macroPorId[j.id]?.serie ?? "?"} e ${j.serie})`,
     };
-  }).filter(Boolean);
+  });
 
   // --- Bolsas: preço puro, cada praça com a sua data.
-  const bolsas = indices
-    .filter((i) => i && !i.erro)
-    .map((i) => ({
+  const bolsas = INDICES.map((meta) => {
+    const i = indices.find((x) => x?.id === meta.id && !x.erro);
+    if (!i) {
+      return {
+        id: meta.id, nome: meta.nome, sub: meta.praca, valor: null, casas: meta.casas,
+        unidade: "PONTOS", moeda: meta.moeda, data: null, base: "preco",
+        var1d: null, var1sem: null, var1mes: null, varAno: null, var12m: null,
+        fonte: `Yahoo Finance (${meta.simbolo})`,
+      };
+    }
+    return ({
       id: i.id,
       nome: i.nome,
       sub: i.praca,
@@ -630,9 +644,11 @@ export async function getMercado() {
       base: "preco",
       ...janelasDePreco(i.pontos),
       fonte: `Yahoo Finance (${i.simbolo})`,
-    }));
+    });
+  });
 
-  const indisponiveis = indices.filter((i) => i?.erro).map((i) => i.id);
+  // Uma linha sem valor NENHUM é fonte fora do ar; a tela nomeia quais.
+  const indisponiveis = [...cambio, ...juros, ...bolsas].filter((l) => l.valor == null).map((l) => l.id);
 
   return {
     fetchedAt: new Date().toISOString(),
