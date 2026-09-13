@@ -66,61 +66,26 @@ for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
   await new Promise((r) => setTimeout(r, 400));
 }
 
-// O BCE e o EUROSTAT estão descartados como fonte de HICP: os dois param em
-// 2025-12 para U2, NL e IT (medido 13/09/2026). Esta seção procura ALTERNATIVA
-// que chegue ao mês corrente, por três caminhos:
-//
-//   1. espelhos no FRED — de longe o melhor desfecho, porque o caminho já está
-//      integrado e provado atual para o CPI americano. Os espelhos de origem
-//      Eurostat (sufixo NEST) provavelmente herdam o mesmo corte; os de origem
-//      OCDE são calculados de outra submissão e podem ir além.
-//   2. OCDE direto.
-//   3. institutos nacionais — CBS na Holanda, ISTAT na Itália. Publicam o CPI
-//      NACIONAL, que não é HICP: metodologias diferentes, e no caso holandês a
-//      diferença é grande (habitação do proprietário). Serve como último
-//      recurso, e se for usado a tela tem de dizer que mudou de régua.
-//      Para a Zona do Euro não existe instituto nacional — só Eurostat.
-console.log("\n=== alternativas de inflação para Europa ===");
-const alvo = (iso) => (iso >= "2026-06" ? "ATUAL" : "velho");
-for (const [rotulo, url, tipo] of [
-  ["FRED HICP zona euro (Eurostat)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CP0000EZ19M086NEST&cosd=2024-01-01", "fred"],
-  ["FRED CPI zona euro (OCDE)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=EA19CPALTT01GYM&cosd=2024-01-01", "fred"],
-  ["FRED HICP Holanda (Eurostat)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CP0000NLM086NEST&cosd=2024-01-01", "fred"],
-  ["FRED CPI Holanda (OCDE)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NLDCPIALLMINMEI&cosd=2024-01-01", "fred"],
-  ["FRED HICP Italia (Eurostat)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CP0000ITM086NEST&cosd=2024-01-01", "fred"],
-  ["FRED CPI Italia (OCDE)", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ITACPIALLMINMEI&cosd=2024-01-01", "fred"],
-]) {
-  try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    const txt = await r.text();
-    const res = globais.parseCsvFred(txt);
-    const ult = res.pontos[res.pontos.length - 1];
-    const quando = ult ? ult.date.slice(0, 7) : "?";
-    console.log(
-      `  HTTP ${r.status}  ${String(res.pontos.length).padStart(3)} pts  último ${quando.padEnd(8)} ${ult ? alvo(quando).padEnd(6) : "      "} ${rotulo}`
-    );
-    if (!res.ok) console.log(`      ${res.motivo} · ${txt.slice(0, 100).replace(/\s+/g, " ")}`);
-  } catch (e) {
-    console.log(`  erro ${e.message}  ${rotulo}`);
-  }
-  await new Promise((r) => setTimeout(r, 400));
-}
-
-// Institutos nacionais, sem chave.
-for (const [rotulo, url] of [
-  ["CBS Holanda (OData 83131NED)", "https://opendata.cbs.nl/ODataApi/odata/83131NED/TypedDataSet?$select=Perioden,CPI_1&$top=3&$filter=substringof('MM',Perioden)"],
-  ["ISTAT Italia (SDMX NIC)", "https://esploradati.istat.it/SDMXWS/rest/data/IT1,163_156_DF_DCSP_NIC1B2015_1,1.0/M.IT.NIC.4.00.0.0?format=csv&startPeriod=2026-01"],
-]) {
-  try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Accept: "*/*" } });
-    const txt = await r.text();
-    const per = [...txt.matchAll(/(20\d\d)[-\s]?(?:MM)?(\d\d)/g)].map((m) => `${m[1]}-${m[2]}`).sort();
-    console.log(`  HTTP ${r.status}  ${String(txt.length).padStart(6)} bytes  último período visto ${per[per.length - 1] || "?"}   ${rotulo}`);
-    if (!r.ok || !per.length) console.log(`      amostra: ${txt.slice(0, 160).replace(/\s+/g, " ")}`);
-  } catch (e) {
-    console.log(`  erro ${e.message}  ${rotulo}`);
-  }
-  await new Promise((r) => setTimeout(r, 500));
+// Fica UMA verificação do que ficou decidido: as três linhas europeias vêm do
+// espelho do Eurostat no FRED porque o ECB Data Portal e a API do próprio
+// Eurostat param em 2025-12. Se o espelho parar também, isto avisa antes de a
+// tela envelhecer calada. O histórico da investigação está no catálogo.
+console.log("\n=== HICP europeu: o espelho do FRED continua à frente do BCE? ===");
+{
+  const ecb = await fetch(
+    "https://data-api.ecb.europa.eu/service/data/ICP/M.U2.N.000000.4.INX?format=csvdata&lastNObservations=1",
+    { headers: { "User-Agent": "Mozilla/5.0" } }
+  ).then((r) => (r.ok ? r.text() : "")).catch(() => "");
+  const ultimoEcb = (ecb.match(/\d{4}-\d{2}(-\d{2})?/g) || []).sort().pop() || "?";
+  const fred = globais.parseCsvFred(
+    await fetch("https://fred.stlouisfed.org/graph/fredgraph.csv?id=CP0000EZ19M086NEST&cosd=2025-01-01", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    }).then((r) => r.text()).catch(() => "")
+  );
+  const ultimoFred = fred.pontos[fred.pontos.length - 1]?.date.slice(0, 7) || "?";
+  console.log(`  BCE  último ${ultimoEcb}`);
+  console.log(`  FRED último ${ultimoFred}`);
+  console.log(`  ${marcar(ultimoFred > ultimoEcb.slice(0, 7))} o espelho do FRED está à frente — é por isso que a fonte é ele`);
 }
 
 console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");

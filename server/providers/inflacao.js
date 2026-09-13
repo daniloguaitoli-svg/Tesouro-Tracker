@@ -50,6 +50,12 @@ async function pontosDe(meta) {
     if (!r.ok) throw new Error(`FRED ${meta.fred}: ${r.motivo}${r.amostra ? ` (${r.amostra.slice(0, 60)})` : ""}`);
     pontos = r.pontos;
   } else if (meta.ecb) {
+    // Nenhuma entrada do catálogo usa este caminho hoje: o HICP saiu do ECB
+    // Data Portal para o espelho do Eurostat no FRED, que está sete meses à
+    // frente (ver o comentário em INFLACAO). Fica aqui porque é uma rota
+    // legítima e barata de manter, e porque a decisão foi por FRESCOR do dado,
+    // não por defeito do BCE — se um dia a publicação de lá voltar a andar,
+    // basta trocar o campo no catálogo.
     const r = parseCsvBce(
       await baixarTexto(`https://data-api.ecb.europa.eu/service/data/ICP/${meta.ecb}?format=csvdata&startPeriod=${desdeISO()}`)
     );

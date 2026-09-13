@@ -251,30 +251,29 @@ export const INFLACAO = [
     nota: "Puxa atacado e câmbio; é o índice dos aluguéis." },
   { id: "cpi-eua", regiao: "Estados Unidos", nome: "CPI-U", forma: "indice", fred: "CPIAUCNS", fonte: "FRED / St. Louis Fed (CPIAUCNS)",
     nota: "Sem ajuste sazonal — é a manchete do BLS e o índice a que os TIPS são indexados." },
-  // ATRASO MEDIDO, NÃO SUPOSTO (13/09/2026). As três linhas europeias param em
-  // dezembro de 2025, nove meses atrás, e isso NÃO é defeito daqui:
+  // MESMO ÍNDICE, OUTRO DISTRIBUIDOR — e isso rendeu sete meses de dado.
   //
-  //   - não é a chave: INX e ANR, para U2, NL e IT, todas param no mesmo mês;
-  //   - não é limite de API: sem parâmetro de janela a série vem inteira,
-  //     1996-01 -> 2025-12, e para ali;
-  //   - não é o BCE: o EUROSTAT, que é quem produz o HICP e de quem o BCE
-  //     republica, devolve exatamente o mesmo último período pelas três
-  //     regiões.
+  // A rota óbvia era o ECB Data Portal, que este repositório já usa para as
+  // taxas do BCE. Só que ela para em dezembro de 2025, e não por escolha de
+  // chave nem por limite de API: INX e ANR, para U2, NL e IT, todas param no
+  // mesmo mês, e sem parâmetro de janela a série vem inteira (1996-01 ->
+  // 2025-12) e para ali. O EUROSTAT, que PRODUZ o HICP, devolve exatamente o
+  // mesmo último período pela API de disseminação dele.
   //
-  // Duas fontes independentes concordando é evidência suficiente: o dado
-  // europeu não existe depois de dezembro. Brasil e EUA seguem em agosto/2026.
+  // O que resolveu foi o espelho do Eurostat no FRED: mesma família de série
+  // (CP0000<país>M086NEST é o HICP todos-os-itens do Eurostat), e atual até
+  // 2026-07 — sete meses à frente do que a API do próprio Eurostat entrega.
+  // Medido em 13/09/2026. As séries de origem OCDE (NLDCPIALLMINMEI e
+  // congêneres) foram testadas e estão descontinuadas: param em 2025.
   //
-  // `atrasoConhecidoMeses` faz a sonda reprovar só se PIORAR — se a publicação
-  // voltar, o número cai sozinho e nada precisa ser mexido. A tela, essa,
-  // mostra o atraso em vermelho de qualquer jeito.
-  { id: "hicp-ze", regiao: "Zona do Euro", nome: "HICP", forma: "indice", ecb: "M.U2.N.000000.4.INX", fonte: "ECB Data Portal (ICP, U2)",
-    atrasoConhecidoMeses: 9,
+  // O ganho é grande e o custo é zero: continua sendo HICP, continua sendo o
+  // dado do Eurostat, e o caminho do fredgraph.csv já era usado para o Fed e
+  // para o CPI americano.
+  { id: "hicp-ze", regiao: "Zona do Euro", nome: "HICP", forma: "indice", fred: "CP0000EZ19M086NEST", fonte: "Eurostat via FRED (CP0000EZ19M086NEST)",
     nota: "Índice harmonizado: mesma cesta e mesmo método em todos os países." },
-  { id: "hicp-nl", regiao: "Holanda", nome: "HICP", forma: "indice", ecb: "M.NL.N.000000.4.INX", fonte: "ECB Data Portal (ICP, NL)",
-    atrasoConhecidoMeses: 9,
+  { id: "hicp-nl", regiao: "Holanda", nome: "HICP", forma: "indice", fred: "CP0000NLM086NEST", fonte: "Eurostat via FRED (CP0000NLM086NEST)",
     nota: "HICP, não o CPI do CBS — aquele inclui habitação do proprietário e diverge." },
-  { id: "hicp-it", regiao: "Itália", nome: "HICP", forma: "indice", ecb: "M.IT.N.000000.4.INX", fonte: "ECB Data Portal (ICP, IT)",
-    atrasoConhecidoMeses: 9,
+  { id: "hicp-it", regiao: "Itália", nome: "HICP", forma: "indice", fred: "CP0000ITM086NEST", fonte: "Eurostat via FRED (CP0000ITM086NEST)",
     nota: "Comparável ponto a ponto com a Zona do Euro e a Holanda." },
 ];
 

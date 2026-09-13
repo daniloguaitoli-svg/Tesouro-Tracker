@@ -592,22 +592,33 @@ Window rules: the month is the last month against the previous one; **YTD is
 against December of the previous year**; 12 months is the same month a year
 earlier. Compounding, never summing — twelve months of 0.5% is 6.17%, not 6.00%.
 
-**The three European rows are nine months stale, and that is the source, not
-us.** Measured 13/09/2026 and worth not re-litigating:
+**The European rows come from FRED, not the ECB, and that is deliberate — it
+bought seven months of data.** Measured 13/09/2026, and worth not re-litigating:
 
-- not the key — `INX` and `ANR`, for U2, NL and IT, all stop at the same month;
-- not an API limit — with no window parameter the ECB returns the whole series,
-  1996-01 → 2025-12, and stops there;
-- not the ECB — **Eurostat**, which produces HICP and from whom the ECB
-  republishes, returns the identical last period for all three regions.
+- The obvious route was the ECB Data Portal, already used here for ECB policy
+  rates. It **stops at 2025-12**, and not because of the key or an API limit:
+  `INX` and `ANR`, for U2, NL and IT, all stop at the same month, and with no
+  window parameter the series comes back whole (1996-01 → 2025-12) and ends
+  there.
+- **Eurostat, which produces HICP**, returns the identical last period from its
+  own dissemination API.
+- The **Eurostat mirror on FRED** (`CP0000<area>M086NEST`) is current to
+  **2026-07** — seven months ahead of what Eurostat's own API serves.
+- OECD-sourced alternatives (`NLDCPIALLMINMEI` and siblings) were tested and are
+  discontinued, stopping in 2025. ISTAT's SDMX endpoint 404s on that dataflow.
 
-Two independent sources agreeing is enough. Brazil and the US are current
-(2026-08). So each inflation row carries `desatualizado`/`mesesAtras` and the
-screen prints "· N meses atrás" in the down colour next to the reference month —
-the same principle as bond prices carrying their lag. And
-`atrasoConhecidoMeses` in the catalogue makes the probe fail only if the lag
-*worsens*: leaving it permanently red would kill the signal, and if publication
-resumes the number falls on its own with nothing to change.
+So the indicator did not change — it is still HICP, still Eurostat's number —
+only the distributor did, onto a path (`fredgraph.csv`) this repo already used
+for the Fed and US CPI. The `ecb:` branch in `providers/inflacao.js` is kept and
+currently unused: the decision was about freshness, not a defect at the ECB, so
+if publication there catches up it is a one-field change in the catalogue.
+`sonda-mercado.mjs` keeps a standing check that the FRED mirror is still ahead
+of the ECB, so the screen cannot go quietly stale.
+
+Each inflation row still carries `desatualizado`/`mesesAtras`, and the screen
+prints "· N meses atrás" in the down colour when a reference month falls more
+than three months behind — no row triggers it today, but bond prices carry their
+lag the same way and inflation should not be the exception.
 
 Each row also carries its own **reference month**, which is not the current
 month and is not the same across regions — institutes publish on their own
