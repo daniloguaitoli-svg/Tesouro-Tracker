@@ -542,7 +542,21 @@ existing bridge file.
   Cana-Tracker. The Copom decision is derived live from SGS 432.
 - "Decision dates" are **effective dates** derived from the series (the day the
   value changed), not meeting dates. The UI says "vigente desde" — keep it that
-  way.
+  way — **except when that date is still in the future**, where it says "a
+  partir de". The ECB announces a change before it takes force (it starts with
+  the next reserve maintenance period), so the ECB Data Portal series routinely
+  carries a forward-dated row: on 13/09/2026 the screen read "vigente desde
+  16/09/2026", which says nothing.
+
+  The **rate shown is deliberately the new one**, not the one still in force.
+  This screen is a market overview, and the announced rate is the one already
+  priced in and the one anyone investing from here actually gets. Only the
+  preposition changes. `vigencia()` in `src/format.js` owns the choice, compares
+  in **America/Sao_Paulo** (past 21:00 a UTC comparison has already rolled the
+  day and would call a rate that started today "future"), and `verificar.mjs`
+  imports it and exercises all three branches — format.js has no imports of its
+  own, so it loads in plain node. Never write either preposition by hand in
+  `Mercado.jsx`; the check fails if you do.
 - **Ibovespa**: Yahoo Finance's public chart endpoint (`^BVSP`), request-time.
   It is **not** in `MACRO` — that list is "BCB SGS series", and the BCB does not
   publish Ibovespa among them. Guessing an SGS number would have labelled some

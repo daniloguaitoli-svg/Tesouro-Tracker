@@ -736,6 +736,39 @@ conferir(
   "os marcadores saem da lista completa de pontos, não dos grupos"
 );
 
+console.log("\nvigência das decisões de política monetária");
+// O BCE anuncia a mudança antes de ela valer, então a série traz a linha com
+// data de efeito FUTURA — e a tela escrevia "vigente desde 16/09" num dia
+// 13/09. A taxa mostrada continua sendo a nova, de propósito; o que muda é a
+// preposição. format.js não importa nada, então dá para exercitar a função de
+// verdade em vez de casar regex com o texto.
+const fmt = await import("../src/format.js");
+conferir(typeof fmt.vigencia === "function", "format.js exporta vigencia()");
+const casos = [
+  ["2026-09-16", "2026-09-13", "a partir de 16/09/2026", "data futura"],
+  ["2026-09-13", "2026-09-13", "vigente desde 13/09/2026", "hoje já vale"],
+  ["2025-12-11", "2026-09-13", "vigente desde 11/12/2025", "data passada"],
+];
+for (const [iso, hoje, esperado, nome] of casos) {
+  const got = fmt.vigencia(iso, hoje);
+  conferir(got === esperado, `${nome}: "${got}"`);
+}
+conferir(fmt.vigencia(null) === "", "sem data devolve string vazia");
+// O fuso importa: às 21h de São Paulo o toISOString() já virou o dia e uma
+// taxa que passou a valer hoje apareceria como futura.
+conferir(/America\/Sao_Paulo/.test(await ler("src/format.js")), "hojeSP compara no fuso de São Paulo");
+// E a tela tem de usar a função, não escrever a preposição à mão.
+const mercadoSrc = await ler("src/components/Mercado.jsx");
+const mercadoSemComentarios = mercadoSrc
+  .split("\n")
+  .filter((l) => !l.trim().startsWith("//"))
+  .join("\n");
+conferir(/vigencia\(/.test(mercadoSrc), "Mercado usa vigencia()");
+conferir(
+  !/vigente desde/.test(mercadoSemComentarios),
+  '"vigente desde" não aparece escrito à mão no Mercado'
+);
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");

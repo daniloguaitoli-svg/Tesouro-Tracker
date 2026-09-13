@@ -4,10 +4,15 @@
 // As datas dizem "vigente desde" DE PROPÓSITO: o que as séries sabem é o dia
 // em que a taxa nova passou a valer, não o dia da reunião — e fingir saber a
 // data da reunião seria inventar precisão.
+//
+// Quando essa data ainda não chegou, o rótulo vira "a partir de" (ver
+// `vigencia` em format.js). A taxa mostrada continua sendo a nova: é a que o
+// mercado já preçou e a que vale para quem for investir. O que muda é só a
+// preposição — "vigente desde" uma data futura não quer dizer nada.
 import { useEffect, useState } from "react";
 import { getMercado } from "../api.js";
 import { Sparkline } from "./Sparkline.jsx";
-import { num, pct, pp, dataBR, sinal } from "../format.js";
+import { num, pct, pp, dataBR, sinal, vigencia } from "../format.js";
 import { ErroBox, Skeletons } from "./States.jsx";
 
 function CartaoDecisao({ d, taxaPrincipal, detalhe }) {
@@ -21,7 +26,7 @@ function CartaoDecisao({ d, taxaPrincipal, detalhe }) {
         {d.variacaoPP != null && (
           <span className={d.variacaoPP > 0 ? "down" : "up"}>{pp(d.variacaoPP)} </span>
         )}
-        {d.vigenteDesde && <>· vigente desde {dataBR(d.vigenteDesde)}</>}
+        {d.vigenteDesde && <>· {vigencia(d.vigenteDesde)}</>}
       </div>
       <div className="pricedate" style={{ marginTop: 4 }}>{d.fonte}</div>
     </div>

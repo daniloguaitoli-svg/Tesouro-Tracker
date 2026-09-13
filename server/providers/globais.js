@@ -16,7 +16,12 @@
 //
 // A "última decisão" é DERIVADA DA SÉRIE: o dia em que o valor mudou. Isso é a
 // data de VIGÊNCIA da taxa nova, não a data da reunião (que costuma ser 1-2
-// dias antes). A UI diz "vigente desde", que é o que o dado realmente sabe.
+// dias antes). A UI diz "vigente desde", que é o que o dado realmente sabe —
+// e "a partir de" quando essa data ainda não chegou, que é o caso normal do
+// BCE: ele anuncia a mudança e ela só entra no início do próximo período de
+// manutenção de reservas, então a série já traz a linha com data futura. A
+// taxa mostrada é a nova de propósito (é a que vale para quem for investir);
+// só a preposição muda. Ver `vigencia` em src/format.js.
 //
 // PARSING DEFENSIVO, como todo parser desta base: colunas achadas por nome no
 // cabeçalho, nunca por posição; formato irreconhecível devolve erro com

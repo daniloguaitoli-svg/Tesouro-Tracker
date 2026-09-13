@@ -68,6 +68,27 @@ export function dataBR(iso) {
   return `${d[2]}/${d[1]}/${d[0]}`;
 }
 
+// "vigente desde" ou "a partir de", conforme a data já chegou ou não.
+//
+// O BCE anuncia a mudança ANTES de ela valer: a taxa nova entra no início do
+// próximo período de manutenção de reservas, e a série do ECB Data Portal já
+// publica essa linha com a data de efeito à frente. A tela mostra a taxa nova
+// de propósito — é a que o mercado já preçou e a que vale para quem for
+// investir —, mas escrever "vigente desde 16/09" num dia 13/09 é uma
+// contradição. O Copom e o Fed caem sempre no primeiro ramo.
+//
+// Compara em São Paulo, não em UTC: depois das 21h o `toISOString()` já virou
+// o dia e uma taxa que passou a valer hoje apareceria como futura.
+export function hojeSP() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+export function vigencia(iso, hoje = hojeSP()) {
+  if (!iso) return "";
+  const dia = String(iso).slice(0, 10);
+  return `${dia > hoje ? "a partir de" : "vigente desde"} ${dataBR(dia)}`;
+}
+
 export function dataCurtaBR(iso) {
   const cheia = dataBR(iso);
   return cheia ? cheia.slice(0, 5) : "";
