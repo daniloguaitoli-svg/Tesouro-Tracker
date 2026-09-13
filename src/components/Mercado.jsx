@@ -11,7 +11,6 @@
 // preposição — "vigente desde" uma data futura não quer dizer nada.
 import { useEffect, useState } from "react";
 import { getMercado } from "../api.js";
-import { Sparkline } from "./Sparkline.jsx";
 import { num, pct, pp, dataBR, sinal, vigencia } from "../format.js";
 import { ErroBox, Skeletons } from "./States.jsx";
 
@@ -30,6 +29,68 @@ function CartaoDecisao({ d, taxaPrincipal, detalhe }) {
       </div>
       <div className="pricedate" style={{ marginTop: 4 }}>{d.fonte}</div>
     </div>
+  );
+}
+
+// Uma célula de janela. Guarda o `—` para quando a série não alcança a janela
+// (um índice com dois anos de histórico não tem 12 meses em 2 de janeiro), em
+// vez de fingir um zero.
+function Cel({ j }) {
+  if (!j || j.pct == null || !Number.isFinite(j.pct)) return <td className="rt mono muted">—</td>;
+  return (
+    <td className={`rt mono ${sinal(j.pct)}`} title={`${dataBR(j.de)} → ${dataBR(j.ate)}`}>
+      {pct(j.pct)}
+    </td>
+  );
+}
+
+// A grade de um grupo. Tabela e não cartões de propósito: a leitura desta tela
+// é comparar a MESMA janela entre indicadores diferentes, e isso é uma coluna.
+// Vai dentro de .rolagem porque sete colunas não cabem em 390px — a primeira
+// fica grudada, senão rolar para ver "12m" esconde de quem é a linha.
+function Grade({ grupo }) {
+  return (
+    <>
+      <div className="section-title">{grupo.nome}</div>
+      <div className="rolagem">
+        <table className="tbl grade">
+          <thead>
+            <tr>
+              <th className="col-nome">Indicador</th>
+              <th className="rt">Último</th>
+              <th className="rt">1d</th>
+              <th className="rt">1 sem</th>
+              <th className="rt">1 mês</th>
+              <th className="rt">No ano</th>
+              <th className="rt">12 m</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grupo.linhas.map((l) => (
+              <tr key={l.id}>
+                <td className="col-nome">
+                  {l.nome}
+                  <br />
+                  <span className="muted" style={{ fontSize: 11 }}>
+                    {l.sub}
+                    {l.data ? ` · ${dataBR(l.data)}` : ""}
+                  </span>
+                </td>
+                <td className="rt mono">
+                  {l.valor == null ? "—" : num(l.valor, l.casas ?? 2)}
+                  {l.unidade === "%_ANO" ? "%" : ""}
+                </td>
+                <Cel j={l.var1d} />
+                <Cel j={l.var1sem} />
+                <Cel j={l.var1mes} />
+                <Cel j={l.varAno} />
+                <Cel j={l.var12m} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -53,8 +114,6 @@ export function Mercado() {
   if (!dados) return <Skeletons n={4} />;
 
   const { copom, fed, bce } = dados.decisoes || {};
-  const { usd, eur } = dados.cambio || {};
-  const { cdi, selic } = dados.juros || {};
 
   return (
     <div>
@@ -85,37 +144,28 @@ export function Mercado() {
         )}
       </div>
 
-      <div className="section-title">Câmbio (PTAX)</div>
-      <div className="grid grid-2" style={{ marginTop: 0 }}>
-        {[["USD/BRL", usd], ["EUR/BRL", eur]].map(([nome, fx]) => (
-          <div className="card" key={nome}>
-            <div className="label">{nome}</div>
-            <div className="big">{fx ? num(fx.valor, 4) : "—"}</div>
-            {fx && (
-              <>
-                <div className={`label ${sinal(fx.changePct)}`}>{pct(fx.changePct)} · {dataBR(fx.data)}</div>
-                <Sparkline points={(fx.pontos || []).slice(-60).map((p) => p.close)} width={120} height={26} />
-              </>
-            )}
-          </div>
-        ))}
-      </div>
+      {(dados.grupos || []).map((g) => (
+        <Grade key={g.id} grupo={g} />
+      ))}
 
-      <div className="section-title">CDI × Selic</div>
-      <p className="section-sub">
-        O CDI anda colado na Selic (um pouco abaixo da meta) — é a referência da renda fixa privada.
-      </p>
-      <div className="grid grid-2" style={{ marginTop: 0 }}>
-        {[["CDI", cdi], ["Selic meta", selic]].map(([nome, j]) => (
-          <div className="card" key={nome}>
-            <div className="label">{nome}</div>
-            <div className="big">{j ? `${num(j.valor)}%` : "—"}</div>
-            {j && <div className="label">a.a. · {dataBR(j.data)}</div>}
-          </div>
-        ))}
-      </div>
+      {!!(dados.indisponiveis || []).length && (
+        <p className="section-sub" style={{ marginTop: 8 }}>
+          Sem resposta agora: {dados.indisponiveis.join(", ")}. As demais linhas seguem inteiras.
+        </p>
+      )}
 
-      <div className="note">{dados.aviso}</div>
+      <div className="note">
+        <strong>Câmbio e bolsas variam em preço; Selic e CDI, não.</strong> Nas duas linhas de
+        juros a coluna é o <strong>retorno acumulado</strong> — quanto R$ 1 aplicado à taxa
+        rendeu na janela, composto dia a dia —, e não a variação do nível da taxa. São coisas
+        diferentes: o CDI ir de 13,65% para 13,90% é +0,25 p.p., o que não se compara com
+        "Ibovespa +12%". O retorno se compara, e é por isso que ele está aqui. O número na
+        coluna do valor continua sendo a taxa anualizada, que é como ela se cota.
+        <br />
+        Cada praça fecha na sua hora, então as datas legitimamente não batem entre si — cada
+        linha carrega a sua. Índices estrangeiros estão na moeda de origem, sem conversão.{" "}
+        {dados.aviso}
+      </div>
     </div>
   );
 }

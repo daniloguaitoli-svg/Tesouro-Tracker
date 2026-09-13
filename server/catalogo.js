@@ -171,18 +171,53 @@ export const MACRO = [
 
 export const macroPorId = Object.fromEntries(MACRO.map((m) => [m.id, m]));
 
-// O Ibovespa não vem do SGS do Banco Central como o resto da moldura — vem do
-// Yahoo (server/providers/yahoo.js). Fica fora de MACRO de propósito: aquela
+// As bolsas não vêm do SGS do Banco Central como o resto da moldura — vêm do
+// Yahoo (server/providers/yahoo.js). Ficam fora de MACRO de propósito: aquela
 // lista é "séries do BCB", e misturar as duas faria o loop do getMacro tentar
 // buscar um código de série que não existe.
-export const IBOVESPA = {
-  id: "ibovespa",
-  nome: "Ibovespa",
-  // Não diga "fechamento": o Yahoo já devolve uma linha para o dia corrente
-  // antes de a B3 abrir, e durante o pregão o valor é o último negociado. A
-  // primeira sonda real pegou justamente isso (22/08 às 06:39 de Brasília,
-  // com variação 0,00% porque o pregão nem tinha começado).
-  descricao: "Índice da B3 (^BVSP via Yahoo Finance). Durante o pregão, é o último valor negociado — não o fechamento.",
+//
+// Não diga "fechamento" em lugar nenhum: o Yahoo devolve uma linha para o dia
+// corrente antes de o pregão abrir, e durante o pregão o valor é o último
+// negociado. A primeira sonda real pegou justamente isso (22/08 às 06:39 de
+// Brasília, com variação 0,00% porque o pregão nem tinha começado). Com cinco
+// praças em três fusos isso deixa de ser detalhe: quando é meio-dia em São
+// Paulo, Amsterdã está fechando e Nova York mal abriu, então as datas das
+// linhas legitimamente não batem entre si. Cada linha carrega a SUA data.
+export const INDICES = [
+  // `casas` é de EXIBIÇÃO e segue o costume de cada praça: o Ibovespa se cota
+  // em pontos inteiros ("187.207"), os demais com dois decimais. Um único
+  // arredondamento para todos deixaria o AEX (~950) com precisão de menos ou o
+  // Ibovespa com uma vírgula que ninguém escreve.
+  // `praca` é a CIDADE, curta de propósito: na grade ela divide 132px com a
+  // data, e "Euronext (Amsterdã) · 11/09/2026" empurrava a linha para três
+  // alturas de texto. O nome da bolsa fica em `bolsa`, que vai na descrição.
+  { id: "ibovespa", simbolo: "^BVSP", nome: "Ibovespa", bolsa: "B3", praca: "São Paulo", moeda: "BRL", casas: 0 },
+  { id: "sp500", simbolo: "^GSPC", nome: "S&P 500", bolsa: "NYSE/Nasdaq", praca: "Nova York", moeda: "USD", casas: 2 },
+  { id: "nasdaq", simbolo: "^IXIC", nome: "Nasdaq Composite", bolsa: "Nasdaq", praca: "Nova York", moeda: "USD", casas: 2 },
+  { id: "dowjones", simbolo: "^DJI", nome: "Dow Jones", bolsa: "NYSE", praca: "Nova York", moeda: "USD", casas: 2 },
+  { id: "aex", simbolo: "^AEX", nome: "AEX", bolsa: "Euronext", praca: "Amsterdã", moeda: "EUR", casas: 2 },
+].map((i) => ({
+  ...i,
+  descricao: `Índice da ${i.bolsa}, ${i.praca} (${i.simbolo} via Yahoo Finance). Durante o pregão, é o último valor negociado — não o fechamento.`,
   unidade: "PONTOS",
   periodicidade: "diaria",
-};
+}));
+
+export const indicePorId = Object.fromEntries(INDICES.map((i) => [i.id, i]));
+
+// O Painel e o getMacro pedem o Ibovespa pelo nome; deriva daqui para não
+// existirem duas definições do mesmo índice podendo divergir.
+export const IBOVESPA = indicePorId.ibovespa;
+
+// Séries DIÁRIAS de juros (% ao dia), separadas das de MACRO de propósito.
+//
+// MACRO traz o NÍVEL anualizado (432 Selic meta, 4389 CDI a.a.), que é como se
+// cotam essas taxas e o que a tela mostra na coluna "último". Mas a variação de
+// uma taxa não é comparável com a de uma bolsa: o que se compara é o RETORNO
+// ACUMULADO no período, e para compor isso é preciso a taxa de cada dia. Daí
+// as séries 11 e 12. Elas não entram em MACRO porque MACRO alimenta a Moldura
+// do Painel, e lá um "CDI 0,0494%" ao lado do IPCA seria só confusão.
+export const JUROS_DIARIOS = [
+  { id: "selic", serie: 11, nome: "Selic", descricao: "Taxa Selic diária (% a.d.), série 11 do SGS." },
+  { id: "cdi", serie: 12, nome: "CDI", descricao: "Taxa DI diária (% a.d.), série 12 do SGS." },
+];

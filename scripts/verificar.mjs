@@ -769,6 +769,71 @@ conferir(
   '"vigente desde" não aparece escrito à mão no Mercado'
 );
 
+console.log("\ngrade do Mercado");
+const { INDICES, indicePorId, IBOVESPA, JUROS_DIARIOS } = await import("../server/catalogo.js");
+// Um símbolo errado não dá erro: o Yahoo devolve 404, o allSettled engole e a
+// linha some da tela sem explicação. Então pelo menos o que dá para checar sem
+// rede: ids e símbolos únicos, e o Ibovespa derivado da mesma lista.
+conferir(INDICES.length >= 5, `${INDICES.length} índices no catálogo`);
+conferir(new Set(INDICES.map((i) => i.id)).size === INDICES.length, "ids de índice únicos");
+conferir(new Set(INDICES.map((i) => i.simbolo)).size === INDICES.length, "símbolos de índice únicos");
+for (const i of INDICES) {
+  conferir(/^\^[A-Z0-9]+$/.test(i.simbolo), `${i.id}: símbolo com forma de índice (${i.simbolo})`);
+  conferir(Number.isInteger(i.casas), `${i.id}: casas decimais declaradas`);
+}
+conferir(IBOVESPA === indicePorId.ibovespa, "IBOVESPA deriva de INDICES, não é uma segunda definição");
+// As séries diárias existem para compor RETORNO e são outras que as de MACRO
+// (nível anualizado). Se alguém as igualar, a coluna vira variação do nível.
+for (const j of JUROS_DIARIOS) {
+  conferir(j.serie !== (await import('../server/catalogo.js')).macroPorId[j.id]?.serie, `${j.id}: série diária (${j.serie}) difere da série de nível`);
+}
+
+// A aritmética das janelas, com fixture — é onde um erro passa calado.
+const { janelasDePreco, janelasDeRetorno, JANELAS } = datalayer;
+conferir(JANELAS.length === 5, `cinco janelas: ${JANELAS.join(", ")}`);
+
+// Série de preço subindo 0,05% por dia útil, dois anos.
+const serieSint = [];
+{
+  let v = 100;
+  let d = new Date(Date.UTC(2024, 8, 1));
+  const fim = new Date(Date.UTC(2026, 8, 11));
+  while (d <= fim) {
+    const wd = d.getUTCDay();
+    if (wd !== 0 && wd !== 6) {
+      v *= 1.0005;
+      serieSint.push({ date: d.toISOString().slice(0, 10), close: Number(v.toFixed(4)) });
+    }
+    d = new Date(d.getTime() + 864e5);
+  }
+}
+const jp = janelasDePreco(serieSint);
+const jr = janelasDeRetorno(serieSint.map((p) => ({ date: p.date, close: 0.05 })));
+for (const k of JANELAS) {
+  conferir(jp[k] && Number.isFinite(jp[k].pct), `preço: ${k} preenchido`);
+  conferir(jr[k] && Number.isFinite(jr[k].pct), `retorno: ${k} preenchido`);
+}
+// O CRUZAMENTO que vale: um índice que sobe 0,05% ao dia e uma taxa de 0,05%
+// ao dia têm de dar o mesmo em 12 meses. São dois caminhos independentes —
+// razão entre dois preços de um lado, produto de 252 fatores do outro. Se um
+// deles somar em vez de compor, ou errar a borda da janela, isto abre.
+const difere = Math.abs(jp.var12m.pct - jr.var12m.pct);
+conferir(difere < 0.05, `preço e retorno batem em 12m (${difere.toFixed(4)} p.p. de diferença)`);
+conferir(jp.var12m.pct > 13 && jp.var12m.pct < 15, `12m de 0,05% ao dia útil dá ~13,9% (${jp.var12m.pct.toFixed(2)}%)`);
+// Compor não é somar: 252 dias de 0,05% somam 12,6% e compõem ~13,9%.
+conferir(jr.var12m.pct > 13.5, `retorno é composto, não somado (${jr.var12m.pct.toFixed(2)}% > 12,6%)`);
+// A janela do ano ancora no ÚLTIMO dia do ano anterior, não no primeiro do ano.
+conferir(jp.varAno.de.startsWith("2025-12"), `YTD ancora em dezembro do ano anterior (${jp.varAno.de})`);
+conferir(jr.varAno.de.startsWith("2026-01"), `retorno no ano começa em janeiro (${jr.varAno.de})`);
+// Série curta devolve null, nunca zero — "—" na tela é honesto, 0% mente.
+const curta = serieSint.slice(-5);
+conferir(janelasDePreco(curta).var12m === null, "janela sem histórico devolve null, não zero");
+conferir(janelasDePreco([]).var1d === null, "série vazia não explode");
+
+// E a tela tem de dizer que a coluna dos juros é retorno, não variação do nível.
+const mercSrc = await ler("src/components/Mercado.jsx");
+conferir(/retorno acumulado/i.test(mercSrc), "Mercado explica que a coluna de juros é retorno acumulado");
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");

@@ -1,0 +1,20 @@
+# Sonda as fontes da aba Mercado (Yahoo + SGS do Banco Central).
+#
+# Só workflow_dispatch: é conferência sob demanda, não coleta. Não escreve nem
+# commita nada. Existe porque esses dois hosts não respondem do ambiente de
+# desenvolvimento, então este runner é o único lugar onde dá para provar que os
+# cinco símbolos de índice e as séries 11/12 do SGS respondem de verdade.
+name: Sonda do Mercado
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/sonda-mercado.mjs

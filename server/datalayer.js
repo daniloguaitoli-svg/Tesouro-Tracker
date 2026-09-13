@@ -14,14 +14,17 @@
 // A MATEMÁTICA MORA AQUI (e em util.js), não nos componentes: duration,
 // variação, estatísticas e sensibilidade a juros saem prontas para a tela.
 
-import { CATALOGO, CATEGORIAS, porSlug, DESTAQUES, MACRO, IBOVESPA, rotuloGenerico } from "./catalogo.js";
+import { CATALOGO, CATEGORIAS, porSlug, DESTAQUES, MACRO, IBOVESPA, INDICES, JUROS_DIARIOS, macroPorId, rotuloGenerico } from "./catalogo.js";
 import * as cache from "./cache.js";
 import * as bcb from "./providers/bcb.js";
 import * as bcglobais from "./providers/globais.js";
-import { ibovespa } from "./providers/yahoo.js";
+import { ibovespa, todosIndices } from "./providers/yahoo.js";
 import { REGIOES, manchetes } from "./providers/noticias.js";
 import {
   variacaoPeriodo,
+  variacaoNoAno,
+  retornoPeriodo,
+  retornoNoAno,
   calcularDuration,
   precoPor100,
   temDuration,
@@ -477,11 +480,78 @@ export async function getMacro() {
 
 // ---------- /api/mercado ----------
 
-// O quadro de juros e câmbio: as três decisões de política monetária (Copom ao
-// vivo pelo BCB; Fed e BCE do arquivo versionado dados/global.json, coletado
-// duas vezes ao dia), o câmbio PTAX e o par CDI × Selic.
+// O panorama de mercado: as três decisões de política monetária (Copom ao vivo
+// pelo BCB; Fed e BCE do arquivo versionado dados/global.json), e uma grade de
+// indicadores com a MESMA régua de janelas — 1 dia, 1 semana, 1 mês, no ano e
+// 12 meses — para câmbio, juros e bolsas.
+//
+// A régua única é o ponto da tela: só assim dá para pôr lado a lado "o IPCA+
+// 2035 paga 7,6% real" e "o CDI rendeu 9,4% no ano, o Ibovespa 12%".
+
+// Preço e taxa não medem a mesma coisa, e a grade diz qual é qual em `base`:
+//
+//   base: "preco"   — variação do próprio valor (câmbio e bolsas). Óbvio.
+//   base: "retorno"  — quanto R$ 1 aplicado à taxa rendeu na janela (Selic e
+//                      CDI), composto dia a dia. NÃO é a variação do nível da
+//                      taxa: o CDI sair de 13,65% para 13,90% é +0,25 p.p., e
+//                      isso não se compara com "Ibovespa +12%". O que se
+//                      compara é o retorno, e é ele que está aqui.
+//
+// O nível anualizado continua na coluna "último" — é como a taxa se cota.
+// As duas funções abaixo são PURAS e exportadas para o verificar.mjs
+// exercitá-las com fixture — mesmo motivo dos parsers. Sem rede não há como
+// conferir a grade inteira aqui dentro, e é justamente a aritmética de janelas
+// que erra calada.
+
+// A janela de 1 dia é o ÚLTIMO PONTO contra o anterior, e não "24 horas atrás":
+// numa segunda-feira o dia anterior é sexta, e num feriado é o pregão de antes.
+// Pedir 1 dia corrido devolveria null toda segunda.
+function variacaoUmDia(pontos) {
+  if (!Array.isArray(pontos) || pontos.length < 2) return null;
+  const ult = pontos[pontos.length - 1];
+  const ant = pontos[pontos.length - 2];
+  if (ult?.close == null || ant?.close == null || !ant.close) return null;
+  return { pct: ((ult.close - ant.close) / ant.close) * 100, de: ant.date, ate: ult.date };
+}
+
+// No retorno, "1 dia" é a taxa do próprio dia — R$ 1 rendeu isso ontem para
+// hoje. Não há divisão a fazer: o ponto já é a taxa diária.
+function retornoUmDia(pontosDiarios) {
+  const ult = pontosDiarios?.[pontosDiarios.length - 1];
+  if (ult?.close == null) return null;
+  return { pct: ult.close, de: ult.date, ate: ult.date };
+}
+
+export function janelasDePreco(pontos) {
+  return {
+    var1d: variacaoUmDia(pontos),
+    var1sem: variacaoPeriodo(pontos, 7),
+    var1mes: variacaoPeriodo(pontos, 30),
+    varAno: variacaoNoAno(pontos),
+    var12m: variacaoPeriodo(pontos, 365),
+  };
+}
+
+export function janelasDeRetorno(pontosDiarios) {
+  return {
+    var1d: retornoUmDia(pontosDiarios),
+    var1sem: retornoPeriodo(pontosDiarios, 7),
+    var1mes: retornoPeriodo(pontosDiarios, 30),
+    varAno: retornoNoAno(pontosDiarios),
+    var12m: retornoPeriodo(pontosDiarios, 365),
+  };
+}
+
+export const JANELAS = ["var1d", "var1sem", "var1mes", "varAno", "var12m"];
+
 export async function getMercado() {
-  const macro = await getMacro().catch(() => ({ indicadores: {} }));
+  // Tudo em paralelo e tudo tolerante: macro (BCB), as cinco bolsas (Yahoo) e
+  // as duas séries diárias de juros. Nenhuma fonte pode derrubar as outras.
+  const [macro, indices, diarios] = await Promise.all([
+    getMacro().catch(() => ({ indicadores: {} })),
+    todosIndices().catch(() => []),
+    Promise.allSettled(JUROS_DIARIOS.map((j) => bcb.serie(j.serie, { dias: 800 }).then((pts) => [j, pts]))),
+  ]);
   const ind = macro.indicadores || {};
   const g = cache.globais();
 
@@ -497,10 +567,85 @@ export async function getMercado() {
       }
     : null;
 
+  // --- Câmbio: PTAX, preço puro.
+  const cambio = ["usdbrl", "eurbrl"]
+    .map((id) => {
+      const d = ind[id];
+      if (!d) return null;
+      const meta = macroPorId[id];
+      return {
+        id,
+        nome: meta.nome,
+        sub: "PTAX venda",
+        valor: d.valor,
+        casas: 4,
+        unidade: "BRL",
+        data: d.data,
+        base: "preco",
+        ...janelasDePreco(d.pontos),
+        fonte: `BCB / SGS (série ${meta.serie})`,
+      };
+    })
+    .filter(Boolean);
+
+  // --- Juros: nível anualizado na coluna do valor, retorno composto nas
+  // janelas. As duas metades vêm de séries diferentes do mesmo SGS.
+  const porIdDiario = {};
+  for (const r of diarios) {
+    if (r.status !== "fulfilled" || !r.value) continue;
+    const [meta, pts] = r.value;
+    porIdDiario[meta.id] = { meta, pts };
+  }
+  const juros = JUROS_DIARIOS.map((j) => {
+    const nivel = ind[j.id];
+    const diario = porIdDiario[j.id];
+    if (!nivel && !diario) return null;
+    const pts = diario?.pts || [];
+    return {
+      id: j.id,
+      nome: j.nome,
+      sub: nivel ? "% a.a." : "acumulado",
+      valor: nivel?.valor ?? null,
+      casas: 2,
+      unidade: "%_ANO",
+      data: nivel?.data ?? pts[pts.length - 1]?.date ?? null,
+      base: "retorno",
+      ...janelasDeRetorno(pts),
+      fonte: `BCB / SGS (séries ${macroPorId[j.id]?.serie ?? "?"} e ${j.serie})`,
+    };
+  }).filter(Boolean);
+
+  // --- Bolsas: preço puro, cada praça com a sua data.
+  const bolsas = indices
+    .filter((i) => i && !i.erro)
+    .map((i) => ({
+      id: i.id,
+      nome: i.nome,
+      sub: i.praca,
+      valor: i.valor,
+      casas: i.casas,
+      unidade: "PONTOS",
+      moeda: i.moeda,
+      data: i.data,
+      base: "preco",
+      ...janelasDePreco(i.pontos),
+      fonte: `Yahoo Finance (${i.simbolo})`,
+    }));
+
+  const indisponiveis = indices.filter((i) => i?.erro).map((i) => i.id);
+
   return {
     fetchedAt: new Date().toISOString(),
     decisoes: { copom, fed: g.fed, bce: g.bce },
     globaisAtualizadosEm: g.atualizadoEm,
+    grupos: [
+      { id: "cambio", nome: "Câmbio", linhas: cambio },
+      { id: "juros", nome: "Juros", linhas: juros },
+      { id: "bolsas", nome: "Bolsas", linhas: bolsas },
+    ].filter((gr) => gr.linhas.length),
+    indisponiveis,
+    // Mantidos porque o formato antigo é lido em outros pontos da tela; a grade
+    // acima é a fonte nova e mais completa.
     cambio: { usd: ind.usdbrl ?? null, eur: ind.eurbrl ?? null },
     juros: { cdi: ind.cdi ?? null, selic: ind.selic ?? null },
     aviso: AVISO,

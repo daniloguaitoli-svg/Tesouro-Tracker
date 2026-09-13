@@ -239,6 +239,28 @@ body {
 .campo > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .campo > .input, .campo > .select { width: 100%; }
 
+/* ---------- Grade do Mercado ---------- */
+/* Sete colunas não cabem em 390px, então a tabela rola dentro de .rolagem — e
+   a coluna do nome fica grudada, senão rolar até "12 m" esconde de quem é a
+   linha, que é justamente o que se quer comparar. O fundo opaco é obrigatório:
+   sem ele os números passam por baixo do nome enquanto rola. */
+.grade { min-width: 500px; }
+.grade .col-nome {
+  position: sticky; left: 0; z-index: 1;
+  background: var(--surface); text-align: left;
+  /* Largura limitada e texto QUEBRANDO de propósito: com nowrap a coluna
+     grudada chegava a 430px dos 520 da tabela e, rolada até o fim, tapava a
+     própria coluna que se tinha ido buscar — "+22,41%" aparecia como ",41%".
+     É `max-width` sozinho de propósito: fixar `min-width` para forçar o
+     subtítulo numa linha só volta a tapar a coluna vizinha, e a largura que
+     "cabe numa linha" depende da fonte que o aparelho carregou — não dá para
+     acertar isso no pixel. Quebrar em duas linhas funciona com qualquer fonte. */
+  max-width: 132px; white-space: normal; line-height: 1.25;
+  padding-right: var(--s3); border-right: 1px solid var(--line);
+}
+.grade thead .col-nome { background: var(--surface-2); }
+.grade td, .grade th { padding: var(--s2) var(--s2); }
+
 /* ---------- Tabelas ---------- */
 .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl th {

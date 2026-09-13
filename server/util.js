@@ -154,6 +154,65 @@ export function variacaoPeriodo(pontos, dias) {
   };
 }
 
+// Variação no ano (YTD). A base é o ÚLTIMO fechamento do ano ANTERIOR, e não o
+// primeiro do ano corrente: 1º de janeiro não tem pregão em praça nenhuma, e
+// ancorar no primeiro dia negociado do ano jogaria fora o salto da virada —
+// que numa janela de ano é a informação, não ruído.
+//
+// O ano sai da data do último ponto, não do relógio, pelo mesmo motivo que
+// variacaoPeriodo ancora no último ponto: uma série parada há três dias tem de
+// medir o ano DELA, não um ano que ela não viu.
+export function variacaoNoAno(pontos) {
+  if (!Array.isArray(pontos) || pontos.length < 2) return null;
+  const ultimo = pontos[pontos.length - 1];
+  if (ultimo?.close == null || !ultimo.date) return null;
+
+  const corte = `${ultimo.date.slice(0, 4)}-01-01`;
+  let base = null;
+  for (const p of pontos) {
+    if (p.date >= corte) break;
+    if (p.close != null) base = p;
+  }
+  if (!base || !base.close) return null;
+
+  return { pct: ((ultimo.close - base.close) / base.close) * 100, de: base.date, ate: ultimo.date };
+}
+
+// ---------- Retorno acumulado de uma série de taxas diárias ----------
+//
+// Uma taxa não é um preço: perguntar "quanto o CDI variou em 12 meses" em % do
+// próprio nível (13,65 -> 13,90 = +1,8%) não diz nada útil. O que se compara
+// com o Ibovespa é o RETORNO: quanto R$ 1 aplicado àquela taxa virou na janela.
+//
+// É PRODUTO, nunca soma. Somar 252 taxas diárias de ~0,05% dá 12,6%; compondo
+// dá 13,4%. Quase um ponto de diferença — e é o número que decide se o IPCA+ a
+// 7,6% real está ou não ganhando do CDI.
+//
+// `apos` é EXCLUSIVO: conta-se do primeiro dia depois dele até o último ponto.
+export function retornoAcumulado(pontosDiarios, apos) {
+  if (!Array.isArray(pontosDiarios) || !pontosDiarios.length) return null;
+  const dentro = pontosDiarios.filter((p) => p.date > apos && p.close != null && Number.isFinite(p.close));
+  if (!dentro.length) return null;
+
+  const fator = dentro.reduce((f, p) => f * (1 + p.close / 100), 1);
+  return { pct: (fator - 1) * 100, de: dentro[0].date, ate: dentro[dentro.length - 1].date };
+}
+
+export function retornoPeriodo(pontosDiarios, dias) {
+  const ultimo = pontosDiarios?.[pontosDiarios.length - 1];
+  if (!ultimo?.date) return null;
+  const apos = new Date(dataDeISO(ultimo.date).getTime() - dias * 86400000).toISOString().slice(0, 10);
+  return retornoAcumulado(pontosDiarios, apos);
+}
+
+// No ano: tudo a partir de 1º de janeiro, ou seja, depois de 31/12 do ano
+// anterior — o mesmo corte que variacaoNoAno usa do outro lado.
+export function retornoNoAno(pontosDiarios) {
+  const ultimo = pontosDiarios?.[pontosDiarios.length - 1];
+  if (!ultimo?.date) return null;
+  return retornoAcumulado(pontosDiarios, `${Number(ultimo.date.slice(0, 4)) - 1}-12-31`);
+}
+
 // ---------- Identificação do título ----------
 // Arredonda para N casas preservando o null. Vive aqui, e nao em ponte.js, por
 // ser usado dos dois lados — o coletor ao montar os arquivos-ponte e o
