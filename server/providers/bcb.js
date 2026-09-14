@@ -29,37 +29,60 @@ export async function serie(cod, { dias = 2000 } = {}) {
   const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${ini}&dataFinal=${fim}`;
 
   // O SGS ESTRANGULA requisições concorrentes, e o faz da pior maneira: devolve
-  // HTTP 200 com uma página de erro em XML no corpo. Sem tratamento o
-  // `r.json()` estoura, o allSettled de quem chamou engole, e a linha
-  // simplesmente some da tela — foi o que aconteceu com o USD/BRL e o IPCA na
-  // primeira sonda, com a série respondendo 200 quando pedida sozinha.
+  // HTTP 200 com um corpo que não é a lista de pontos. Sem tratamento a linha
+  // simplesmente some da tela — foi o que aconteceu com o USD/BRL e o IPCA numa
+  // sonda, com as séries respondendo 200 quando pedidas sozinhas.
   //
-  // Então: tenta de novo, com espera crescente, e trata corpo-não-JSON como
-  // falha do mesmo tipo. Um 4xx não é retentado (se a série mudou de número,
-  // insistir só adia o erro que precisa aparecer).
-  const bruto = await (async () => {
-    let ultimoErro;
-    for (let tentativa = 0; tentativa < 3; tentativa++) {
-      if (tentativa) await new Promise((r) => setTimeout(r, 400 * 2 ** tentativa));
-      const r = await fetch(url);
-      if (r.status >= 400 && r.status < 500) throw new Error(`BCB série ${cod}: HTTP ${r.status}`);
-      if (!r.ok) { ultimoErro = new Error(`BCB indisponível (HTTP ${r.status})`); continue; }
-      const texto = await r.text();
-      try {
-        return JSON.parse(texto);
-      } catch {
-        // Guarda o começo do corpo no erro: é o que diz se foi estrangulamento
-        // ou se o formato mudou de vez.
-        ultimoErro = new Error(`BCB série ${cod}: resposta não-JSON (${texto.slice(0, 60).replace(/\s+/g, " ")})`);
-      }
+  // Então: tenta de novo, com espera crescente. Um 4xx não é retentado (se a
+  // série mudou de número, insistir só adia o erro que precisa aparecer).
+  let ultimoErro;
+  let pontos = null;
+  for (let tentativa = 0; tentativa < 3 && pontos === null; tentativa++) {
+    if (tentativa) await new Promise((r) => setTimeout(r, 400 * 2 ** tentativa));
+    const r = await fetch(url);
+    if (r.status >= 400 && r.status < 500) throw new Error(`BCB série ${cod}: HTTP ${r.status}`);
+    if (!r.ok) {
+      ultimoErro = new Error(`BCB série ${cod}: indisponível (HTTP ${r.status})`);
+      continue;
     }
-    throw ultimoErro;
-  })();
-  const pontos = bruto
-    .map((p) => ({ date: isoDeBR(p.data), close: Number(p.valor) }))
-    .filter((p) => p.date && Number.isFinite(p.close));
+    const lido = interpretarCorpoSgs(await r.text(), cod);
+    if (lido.ok) pontos = lido.pontos;
+    else ultimoErro = new Error(lido.motivo);
+  }
+  if (pontos === null) throw ultimoErro;
+
+  // Lista vazia NÃO vai para o cache. Pode ser intervalo sem dado, mas quase
+  // sempre é estrangulamento; guardá-la por 30 minutos transformaria um soluço
+  // numa meia hora de tela vazia.
+  if (!pontos.length) return pontos;
   cache.set(cod, { ts: Date.now(), pontos });
   return pontos;
+}
+
+// Interpreta o corpo de uma resposta do SGS. PURA e exportada para o
+// verificar.mjs exercitá-la com fixture, pelo mesmo motivo dos outros parsers.
+//
+// O CASO QUE FALTAVA: `JSON.parse` aceita um OBJETO e devolve sem reclamar, e o
+// `.map` estourava depois, FORA do laço de retentativa — sem retry, com a
+// mensagem inútil "bruto.map is not a function", e engolido pelo allSettled de
+// quem chamou. Foi assim que a série 4389 (CDI) sumiu numa sonda de 14/09/2026
+// enquanto a tela seguia mostrando o CDI, que vinha de outra série. Corpo que
+// não é lista agora conta como falha retentável, igual a corpo não-JSON.
+export function interpretarCorpoSgs(texto, cod) {
+  const amostra = String(texto ?? "").slice(0, 80).replace(/\s+/g, " ");
+  let bruto;
+  try {
+    bruto = JSON.parse(texto);
+  } catch {
+    return { ok: false, motivo: `BCB série ${cod}: resposta não-JSON (${amostra})` };
+  }
+  if (!Array.isArray(bruto)) {
+    return { ok: false, motivo: `BCB série ${cod}: JSON que não é lista de pontos (${amostra})` };
+  }
+  const pontos = bruto
+    .map((p) => ({ date: isoDeBR(p?.data), close: Number(p?.valor) }))
+    .filter((p) => p.date && Number.isFinite(p.close));
+  return { ok: true, pontos };
 }
 
 // Último valor + variação em relação ao ponto anterior.

@@ -974,6 +974,46 @@ conferir(
   `inflação tem as três janelas mensais (${gInf?.colunas.map((c) => c.id).join(",")})`
 );
 
+console.log("\ncorpo do SGS: tudo que não é lista de pontos");
+// O SGS devolve HTTP 200 com corpo estranho quando estrangula. A blindagem
+// anterior cobria corpo não-JSON mas NÃO cobria JSON que não é lista: o
+// JSON.parse aceitava um objeto, e o `.map` estourava depois, fora do laço de
+// retentativa — sem retry, com "bruto.map is not a function", e engolido pelo
+// allSettled. Foi assim que a série 4389 sumiu numa sonda de 14/09/2026
+// enquanto a tela seguia mostrando o CDI, que vem de outra série.
+const bcbProv = await import("../server/providers/bcb.js");
+conferir(typeof bcbProv.interpretarCorpoSgs === "function", "bcb.js exporta interpretarCorpoSgs");
+const listaBoa = bcbProv.interpretarCorpoSgs(
+  JSON.stringify([{ data: "10/09/2026", valor: "13.90" }, { data: "11/09/2026", valor: "13.91" }]),
+  4389
+);
+conferir(listaBoa.ok && listaBoa.pontos.length === 2, `lista válida vira 2 pontos (${listaBoa.pontos?.length})`);
+conferir(listaBoa.pontos?.[0]?.date === "2026-09-10", `data pt-BR vira ISO (${listaBoa.pontos?.[0]?.date})`);
+for (const [nome, corpo] of [
+  ["objeto", JSON.stringify({ error: "limite excedido" })],
+  ["null", "null"],
+  ["número", "42"],
+  ["não-JSON", '<?xml version="1.0"?><erro/>'],
+]) {
+  const r = bcbProv.interpretarCorpoSgs(corpo, 4389);
+  conferir(r.ok === false, `corpo ${nome} é recusado, não explode`);
+  conferir(/4389/.test(r.motivo || ""), `o erro de ${nome} nomeia a série`);
+}
+// Lista vazia é válida como forma, e o chamador é que decide — mas não pode ir
+// para o cache, senão um soluço vira meia hora de tela vazia.
+const vazia = bcbProv.interpretarCorpoSgs("[]", 12);
+conferir(vazia.ok && vazia.pontos.length === 0, "lista vazia é forma válida, com zero pontos");
+const bcbSrc = await ler("server/providers/bcb.js");
+conferir(
+  /if \(!pontos\.length\) return pontos;/.test(bcbSrc),
+  "série vazia não entra no cache"
+);
+// E o `.map` tem de estar DENTRO da função pura, não solto depois do laço.
+conferir(
+  !/const pontos = await \(async/.test(bcbSrc) && /interpretarCorpoSgs\(await r\.text\(\)/.test(bcbSrc),
+  "a interpretação do corpo acontece dentro do laço de retentativa"
+);
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");
