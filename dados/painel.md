@@ -1,6 +1,6 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-09-14T01:12:54.146Z.
+Retrato gerado automaticamente em 2026-09-14T16:59:07.505Z.
 
 ## Acompanhados de perto
 
@@ -16,10 +16,10 @@ Retrato gerado automaticamente em 2026-09-14T01:12:54.146Z.
 | Indicador | Valor | 12 meses | 1 semana | Data |
 | --- | ---: | ---: | ---: | --- |
 | IPCA (acum. 12m) | 4.22% | — | — | 01/08/2026 |
-| Ibovespa | 187207 pts | 30.78% | 1.11% | 11/09/2026 |
-| EUR/BRL | 5.9085 | -6.5% | -0.77% | 11/09/2026 |
-| USD/BRL | 5.0918 | -5.46% | -0.65% | 11/09/2026 |
-| CDI | 13.9% a.a. | — | — | 10/09/2026 |
+| Ibovespa | 186279 pts | 30.93% | 0.61% | 14/09/2026 |
+| EUR/BRL | 5.9704 | -5.06% | 0.27% | 14/09/2026 |
+| USD/BRL | 5.1696 | -3.69% | 0.86% | 14/09/2026 |
+| CDI | 13.9% a.a. | — | — | 11/09/2026 |
 | Selic (meta) | 14% a.a. | — | — | 14/09/2026 |
 
 ## Ressalvas
