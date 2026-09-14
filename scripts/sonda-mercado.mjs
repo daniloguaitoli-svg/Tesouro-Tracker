@@ -70,6 +70,31 @@ for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
 // espelho do Eurostat no FRED porque o ECB Data Portal e a API do próprio
 // Eurostat param em 2025-12. Se o espelho parar também, isto avisa antes de a
 // tela envelhecer calada. O histórico da investigação está no catálogo.
+// A coleta de 14/09 logou "globais FALHA fed: HTTP 404 — mantido o valor
+// anterior". O keep-previous segurou, entao nada quebrou — mas a taxa do Fed
+// parou de atualizar calada. Como o CPI americano e o HICP vem do MESMO
+// fredgraph.csv e respondem, o problema e do identificador, nao do endpoint.
+// Sonda os dois atuais e candidatos de substituicao.
+console.log("\n=== Fed no FRED: qual serie responde? ===");
+for (const id of ["DFEDTARU", "DFEDTARL", "DFEDTAR", "FEDFUNDS", "EFFR", "DFF"]) {
+  try {
+    const r = await fetch(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}&cosd=2025-01-01`, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    const txt = await r.text();
+    const res = globais.parseCsvFred(txt);
+    const ult = res.pontos[res.pontos.length - 1];
+    console.log(
+      `  ${marcar(r.ok && res.pontos.length > 0)} ${id.padEnd(9)} HTTP ${r.status}  ${String(res.pontos.length).padStart(4)} pts  ` +
+        `ultimo ${ult ? `${ult.date} = ${ult.close}` : "—"}`
+    );
+    if (!r.ok || !res.pontos.length) console.log(`      amostra: ${txt.slice(0, 120).replace(/\s+/g, " ")}`);
+  } catch (e) {
+    console.log(`  ${marcar(false)} ${id.padEnd(9)} ${e.message}`);
+  }
+  await new Promise((r) => setTimeout(r, 400));
+}
+
 console.log("\n=== HICP europeu: o espelho do FRED continua à frente do BCE? ===");
 {
   const ecb = await fetch(
