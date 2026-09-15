@@ -1,13 +1,39 @@
-# Sonda as fontes da aba Mercado (Yahoo + SGS do Banco Central).
+# Sonda as fontes da aba Mercado: Yahoo (bolsas), SGS do Banco Central (juros e
+# câmbio), FRED (CPI americano e HICP europeu) e a grade montada com tudo isso.
 #
-# Só workflow_dispatch: é conferência sob demanda, não coleta. Não escreve nem
-# commita nada. Existe porque esses dois hosts não respondem do ambiente de
-# desenvolvimento, então este runner é o único lugar onde dá para provar que os
-# cinco símbolos de índice e as séries 11/12 do SGS respondem de verdade.
+# POR QUE EXISTE: esses hosts não respondem do ambiente de desenvolvimento, e as
+# falhas deles são INVISÍVEIS na tela. Um identificador de série errado faz o
+# Yahoo devolver 404 e o FRED um CSV de uma linha; o allSettled engole e a linha
+# some sem erro. Este runner é o único lugar onde dá para provar que respondem.
+#
+# Em três execuções seguidas ela achou defeito que a tela não mostrava: o
+# USD/BRL sumindo por estrangulamento do SGS, as janelas do câmbio saindo do
+# array cortado do getMacro, e a série 4389 morrendo em "bruto.map is not a
+# function". Daí rodar sozinha todo dia.
 name: Sonda do Mercado
 
 on:
+  # 12:47 UTC = 09:47 de Brasília. Duas escolhas, as duas aprendidas neste repo:
+  #
+  # MINUTO 47, NÃO 0. O GitHub atrasa ou descarta execuções agendadas no pico da
+  # virada da hora — está documentado no cron do coletor, que por isso roda no
+  # minuto 23.
+  #
+  # E LONGE DO MINUTO 23. O coletor bate no SGS às 11:23, 14:23, 17:23, 20:23 e
+  # 23:23, e requisição concorrente ao SGS é exatamente o que provoca o
+  # estrangulamento que esta sonda existe para detectar. Sondar em cima da
+  # coleta produziria a falha que ela deveria estar medindo. 12:47 fica ~84 min
+  # depois da primeira coleta do dia: dado fresco e sem sobreposição.
+  schedule:
+    - cron: "47 12 * * *"
+
   workflow_dispatch:
+
+# Uma de cada vez. Duas sondas simultâneas bateriam no SGS ao mesmo tempo e
+# fabricariam o problema que procuram.
+concurrency:
+  group: sonda-mercado
+  cancel-in-progress: false
 
 jobs:
   sondar:
@@ -17,4 +43,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: node scripts/sonda-mercado.mjs
+
+      # Execução manual: uma passagem só, falha rápido. Quem disparou está
+      # olhando e quer ver o erro agora.
+      - name: Sondar
+        if: github.event_name != 'schedule'
+        run: node scripts/sonda-mercado.mjs
+
+      # Execução agendada: SEGUNDA PASSAGEM antes de reprovar.
+      #
+      # A sonda reprova em qualquer problema, e boa parte do que ela mede é
+      # rede alheia. O Fed devolveu HTTP 404 em 14/09 e respondeu normalmente
+      # minutos depois; do jeito estrito isso teria virado email sobre um soluço
+      # que se conserta sozinho. É a mesma lição que o coletor já aprendeu:
+      # alerta que sempre mente deixa de ser lido, e aí o dia em que ele disser
+      # a verdade passa batido.
+      #
+      # Mudança estrutural — série descontinuada, formato trocado, fonte
+      # envelhecendo — sobrevive a uma segunda passagem um minuto depois.
+      # Soluço de rede, não.
+      - name: Sondar (agendado, com segunda tentativa)
+        if: github.event_name == 'schedule'
+        run: |
+          if node scripts/sonda-mercado.mjs; then
+            exit 0
+          fi
+          echo "::warning::primeira passagem falhou; repetindo em 60s antes de reprovar"
+          sleep 60
+          node scripts/sonda-mercado.mjs

@@ -1014,6 +1014,42 @@ conferir(
   "a interpretação do corpo acontece dentro do laço de retentativa"
 );
 
+console.log("\nagendamento da sonda");
+const wfSonda = await ler(".github/workflows/sonda-mercado.yml");
+const cronSonda = wfSonda.match(/^\s*-\s*cron:\s*"([^"]+)"/m)?.[1];
+conferir(!!cronSonda, `sonda tem cron (${cronSonda || "nenhum"})`);
+const [minSonda, horaSonda] = (cronSonda || "").split(/\s+/);
+// Minuto 0 é o pico em que o GitHub atrasa ou descarta agendamento — a mesma
+// razão de o coletor rodar no minuto 23.
+conferir(minSonda !== "0" && minSonda !== "*", `sonda fora da virada da hora (minuto ${minSonda})`);
+// E longe do minuto do COLETOR: os dois batem no SGS, e requisição concorrente
+// ao SGS é justamente o estrangulamento que a sonda existe para detectar.
+// Sondar em cima da coleta fabricaria a falha que deveria estar medindo.
+const minColetor = wf.match(/^\s*-\s*cron:\s*"(\S+)/m)?.[1];
+conferir(
+  minSonda !== minColetor,
+  `sonda (min ${minSonda}) não cai no mesmo minuto do coletor (min ${minColetor})`
+);
+const horasColetor = (wf.match(/^\s*-\s*cron:\s*"\S+\s+(\S+)/m)?.[1] || "").split(",");
+conferir(
+  !horasColetor.includes(horaSonda) || minSonda !== minColetor,
+  `sonda em hora ${horaSonda}, coletor em ${horasColetor.join("/")} — sem colisão`
+);
+// Manual continua existindo: é como se investiga uma fonte na hora.
+conferir(/workflow_dispatch:/.test(wfSonda), "sonda mantém o disparo manual");
+conferir((wfSonda.match(/^\s*workflow_dispatch:/gm) || []).length === 1, "workflow_dispatch uma vez só");
+// A SEGUNDA PASSAGEM no agendado é o que impede a sonda de virar email diário
+// por soluço de rede — o Fed devolveu 404 em 14/09 e voltou minutos depois.
+conferir(
+  /if: github\.event_name == 'schedule'/.test(wfSonda) && /sleep 60/.test(wfSonda),
+  "execução agendada repete antes de reprovar"
+);
+conferir(
+  /if: github\.event_name != 'schedule'/.test(wfSonda),
+  "execução manual falha na primeira, para quem está olhando ver logo"
+);
+conferir(/concurrency:/.test(wfSonda), "sonda não roda sobreposta consigo mesma");
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");

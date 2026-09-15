@@ -627,13 +627,37 @@ exactly the silent error this screen exists to avoid.
 
 ### Probing Yahoo and the BCB (`scripts/sonda-mercado.mjs`)
 
-Neither `query1.finance.yahoo.com` nor `api.bcb.gov.br` is reachable from the
-development sandbox — the egress proxy refuses both. A wrong ticker is
-**invisible**: Yahoo 404s, `allSettled` swallows it, and the row silently leaves
-the screen. So the probe exists and runs on a **GitHub runner**, the one place
-with open network, under `workflow_dispatch` only
-(`.github/workflows/sonda-mercado.yml`). It writes nothing. Run it after
-touching a symbol, a series number, or the window maths, and read the job log.
+Neither `query1.finance.yahoo.com`, `api.bcb.gov.br` nor `fred.stlouisfed.org`
+is reachable from the development sandbox — the egress proxy refuses them. A
+wrong ticker is **invisible**: Yahoo 404s, FRED returns a one-line CSV,
+`allSettled` swallows it, and the row silently leaves the screen. So the probe
+runs on a **GitHub runner**, the one place with open network. It writes nothing.
+
+It has earned its place: in three consecutive runs it found defects the screen
+did not show — USD/BRL vanishing under SGS throttling, the FX windows being
+computed from `getMacro`'s trimmed array, and series 4389 dying on
+`bruto.map is not a function` while the CDI kept rendering from a different
+series.
+
+**It runs daily at 12:47 UTC**, plus `workflow_dispatch`. Both parts of that
+time are deliberate and `verificar.mjs` defends them:
+
+- **Minute 47, not 0** — GitHub delays or drops schedules at the top of the
+  hour, the same reason the collector sits at minute 23.
+- **Away from minute 23** — the collector hits the SGS at 11:23/14:23/17:23/
+  20:23/23:23, and concurrent SGS requests are precisely the throttling this
+  probe exists to detect. Probing on top of a collection would manufacture the
+  failure it should be measuring.
+
+**The scheduled run takes a second pass before failing** (manual runs fail on
+the first, since someone is watching). Much of what the probe measures is other
+people's network: the Fed series returned HTTP 404 on 14/09 and answered
+normally minutes later. Strict, that becomes a daily email about a hiccup that
+fixes itself — the same cry-wolf failure the collector's tolerance policy
+addresses. A structural change (discontinued series, changed format, a source
+going stale) survives a second pass a minute later; a blip does not.
+
+Run it by hand after touching a symbol, a series number, or the window maths.
 
 ## Who chooses the Painel's "Acompanhados de perto"
 
