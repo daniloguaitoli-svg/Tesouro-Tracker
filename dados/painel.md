@@ -1,6 +1,6 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-09-17T20:24:20.227Z.
+Retrato gerado automaticamente em 2026-09-17T22:56:00.656Z.
 
 ## Acompanhados de perto
 
