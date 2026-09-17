@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-09-17T15:34:20.930Z",
+ "atualizadoEm": "2026-09-17T20:23:24.653Z",
  "fontes": {
   "fed": "FRED / St. Louis Fed (fredgraph.csv, DFEDTARU + DFEDTARL)",
   "bce": "ECB Data Portal (FM.B.U2.EUR.4F.KR.DFR/MRR_FR.LEV)"
@@ -8,11 +8,11 @@
  "fed": {
   "nome": "Federal Reserve (EUA)",
   "indicador": "Meta dos Fed Funds",
-  "limiteSuperior": 3.75,
-  "limiteInferior": 3.5,
-  "vigenteDesde": "2025-12-11",
-  "variacaoPP": -0.25,
-  "data": "2026-09-16",
+  "limiteSuperior": 4,
+  "limiteInferior": 3.75,
+  "vigenteDesde": "2026-09-17",
+  "variacaoPP": 0.25,
+  "data": "2026-09-17",
   "fonte": "FRED / St. Louis Fed (DFEDTARU, DFEDTARL)"
  },
  "bce": {
