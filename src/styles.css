@@ -261,6 +261,17 @@ body {
 .grade thead .col-nome { background: var(--surface-2); }
 .grade td, .grade th { padding: var(--s2) var(--s2); }
 
+/* A cotação comparada, embaixo do percentual. Herda a cor da célula de
+   propósito — se ficasse em --muted, a linha inteira perderia o sinal de alta
+   ou baixa que a cor do percentual carrega. A opacidade a põe em segundo plano
+   sem tirá-la do mesmo grupo visual.
+
+   `nowrap` porque o espaço do "de 5,1523" quebrava dentro da coluna de 66px e
+   a célula virava TRÊS linhas ("+0,10%" / "de" / "5,1523"), esticando a linha
+   inteira. Sem quebra a coluna alarga até caber, e alargar é de graça: a grade
+   já rola dentro de .rolagem. */
+.cel-base { font-size: 10px; opacity: 0.62; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* ---------- Tabelas ---------- */
 .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl th {

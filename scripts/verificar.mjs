@@ -864,6 +864,8 @@ for (const j of JUROS_DIARIOS) {
   conferir(j.serie !== (await import('../server/catalogo.js')).macroPorId[j.id]?.serie, `${j.id}: série diária (${j.serie}) difere da série de nível`);
 }
 
+const mercSrcBase = await ler("src/components/Mercado.jsx");
+
 // A aritmética das janelas, com fixture — é onde um erro passa calado.
 const { janelasDePreco, janelasDeRetorno, JANELAS } = datalayer;
 conferir(JANELAS.length === 5, `cinco janelas: ${JANELAS.join(", ")}`);
@@ -906,8 +908,49 @@ const curta = serieSint.slice(-5);
 conferir(janelasDePreco(curta).var12m === null, "janela sem histórico devolve null, não zero");
 conferir(janelasDePreco([]).var1d === null, "série vazia não explode");
 
+// --- A COTAÇÃO DE BASE, impressa embaixo do percentual na coluna do câmbio.
+// O risco aqui não é ela sumir — é aparecer um número que NÃO foi o usado na
+// conta. Ninguém confere 5,0918 de cabeça, então um base errado não seria
+// pego pelo olho: daria ao percentual uma confirmação falsa. Por isso duas
+// exigências, e não uma: refazer a conta a partir do par tem de devolver o
+// mesmo pct, e cada valor tem de ser o fechamento do ponto daquela data.
+const fechamentoEm = new Map(serieSint.map((p) => [p.date, p.close]));
+for (const k of JANELAS) {
+  const j = jp[k];
+  const refeito = ((j.valorAte - j.valorDe) / j.valorDe) * 100;
+  conferir(
+    Number.isFinite(j.valorDe) && Number.isFinite(j.valorAte) && Math.abs(refeito - j.pct) < 1e-9,
+    `preço: ${k} carrega o par que gerou o pct (${j.valorDe} → ${j.valorAte})`
+  );
+  conferir(
+    fechamentoEm.get(j.de) === j.valorDe && fechamentoEm.get(j.ate) === j.valorAte,
+    `preço: ${k} usa o fechamento das próprias datas (${j.de} → ${j.ate})`
+  );
+}
+// E o RETORNO não pode carregar base nenhuma: ali os pontos são taxas diárias,
+// então "de 0,05" embaixo de "+13,90%" seria a taxa de um dia posando de ponto
+// de partida do acumulado — duas grandezas diferentes na mesma célula. Sem o
+// campo, a célula simplesmente não desenha a segunda linha (o Cel exige
+// valorDe), e é isso que mantém `mostrarBase` inofensivo se um dia alguém
+// ligar a chave no grupo de juros.
+for (const k of JANELAS) {
+  conferir(jr[k].valorDe === undefined, `retorno: ${k} não finge ter cotação de base`);
+}
+// Os três pedaços da corrente, porque quebrar um deles não quebra nada
+// visível: a base só some da tela, calada. O payload declara o grupo, a tela
+// lê a chave, e o CSS mantém o par "de 5,1523" numa linha só — sem o nowrap a
+// célula voltava a ter três linhas e a grade inteira crescia.
+const dataSrc = await ler("server/datalayer.js");
+conferir(/mostrarBase: true/.test(dataSrc), "datalayer marca o grupo que mostra a cotação de base");
+conferir(/grupo\.mostrarBase/.test(mercSrcBase), "Mercado.jsx lê grupo.mostrarBase");
+conferir(/valorDe/.test(mercSrcBase), "Mercado.jsx imprime o valorDe embaixo do percentual");
+conferir(
+  /\.cel-base\s*\{[^}]*white-space:\s*nowrap/.test(await ler("src/styles.css")),
+  ".cel-base não quebra linha (o 'de 5,1523' cabe numa linha só)"
+);
+
 // E a tela tem de dizer que a coluna dos juros é retorno, não variação do nível.
-const mercSrc = await ler("src/components/Mercado.jsx");
+const mercSrc = mercSrcBase;
 conferir(/retorno acumulado/i.test(mercSrc), "Mercado explica que a coluna de juros é retorno acumulado");
 
 console.log("\ninflação por região");

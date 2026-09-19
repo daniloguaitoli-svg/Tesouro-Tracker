@@ -536,7 +536,13 @@ function variacaoUmDia(pontos) {
   const ult = pontos[pontos.length - 1];
   const ant = pontos[pontos.length - 2];
   if (ult?.close == null || ant?.close == null || !ant.close) return null;
-  return { pct: ((ult.close - ant.close) / ant.close) * 100, de: ant.date, ate: ult.date };
+  return {
+    pct: ((ult.close - ant.close) / ant.close) * 100,
+    de: ant.date,
+    ate: ult.date,
+    valorDe: ant.close,
+    valorAte: ult.close,
+  };
 }
 
 // No retorno, "1 dia" é a taxa do próprio dia — R$ 1 rendeu isso ontem para
@@ -734,7 +740,11 @@ export async function getMercado() {
     decisoes: { copom, fed: g.fed, bce: g.bce },
     globaisAtualizadosEm: g.atualizadoEm,
     grupos: [
-      { id: "cambio", nome: "Câmbio", colunas: COLUNAS_DIARIAS, comValor: true, linhas: cambio },
+      // `mostrarBase`: a cotação que entrou na conta aparece embaixo do
+      // percentual. Só no câmbio por ora — é onde o número comparado é uma
+      // cotação que a pessoa reconhece de cabeça. O dado vai no payload de toda
+      // linha de PREÇO, então estender às bolsas é virar esta chave.
+      { id: "cambio", nome: "Câmbio", colunas: COLUNAS_DIARIAS, comValor: true, mostrarBase: true, linhas: cambio },
       { id: "juros", nome: "Juros", colunas: COLUNAS_DIARIAS, comValor: true, linhas: juros },
       { id: "bolsas", nome: "Bolsas", colunas: COLUNAS_DIARIAS, comValor: true, linhas: bolsas },
       // Sem coluna de valor: o NÍVEL de um índice de preços (CPI = 327,4) não

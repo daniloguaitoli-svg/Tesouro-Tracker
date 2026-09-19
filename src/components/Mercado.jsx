@@ -35,11 +35,20 @@ function CartaoDecisao({ d, taxaPrincipal, detalhe }) {
 // Uma célula de janela. Guarda o `—` para quando a série não alcança a janela
 // (um índice com dois anos de histórico não tem 12 meses em 2 de janeiro), em
 // vez de fingir um zero.
-function Cel({ j }) {
+function Cel({ j, base, casas }) {
   if (!j || j.pct == null || !Number.isFinite(j.pct)) return <td className="rt mono muted">—</td>;
   return (
     <td className={`rt mono ${sinal(j.pct)}`} title={`${dataBR(j.de)} → ${dataBR(j.ate)}`}>
       {pct(j.pct)}
+      {/* A cotação que entrou na conta, embaixo. "-6,27% no ano" sozinho não
+          deixa ninguém conferir: o "de" diz que aquele é o ponto de partida, e
+          o de chegada é a coluna "Último" da mesma linha. */}
+      {base && j.valorDe != null && (
+        <>
+          <br />
+          <span className="cel-base">de {num(j.valorDe, casas ?? 2)}</span>
+        </>
+      )}
     </td>
   );
 }
@@ -58,7 +67,13 @@ function Grade({ grupo }) {
     <>
       <div className="section-title">{grupo.nome}</div>
       <div className="rolagem">
-        <table className="tbl grade" style={{ minWidth: 150 + (grupo.comValor ? 80 : 0) + colunas.length * 66 }}>
+        {/* O piso de largura por coluna sobe quando a célula leva a cotação
+            de base embaixo: "de 5,1523" ocupa mais que "+0,10%". É só piso —
+            o layout automático alarga sozinho se a fonte real for mais larga. */}
+        <table
+          className="tbl grade"
+          style={{ minWidth: 150 + (grupo.comValor ? 80 : 0) + colunas.length * (grupo.mostrarBase ? 82 : 66) }}
+        >
           <thead>
             <tr>
               <th className="col-nome">Indicador</th>
@@ -89,7 +104,7 @@ function Grade({ grupo }) {
                   </td>
                 )}
                 {colunas.map((c) => (
-                  <Cel key={c.id} j={l[c.id]} />
+                  <Cel key={c.id} j={l[c.id]} base={grupo.mostrarBase} casas={l.casas} />
                 ))}
               </tr>
             ))}

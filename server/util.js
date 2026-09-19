@@ -147,10 +147,16 @@ export function variacaoPeriodo(pontos, dias) {
   }
   if (!base || !base.close) return null;
 
+  // `valorDe`/`valorAte` acompanham as datas de propósito: a tela mostra a
+  // cotação que entrou na conta embaixo do percentual, porque "-6,27% no ano"
+  // sozinho não deixa ninguém conferir nem entender a ordem de grandeza. É a
+  // diferença entre um número que se lê e um número em que se acredita.
   return {
     pct: ((ultimo.close - base.close) / base.close) * 100,
     de: base.date,
     ate: ultimo.date,
+    valorDe: base.close,
+    valorAte: ultimo.close,
   };
 }
 
@@ -175,7 +181,13 @@ export function variacaoNoAno(pontos) {
   }
   if (!base || !base.close) return null;
 
-  return { pct: ((ultimo.close - base.close) / base.close) * 100, de: base.date, ate: ultimo.date };
+  return {
+    pct: ((ultimo.close - base.close) / base.close) * 100,
+    de: base.date,
+    ate: ultimo.date,
+    valorDe: base.close,
+    valorAte: ultimo.close,
+  };
 }
 
 // ---------- Retorno acumulado de uma série de taxas diárias ----------
