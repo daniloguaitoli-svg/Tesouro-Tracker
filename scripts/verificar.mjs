@@ -938,15 +938,15 @@ for (const k of JANELAS) {
 }
 // Os três pedaços da corrente, porque quebrar um deles não quebra nada
 // visível: a base só some da tela, calada. O payload declara o grupo, a tela
-// lê a chave, e o CSS mantém o par "de 5,1523" numa linha só — sem o nowrap a
-// célula voltava a ter três linhas e a grade inteira crescia.
+// lê a chave, e o CSS mantém a cotação numa linha só — foi o que faltou quando
+// a base ainda dizia "de 5,1523" e a célula virava três linhas.
 const dataSrc = await ler("server/datalayer.js");
 conferir(/mostrarBase: true/.test(dataSrc), "datalayer marca o grupo que mostra a cotação de base");
 conferir(/grupo\.mostrarBase/.test(mercSrcBase), "Mercado.jsx lê grupo.mostrarBase");
 conferir(/valorDe/.test(mercSrcBase), "Mercado.jsx imprime o valorDe embaixo do percentual");
 conferir(
   /\.cel-base\s*\{[^}]*white-space:\s*nowrap/.test(await ler("src/styles.css")),
-  ".cel-base não quebra linha (o 'de 5,1523' cabe numa linha só)"
+  ".cel-base não quebra linha (a cotação de base cabe numa linha só)"
 );
 
 // E a tela tem de dizer que a coluna dos juros é retorno, não variação do nível.

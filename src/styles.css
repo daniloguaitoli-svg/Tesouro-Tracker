@@ -266,10 +266,11 @@ body {
    ou baixa que a cor do percentual carrega. A opacidade a põe em segundo plano
    sem tirá-la do mesmo grupo visual.
 
-   `nowrap` porque o espaço do "de 5,1523" quebrava dentro da coluna de 66px e
-   a célula virava TRÊS linhas ("+0,10%" / "de" / "5,1523"), esticando a linha
-   inteira. Sem quebra a coluna alarga até caber, e alargar é de graça: a grade
-   já rola dentro de .rolagem. */
+   `nowrap` porque a base já quebrou uma vez: enquanto vinha com o rótulo "de",
+   o espaço quebrava dentro da coluna de 66px e a célula virava TRÊS linhas
+   ("+0,10%" / "de" / "5,1523"), esticando a linha inteira. O rótulo saiu e hoje
+   não há onde quebrar, mas a regra fica: é ela que garante uma linha só se a
+   base voltar a ganhar prefixo, sufixo ou unidade. */
 .cel-base { font-size: 10px; opacity: 0.62; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---------- Tabelas ---------- */

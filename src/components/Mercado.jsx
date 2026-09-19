@@ -41,12 +41,14 @@ function Cel({ j, base, casas }) {
     <td className={`rt mono ${sinal(j.pct)}`} title={`${dataBR(j.de)} → ${dataBR(j.ate)}`}>
       {pct(j.pct)}
       {/* A cotação que entrou na conta, embaixo. "-6,27% no ano" sozinho não
-          deixa ninguém conferir: o "de" diz que aquele é o ponto de partida, e
-          o de chegada é a coluna "Último" da mesma linha. */}
+          deixa ninguém conferir: este é o ponto de partida, e o de chegada é a
+          coluna "Último" da mesma linha. Sem rótulo de propósito — a posição
+          (menor, embaixo de um percentual, numa grade de cotações) já diz o que
+          é, e um "de" repetido dez vezes na tela só ocupa espaço. */}
       {base && j.valorDe != null && (
         <>
           <br />
-          <span className="cel-base">de {num(j.valorDe, casas ?? 2)}</span>
+          <span className="cel-base">{num(j.valorDe, casas ?? 2)}</span>
         </>
       )}
     </td>
@@ -67,13 +69,7 @@ function Grade({ grupo }) {
     <>
       <div className="section-title">{grupo.nome}</div>
       <div className="rolagem">
-        {/* O piso de largura por coluna sobe quando a célula leva a cotação
-            de base embaixo: "de 5,1523" ocupa mais que "+0,10%". É só piso —
-            o layout automático alarga sozinho se a fonte real for mais larga. */}
-        <table
-          className="tbl grade"
-          style={{ minWidth: 150 + (grupo.comValor ? 80 : 0) + colunas.length * (grupo.mostrarBase ? 82 : 66) }}
-        >
+        <table className="tbl grade" style={{ minWidth: 150 + (grupo.comValor ? 80 : 0) + colunas.length * 66 }}>
           <thead>
             <tr>
               <th className="col-nome">Indicador</th>

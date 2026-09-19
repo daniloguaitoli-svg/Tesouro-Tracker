@@ -562,7 +562,9 @@ factors) that currently land 0.0001 p.p. apart. If either starts summing instead
 of compounding, or slips a window edge, that check opens.
 
 **The FX rows print the quote that went into each percentage** underneath the
-percentage itself — `-6,27%` over `de 5,5025`. "Down 6.27% this year" alone is
+percentage itself — `-6,27%` over `5,5025`, with no label: the position (smaller,
+under a percentage, in a grid of quotes) already says what it is, and a "de"
+repeated ten times on screen is just clutter. "Down 6.27% this year" alone is
 not checkable: the reader cannot tell whether the starting point was 5.50 or
 5.05, and the order of magnitude is half the information. The pair travels on
 the payload as `valorDe` / `valorAte` next to `de` / `ate`, so the number shown
@@ -575,9 +577,10 @@ day's rate posing as the starting point of an accumulated return — the cell
 simply omits the second line instead. And the group flag is `mostrarBase`, set
 on `cambio` only; every price row already carries the pair, so extending it to
 the exchanges is flipping that one key. The base line inherits the cell's
-up/down colour (dimmed, not `--muted`, or the row loses its signal) and is
-`nowrap`: with the space free to break, "de 5,1523" split into three lines per
-cell and stretched the whole row.
+up/down colour (dimmed, not `--muted`, or the row loses its signal) and stays
+`nowrap`: while the label was still there, that space broke inside the 66px
+column and the cell became three lines, stretching the whole row. Nothing can
+break today, but the rule stays as the guard for any future prefix or unit.
 
 The grid is a table, not cards: the reading is comparing the *same window across
 different indicators*, and that is a column. Seven columns do not fit 390px, so
