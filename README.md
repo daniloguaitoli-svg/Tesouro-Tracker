@@ -266,6 +266,13 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   duas curvas é a inflação implícita.
 - **LFT não tem duration** por construção: é pós-fixada e a "taxa" cotada é
   ágio/deságio sobre a Selic (pode ser negativa).
+- **USD/EUR é cruzamento, não cotação negociada.** O SGS não publica o par: a
+  linha sai das duas pernas em real da PTAX (R$ por US$ ÷ R$ por €), o que a faz
+  fechar com as duas linhas acima dela na tela — e a torna o euro-dólar
+  *implícito* no fixing do Banco Central, por volta das 13h, não o par negociado
+  naquele instante. O número é o dólar em euros (~0,87), na mesma direção de
+  USD/BRL; o EUR/USD de mercado (~1,15) é o inverso dele.
+
 - **"Vigente desde", não "decidido em".** As datas de Copom/Fed/BCE são o dia
   em que a taxa nova passou a valer, derivado das séries — não a data da
   reunião.

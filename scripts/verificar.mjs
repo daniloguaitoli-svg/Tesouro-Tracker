@@ -936,6 +936,43 @@ for (const k of JANELAS) {
 for (const k of JANELAS) {
   conferir(jr[k].valorDe === undefined, `retorno: ${k} não finge ter cotação de base`);
 }
+// --- USD/EUR, que é CRUZAMENTO e não série própria. O risco aqui é casar por
+// posição em vez de data: as duas pernas da PTAX quase sempre têm os mesmos
+// dias, e o "quase" só aparece num feriado de um lado — dividindo a cotação de
+// ontem pela de hoje, calado, com cara de certeza.
+const pernaUsd = [
+  { date: "2026-09-15", close: 5.40 },
+  { date: "2026-09-16", close: 5.20 }, // dia que só existe do lado do dólar
+  { date: "2026-09-17", close: 5.00 },
+];
+const pernaEur = [
+  { date: "2026-09-15", close: 6.00 },
+  { date: "2026-09-17", close: 5.00 },
+];
+const cruz = util.cruzarSeries(pernaUsd, pernaEur);
+conferir(cruz.length === 2, `cruzamento fica só nas datas que existem dos dois lados (${cruz.length})`);
+conferir(cruz.every((p) => p.date !== "2026-09-16"), "o dia sem par do outro lado não entra");
+conferir(Math.abs(cruz[0].close - 0.9) < 1e-9, `5,40 / 6,00 = 0,90 (${cruz[0].close})`);
+conferir(cruz[1].date === "2026-09-17" && cruz[1].close === 1, "casa por data, não por posição (senão 5,00/5,00 sairia errado)");
+// E a identidade que a tela promete: dividir as duas primeiras linhas do câmbio
+// dá a terceira. É o que justifica cruzar a PTAX em vez de buscar um EUR/USD de
+// mercado, cotado em outro instante do dia.
+const ultCruz = cruz[cruz.length - 1];
+conferir(
+  Math.abs(ultCruz.close - pernaUsd[2].close / pernaEur[1].close) < 1e-9,
+  "a linha cruzada fecha com as duas de cima na mesma data"
+);
+conferir(util.cruzarSeries(null, pernaEur).length === 0 && util.cruzarSeries(pernaUsd, []).length === 0,
+  "perna ausente ou vazia devolve série vazia (a linha sai como '—')");
+// Divisor zero não pode virar Infinity na tela.
+conferir(util.cruzarSeries([{ date: "2026-09-17", close: 5 }], [{ date: "2026-09-17", close: 0 }]).length === 0,
+  "divisor zero é descartado, não vira Infinity");
+// O datalayer tem de montar a linha a partir das duas pernas, e não de uma
+// terceira série do SGS que não existe.
+const dataSrcCruz = await ler("server/datalayer.js");
+conferir(/cruzarSeries\(serieDe\.usdbrl, serieDe\.eurbrl\)/.test(dataSrcCruz), "USD/EUR sai do cruzamento das duas pernas da PTAX");
+conferir(/USD\/EUR/.test(await ler("src/components/Mercado.jsx")), "a tela explica que USD/EUR é o dólar em euros");
+
 // Os três pedaços da corrente, porque quebrar um deles não quebra nada
 // visível: a base só some da tela, calada. O payload declara o grupo, a tela
 // lê a chave, e o CSS mantém a cotação numa linha só — foi o que faltou quando

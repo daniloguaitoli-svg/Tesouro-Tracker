@@ -202,6 +202,34 @@ for (const g of m.grupos) {
     }
   }
 }
+// A identidade que a grade promete ao leitor: dividir as duas primeiras linhas
+// do câmbio dá a terceira. Com fixture isso já é conferido no verificar; aqui a
+// pergunta é outra e só a rede responde — se as três linhas estão no MESMO dia.
+// Um feriado de um lado só, ou uma perna atualizando antes da outra, não quebra
+// nada visível: a conta continua fechando dentro da linha, mas com a data de
+// ontem ao lado de duas de hoje.
+{
+  const porId = Object.fromEntries((m.grupos.find((g) => g.id === "cambio")?.linhas || []).map((l) => [l.id, l]));
+  const { usdbrl, eurbrl, usdeur } = porId;
+  if (usdbrl?.valor && eurbrl?.valor && usdeur?.valor) {
+    const esperado = usdbrl.valor / eurbrl.valor;
+    const erro = Math.abs(esperado - usdeur.valor);
+    const mesmoDia = usdbrl.data === eurbrl.data && eurbrl.data === usdeur.data;
+    console.log(
+      `\n  ${marcar(erro < 5e-4)} USD/EUR fecha com as duas pernas: ${usdbrl.valor} / ${eurbrl.valor} = ` +
+        `${esperado.toFixed(4)} contra ${usdeur.valor} na tela`
+    );
+    if (erro >= 5e-4) falhas++;
+    console.log(
+      `  ${mesmoDia ? "ok   " : "aviso"} datas das três linhas: ${usdbrl.data}, ${eurbrl.data}, ${usdeur.data}` +
+        (mesmoDia ? "" : "  — a cruzada anda no último dia em que as duas pernas existem")
+    );
+  } else {
+    console.log(`\n  ${marcar(false)} USD/EUR: alguma perna do cruzamento veio vazia`);
+    falhas++;
+  }
+}
+
 if (m.indisponiveis.length) { console.log(`\n  indisponíveis: ${m.indisponiveis.join(", ")}`); falhas += m.indisponiveis.length; }
 
 console.log(`\n${falhas === 0 ? "sonda limpa" : `${falhas} problema(s)`}`);

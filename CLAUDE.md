@@ -561,6 +561,23 @@ months. Two independent code paths (a ratio of two prices; a product of 252
 factors) that currently land 0.0001 p.p. apart. If either starts summing instead
 of compounding, or slips a window edge, that check opens.
 
+**USD/EUR is a cross, built from the other two rows**, not a third SGS series —
+the BCB does not publish the pair. `cruzarSeries()` in `util.js` divides the two
+BRL legs of the same PTAX fixing (BRL per USD ÷ BRL per EUR), which buys a
+property worth having: dividing the two rows above it on screen gives exactly
+the third. A EUR/USD quote from somewhere else, taken at another moment of the
+day, would not close with them, and three numbers that don't reconcile in an FX
+grid read as a bug. The honest caveat, stated in the note and the README, is
+that this is the euro-dollar *implied by* the ~13:00 PTAX fixing, not the traded
+pair. It joins **by date, never by position** — the two legs almost always share
+their days, and "almost" is a holiday on one side dividing yesterday's quote by
+today's, silently.
+
+The direction follows the neighbours: `USD/EUR` is the price of the dollar in
+euros (~0.87), exactly as `USD/BRL` is its price in reais. Market convention
+quotes EUR/USD (~1.15), the reciprocal; inverting this one row alone would break
+the reading of the other two, so the note explains it instead.
+
 **The FX rows print the quote that went into each percentage** underneath the
 percentage itself — `-6,27%` over `5,5025`, with no label: the position (smaller,
 under a percentage, in a grid of quotes) already says what it is, and a "de"

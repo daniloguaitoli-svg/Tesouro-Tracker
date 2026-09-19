@@ -179,6 +179,13 @@ export function Mercado() {
         "Ibovespa +12%". O retorno se compara, e é por isso que ele está aqui. O número na
         coluna do valor continua sendo a taxa anualizada, que é como ela se cota.
         <br />
+        <strong>USD/EUR é o dólar em euros</strong> (0,87 = 87 centavos de euro por dólar),
+        na mesma direção de USD/BRL, e sai do cruzamento das duas linhas acima: dividir o
+        USD/BRL pelo EUR/BRL dá exatamente este número. Como as duas pernas vêm do mesmo
+        fixing da PTAX, ele é o euro-dólar implícito na cotação do Banco Central por volta
+        das 13h, e não o par negociado em tempo real — pode diferir um pouco do EUR/USD de
+        mercado, que é o inverso deste (~1,15).
+        <br />
         Cada praça fecha na sua hora, então as datas legitimamente não batem entre si — cada
         linha carrega a sua. Índices estrangeiros estão na moeda de origem, sem conversão.
         <br />

@@ -225,6 +225,33 @@ export function retornoNoAno(pontosDiarios) {
   return retornoAcumulado(pontosDiarios, `${Number(ultimo.date.slice(0, 4)) - 1}-12-31`);
 }
 
+// ---------- Cruzamento de duas séries de preço ----------
+//
+// O dólar em euros não tem série no SGS: sai da divisão das duas pernas em real
+// da PTAX. (R$ por US$) ÷ (R$ por €) = € por US$ — o real cancela.
+//
+// Cruzar as duas pernas do MESMO fixing, em vez de buscar um EUR/USD de
+// mercado, é o que mantém a linha coerente com as duas de cima: dividir os dois
+// números que estão na tela dá exatamente o terceiro. Um par vindo de outra
+// fonte, cotado em outro instante do dia, não fecharia com eles — e três
+// números que não fecham numa grade de câmbio são um defeito, não uma nuance.
+//
+// Casa por DATA, nunca por posição. As duas séries quase sempre têm os mesmos
+// dias, e "quase sempre" alinhado por índice é exatamente o tipo de erro que
+// sai calado: bastaria um feriado de um lado só para dividir a cotação de
+// ontem pela de hoje e publicar o resultado com cara de certeza.
+export function cruzarSeries(numerador, denominador, casas = 6) {
+  if (!Array.isArray(numerador) || !Array.isArray(denominador)) return [];
+  const den = new Map(denominador.map((p) => [p.date, p.close]));
+  const saida = [];
+  for (const p of numerador) {
+    const d = den.get(p.date);
+    if (!Number.isFinite(p?.close) || !Number.isFinite(d) || !d) continue;
+    saida.push({ date: p.date, close: Number((p.close / d).toFixed(casas)) });
+  }
+  return saida;
+}
+
 // ---------- Janelas de inflação (séries MENSAIS) ----------
 //
 // Inflação não se mede com janela de dias. "12 meses" é o mesmo mês do ano
