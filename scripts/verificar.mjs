@@ -1177,6 +1177,18 @@ for (const [nome, chave] of [["alertas", chaveAlertas], ["destaques", chaveDesta
   conferir(chave && doc.includes(chave), `CLAUDE.md documenta a chave de ${nome} (${chave})`);
 }
 
+// Casas decimais fixas por tipo de número. Um zero à direita que some não dá
+// erro nenhum — só desalinha a vírgula numa coluna de tabular-nums e faz duas
+// cotações com a mesma precisão parecerem ter precisões diferentes. É o tipo
+// de coisa que volta numa mexida distraída no formatador.
+console.log("\ncasas decimais");
+conferir(fmt.num(5.15, 4) === "5,1500" && fmt.num(1.178, 4) === "1,1780", `câmbio sempre com 4 casas (${fmt.num(5.15, 4)})`);
+conferir(fmt.num(1.1464, 4) === "1,1464", "4 casas não arredondam a cotação cheia");
+conferir(fmt.reais(4321) === "R$ 4.321,00" && fmt.reais(4321.5) === "R$ 4.321,50", `PU sempre com 2 casas (${fmt.reais(4321.5)})`);
+conferir(fmt.reais(4321.456) === "R$ 4.321,46", "PU arredonda na segunda casa, não trunca");
+conferir(fmt.num(139512, 0) === "139.512", `índice em pontos segue sem decimais (${fmt.num(139512, 0)})`);
+conferir(fmt.num(null, 4) === "—" && fmt.num(Infinity, 2) === "—", "ausente e não-finito continuam '—'");
+
 const { PERIODICIDADE } = await import("../src/format.js");
 const mesmasChaves =
   Object.keys(util.ROTULO_PERIODICIDADE).length === Object.keys(PERIODICIDADE).length &&

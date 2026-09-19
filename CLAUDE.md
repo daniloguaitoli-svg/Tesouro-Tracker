@@ -823,10 +823,17 @@ existing bridge file.
   exists, why `createRequire` and not `readFile`, why parsing is tolerant).
   Match that density — it's the house style.
 - **Numbers go through `src/format.js`** (`num`, `taxa`, `reais`, `pct`, `pp`,
-  `anos`, `dataBR`, …) and render with the `mono` class. `num(v, 0)` is the
-  no-decimals form, for index points (Ibovespa) — it has its own branch because
-  the fallback formatter has `minimumFractionDigits: 2` and would silently
-  ignore the request. Note `pct` vs `pp`:
+  `anos`, `dataBR`, …) and render with the `mono` class. **FX quotes are exactly
+  4 decimals (`num(v, 4)`) and money exactly 2 (`reais`)** — both formatters have
+  `minimumFractionDigits` equal to the maximum, so a trailing zero is printed
+  rather than dropped. In a `tabular-nums` column a dropped zero misaligns the
+  decimal separator and makes two quotes of the same precision look like they
+  have different ones. `num(v, 0)` is the no-decimals form, for index points
+  (Ibovespa) — it has its own branch because the fallback formatter has
+  `minimumFractionDigits: 2` and would silently ignore the request. That
+  fallback still swallows any other `casas` (`num(v, 1)` renders 2 decimals, so
+  `anos()` shows `2,65 a` rather than `2,7 a`); leave it or fix it deliberately,
+  but do not assume an arbitrary `casas` is honoured. Note `pct` vs `pp`:
   **prices** move in percent, **rates** move in percentage points. Mixing them
   is a real error, not a style nit.
 - **Rate direction is inverted for colour.** Rate up = price down. `sinalTaxa()`

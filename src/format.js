@@ -4,7 +4,12 @@ const nf = (min, max) => new Intl.NumberFormat("pt-BR", { minimumFractionDigits:
 const nf0 = nf(0, 0);
 const nf2 = nf(2, 2);
 const nf3 = nf(2, 3);
-const nf4 = nf(2, 4);
+// 4 casas EXATAS, mínimo e máximo. Este é o formatador do câmbio, e numa coluna
+// de cotações o zero à direita não é enfeite: com mínimo 2 uma PTAX de 5,1500
+// saía "5,15" e um EUR/USD de 1,1780 saía "1,178", então a vírgula desalinhava
+// da linha de cima e duas cotações com a mesma precisão apareciam com
+// precisões diferentes. Os PUs continuam em nf2, que já era exato (2, 2).
+const nf4 = nf(4, 4);
 
 export function num(v, casas = 2) {
   if (v == null || !Number.isFinite(v)) return "—";
