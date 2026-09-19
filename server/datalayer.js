@@ -659,32 +659,32 @@ export async function getMercado() {
     };
   });
 
-  // USD/EUR sai do CRUZAMENTO das duas linhas acima, não de uma terceira série:
+  // EUR/USD sai do CRUZAMENTO das duas linhas acima, não de uma terceira série:
   // o SGS não publica o par, e o que ele publica são as duas pernas em real do
-  // mesmo fixing. Dividir uma pela outra cancela o real e dá o euro por dólar —
-  // com a vantagem de a grade fechar consigo mesma: 5,1575 ÷ 5,9126 é o 0,8723
-  // da terceira linha, conferível na própria tela.
+  // mesmo fixing. Dividir uma pela outra cancela o real — com a vantagem de a
+  // grade fechar consigo mesma: 5,9126 ÷ 5,1575 é o 1,1464 da terceira linha,
+  // conferível na própria tela.
   //
-  // A direção segue a das vizinhas: "USD/EUR" é o preço do dólar em euros, do
-  // mesmo jeito que "USD/BRL" é o preço do dólar em reais. Quem está acostumado
-  // com o EUR/USD de mercado (~1,15) lê o inverso deste número; inverter só
-  // esta linha quebraria a leitura das outras duas.
-  const serieUsdEur = cruzarSeries(serieDe.usdbrl, serieDe.eurbrl);
-  const ultUsdEur = serieUsdEur[serieUsdEur.length - 1];
+  // EUR/USD e não USD/EUR por dois motivos que apontam para o mesmo lado. É
+  // como o mercado cota o par, e é também o que mantém a leitura das três
+  // linhas idêntica: "XXX/YYY" é o preço de XXX em YYY, então 5,1575 reais por
+  // dólar, 5,9126 reais por euro e 1,1464 dólares por euro.
+  const serieEurUsd = cruzarSeries(serieDe.eurbrl, serieDe.usdbrl);
+  const ultEurUsd = serieEurUsd[serieEurUsd.length - 1];
   cambio.push({
-    id: "usdeur",
-    nome: "USD/EUR",
+    id: "eurusd",
+    nome: "EUR/USD",
     // A data é a do último dia em que as DUAS pernas existem. Num feriado só de
     // um lado a linha fica um dia atrás das vizinhas — e diz isso, em vez de
     // cruzar dias diferentes para parecer atual.
     sub: "PTAX cruzada",
-    valor: ultUsdEur?.close ?? null,
+    valor: ultEurUsd?.close ?? null,
     casas: 4,
-    unidade: "EUR",
-    data: ultUsdEur?.date ?? null,
+    unidade: "USD",
+    data: ultEurUsd?.date ?? null,
     base: "preco",
-    ...janelasDePreco(serieUsdEur),
-    fonte: `BCB / SGS (séries ${macroPorId.usdbrl.serie} ÷ ${macroPorId.eurbrl.serie})`,
+    ...janelasDePreco(serieEurUsd),
+    fonte: `BCB / SGS (séries ${macroPorId.eurbrl.serie} ÷ ${macroPorId.usdbrl.serie})`,
   });
 
   // --- Juros: nível anualizado na coluna do valor, retorno composto nas

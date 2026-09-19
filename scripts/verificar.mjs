@@ -936,7 +936,7 @@ for (const k of JANELAS) {
 for (const k of JANELAS) {
   conferir(jr[k].valorDe === undefined, `retorno: ${k} não finge ter cotação de base`);
 }
-// --- USD/EUR, que é CRUZAMENTO e não série própria. O risco aqui é casar por
+// --- EUR/USD, que é CRUZAMENTO e não série própria. O risco aqui é casar por
 // posição em vez de data: as duas pernas da PTAX quase sempre têm os mesmos
 // dias, e o "quase" só aparece num feriado de um lado — dividindo a cotação de
 // ontem pela de hoje, calado, com cara de certeza.
@@ -970,8 +970,15 @@ conferir(util.cruzarSeries([{ date: "2026-09-17", close: 5 }], [{ date: "2026-09
 // O datalayer tem de montar a linha a partir das duas pernas, e não de uma
 // terceira série do SGS que não existe.
 const dataSrcCruz = await ler("server/datalayer.js");
-conferir(/cruzarSeries\(serieDe\.usdbrl, serieDe\.eurbrl\)/.test(dataSrcCruz), "USD/EUR sai do cruzamento das duas pernas da PTAX");
-conferir(/USD\/EUR/.test(await ler("src/components/Mercado.jsx")), "a tela explica que USD/EUR é o dólar em euros");
+conferir(/cruzarSeries\(serieDe\.eurbrl, serieDe\.usdbrl\)/.test(dataSrcCruz), "EUR/USD sai do cruzamento das duas pernas da PTAX");
+// A DIREÇÃO do par, que é o tipo de coisa que inverte numa refatoração e passa:
+// 1,1464 e 0,8723 são os dois números plausíveis, e só um deles é o que o
+// mercado cota. O euro vai no numerador — dólares por euro.
+conferir(
+  /nome: "EUR\/USD"/.test(dataSrcCruz) && !/nome: "USD\/EUR"/.test(dataSrcCruz),
+  "o par é publicado como EUR/USD (dólares por euro), padrão de mercado"
+);
+conferir(/EUR\/USD/.test(await ler("src/components/Mercado.jsx")), "a tela explica a leitura XXX/YYY das três linhas de câmbio");
 
 // Os três pedaços da corrente, porque quebrar um deles não quebra nada
 // visível: a base só some da tela, calada. O payload declara o grupo, a tela

@@ -210,22 +210,25 @@ for (const g of m.grupos) {
 // ontem ao lado de duas de hoje.
 {
   const porId = Object.fromEntries((m.grupos.find((g) => g.id === "cambio")?.linhas || []).map((l) => [l.id, l]));
-  const { usdbrl, eurbrl, usdeur } = porId;
-  if (usdbrl?.valor && eurbrl?.valor && usdeur?.valor) {
-    const esperado = usdbrl.valor / eurbrl.valor;
-    const erro = Math.abs(esperado - usdeur.valor);
-    const mesmoDia = usdbrl.data === eurbrl.data && eurbrl.data === usdeur.data;
+  const { usdbrl, eurbrl, eurusd } = porId;
+  if (usdbrl?.valor && eurbrl?.valor && eurusd?.valor) {
+    const esperado = eurbrl.valor / usdbrl.valor;
+    const erro = Math.abs(esperado - eurusd.valor);
+    const mesmoDia = usdbrl.data === eurbrl.data && eurbrl.data === eurusd.data;
     console.log(
-      `\n  ${marcar(erro < 5e-4)} USD/EUR fecha com as duas pernas: ${usdbrl.valor} / ${eurbrl.valor} = ` +
-        `${esperado.toFixed(4)} contra ${usdeur.valor} na tela`
+      `\n  ${marcar(erro < 5e-4)} EUR/USD fecha com as duas pernas: ${eurbrl.valor} / ${usdbrl.valor} = ` +
+        `${esperado.toFixed(4)} contra ${eurusd.valor} na tela`
     );
     if (erro >= 5e-4) falhas++;
+    // Sanidade de DIREÇÃO, e não só de aritmética: 0,87 também "fecha", mas com
+    // as pernas trocadas. O euro vale mais que o dólar desde 2002.
+    if (eurusd.valor < 1) { console.log(`  ${marcar(false)} EUR/USD saiu ${eurusd.valor} — isso é dólar por euro invertido`); falhas++; }
     console.log(
-      `  ${mesmoDia ? "ok   " : "aviso"} datas das três linhas: ${usdbrl.data}, ${eurbrl.data}, ${usdeur.data}` +
+      `  ${mesmoDia ? "ok   " : "aviso"} datas das três linhas: ${usdbrl.data}, ${eurbrl.data}, ${eurusd.data}` +
         (mesmoDia ? "" : "  — a cruzada anda no último dia em que as duas pernas existem")
     );
   } else {
-    console.log(`\n  ${marcar(false)} USD/EUR: alguma perna do cruzamento veio vazia`);
+    console.log(`\n  ${marcar(false)} EUR/USD: alguma perna do cruzamento veio vazia`);
     falhas++;
   }
 }

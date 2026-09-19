@@ -561,9 +561,9 @@ months. Two independent code paths (a ratio of two prices; a product of 252
 factors) that currently land 0.0001 p.p. apart. If either starts summing instead
 of compounding, or slips a window edge, that check opens.
 
-**USD/EUR is a cross, built from the other two rows**, not a third SGS series —
+**EUR/USD is a cross, built from the other two rows**, not a third SGS series —
 the BCB does not publish the pair. `cruzarSeries()` in `util.js` divides the two
-BRL legs of the same PTAX fixing (BRL per USD ÷ BRL per EUR), which buys a
+BRL legs of the same PTAX fixing (BRL per EUR ÷ BRL per USD), which buys a
 property worth having: dividing the two rows above it on screen gives exactly
 the third. A EUR/USD quote from somewhere else, taken at another moment of the
 day, would not close with them, and three numbers that don't reconcile in an FX
@@ -573,10 +573,12 @@ pair. It joins **by date, never by position** — the two legs almost always sha
 their days, and "almost" is a holiday on one side dividing yesterday's quote by
 today's, silently.
 
-The direction follows the neighbours: `USD/EUR` is the price of the dollar in
-euros (~0.87), exactly as `USD/BRL` is its price in reais. Market convention
-quotes EUR/USD (~1.15), the reciprocal; inverting this one row alone would break
-the reading of the other two, so the note explains it instead.
+The direction is `EUR/USD` (~1.15), for two reasons pointing the same way: it is
+how the market quotes the pair, and it is what keeps all three rows reading
+identically — `XXX/YYY` is the price of XXX in YYY, so reais per dollar, reais
+per euro, dollars per euro. `verificar.mjs` pins the direction, because 1.1464
+and 0.8723 are both plausible-looking numbers and an inversion would survive a
+refactor unnoticed; the probe additionally rejects a live value below 1.
 
 **The FX rows print the quote that went into each percentage** underneath the
 percentage itself — `-6,27%` over `5,5025`, with no label: the position (smaller,
