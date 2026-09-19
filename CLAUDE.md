@@ -823,17 +823,18 @@ existing bridge file.
   exists, why `createRequire` and not `readFile`, why parsing is tolerant).
   Match that density — it's the house style.
 - **Numbers go through `src/format.js`** (`num`, `taxa`, `reais`, `pct`, `pp`,
-  `anos`, `dataBR`, …) and render with the `mono` class. **FX quotes are exactly
-  4 decimals (`num(v, 4)`) and money exactly 2 (`reais`)** — both formatters have
-  `minimumFractionDigits` equal to the maximum, so a trailing zero is printed
-  rather than dropped. In a `tabular-nums` column a dropped zero misaligns the
-  decimal separator and makes two quotes of the same precision look like they
-  have different ones. `num(v, 0)` is the no-decimals form, for index points
-  (Ibovespa) — it has its own branch because the fallback formatter has
-  `minimumFractionDigits: 2` and would silently ignore the request. That
-  fallback still swallows any other `casas` (`num(v, 1)` renders 2 decimals, so
-  `anos()` shows `2,65 a` rather than `2,7 a`); leave it or fix it deliberately,
-  but do not assume an arbitrary `casas` is honoured. Note `pct` vs `pp`:
+  `anos`, `dataBR`, …) and render with the `mono` class. **`casas` is exact and
+  honoured for any value**: `num()` builds one cached `Intl.NumberFormat` per
+  decimal count with `minimumFractionDigits === maximumFractionDigits`, so the
+  call site decides and a trailing zero is printed rather than dropped. That
+  gives FX 4 decimals (`5,1500`), money 2 (`R$ 4.321,00`), duration 1
+  (`2,7 a`) and index points 0 (`139.512`). Both halves matter: in a
+  `tabular-nums` column a dropped zero misaligns the decimal separator and makes
+  two quotes of the same precision look like they have different ones, and the
+  old fixed ladder (0/2/3/4) silently routed every other request to the 2-decimal
+  formatter — `num(v, 1)` rendered 2 decimals, so `anos()` showed `2,65 a` while
+  the code asked for `2,7 a`. Nothing about that failed loudly; it was just noise
+  on screen. Note `pct` vs `pp`:
   **prices** move in percent, **rates** move in percentage points. Mixing them
   is a real error, not a style nit.
 - **Rate direction is inverted for colour.** Rate up = price down. `sinalTaxa()`

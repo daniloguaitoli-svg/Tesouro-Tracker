@@ -1,23 +1,33 @@
 // src/format.js — formatação pt-BR de números, taxas e datas.
 
-const nf = (min, max) => new Intl.NumberFormat("pt-BR", { minimumFractionDigits: min, maximumFractionDigits: max });
-const nf0 = nf(0, 0);
-const nf2 = nf(2, 2);
-const nf3 = nf(2, 3);
-// 4 casas EXATAS, mínimo e máximo. Este é o formatador do câmbio, e numa coluna
-// de cotações o zero à direita não é enfeite: com mínimo 2 uma PTAX de 5,1500
-// saía "5,15" e um EUR/USD de 1,1780 saía "1,178", então a vírgula desalinhava
-// da linha de cima e duas cotações com a mesma precisão apareciam com
-// precisões diferentes. Os PUs continuam em nf2, que já era exato (2, 2).
-const nf4 = nf(4, 4);
+// `casas` é EXATO: mínimo e máximo iguais, um formatador por número de casas,
+// criados sob demanda e reaproveitados (Intl.NumberFormat é caro de instanciar
+// e isto roda por célula de tabela).
+//
+// Exato importa dos dois lados. O zero à direita não é enfeite numa coluna de
+// tabular-nums: com mínimo 2, uma PTAX de 5,1500 saía "5,15" e um EUR/USD de
+// 1,1780 saía "1,178", a vírgula desalinhava da linha de cima e duas cotações
+// de mesma precisão apareciam com precisões diferentes. E do outro lado havia
+// uma escada de formatadores fixos (0, 2, 3, 4) onde qualquer outro pedido caía
+// calado no de 2 casas: `num(v, 1)` devolvia duas casas, então a duration
+// aparecia como "2,65 a" enquanto o código pedia "2,7 a" — e nada nisso dava
+// erro, só ruído na tela.
+const formatadores = new Map();
+function formatador(casas) {
+  let f = formatadores.get(casas);
+  if (!f) {
+    f = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+    formatadores.set(casas, f);
+  }
+  return f;
+}
 
 export function num(v, casas = 2) {
   if (v == null || !Number.isFinite(v)) return "—";
-  // casas === 0 é para índices em pontos (Ibovespa): "139.512", não
-  // "139.512,00". Sem este ramo, casas=0 caía no formatador de 2 casas e o
-  // pedido de "sem decimais" era ignorado em silêncio.
-  if (casas === 0) return nf0.format(v);
-  return (casas >= 4 ? nf4 : casas === 3 ? nf3 : nf2).format(v);
+  // Intl aceita 0..20; um pedido fora disso é bug de quem chamou, e prender no
+  // intervalo é melhor que estourar RangeError no meio de uma tabela.
+  const n = Math.min(20, Math.max(0, Math.trunc(Number(casas) || 0)));
+  return formatador(n).format(v);
 }
 
 export function reais(v, casas = 2) {

@@ -1187,7 +1187,16 @@ conferir(fmt.num(1.1464, 4) === "1,1464", "4 casas não arredondam a cotação c
 conferir(fmt.reais(4321) === "R$ 4.321,00" && fmt.reais(4321.5) === "R$ 4.321,50", `PU sempre com 2 casas (${fmt.reais(4321.5)})`);
 conferir(fmt.reais(4321.456) === "R$ 4.321,46", "PU arredonda na segunda casa, não trunca");
 conferir(fmt.num(139512, 0) === "139.512", `índice em pontos segue sem decimais (${fmt.num(139512, 0)})`);
+// Duration com UMA casa, que é o que o call site sempre pediu. Enquanto a
+// escada de formatadores engolia qualquer `casas` fora de {0,2,3,4}, ela saía
+// com duas — "2,65 a" onde o código dizia anos(v, 1). Vale fixar porque o
+// sintoma de uma regressão aqui é só um dígito a mais, que ninguém estranha.
+conferir(fmt.anos(2.6548) === "2,7 a" && fmt.anos(18.6658) === "18,7 a", `duration com uma casa (${fmt.anos(2.6548)})`);
+conferir(fmt.num(8.3961, 1) === "8,4", `qualquer casas é respeitado, não só 0/2/4 (${fmt.num(8.3961, 1)})`);
+conferir(fmt.pp(0.5, 1) === "+0,5 p.p." && fmt.pp(0.25) === "+0,25 p.p.", "p.p. segue as casas pedidas em cada tela");
 conferir(fmt.num(null, 4) === "—" && fmt.num(Infinity, 2) === "—", "ausente e não-finito continuam '—'");
+// Pedido fora do intervalo do Intl não pode estourar no meio de uma tabela.
+conferir(fmt.num(1.23456, 30) !== "—" && fmt.num(1.5, -1) === "2", "casas fora do intervalo são presas, não explodem");
 
 const { PERIODICIDADE } = await import("../src/format.js");
 const mesmasChaves =

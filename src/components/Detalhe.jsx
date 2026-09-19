@@ -123,7 +123,7 @@ export function Detalhe({ slug, onBack }) {
       <div className="statgrid">
         <div className="stat">
           <div className="k">duration</div>
-          <div className="v">{anos(d.macaulay, 2)}</div>
+          <div className="v">{anos(d.macaulay)}</div>
         </div>
         <div className="stat">
           <div className="k">se +1 p.p.</div>
@@ -135,7 +135,7 @@ export function Detalhe({ slug, onBack }) {
         </div>
       </div>
       <div className="note">
-        Duration de {anos(d.macaulay, 2)} contra um prazo de {anos(t.anosAteVencer, 2)}
+        Duration de {anos(d.macaulay)} contra um prazo de {anos(t.anosAteVencer)}
         {t.comCupom
           ? " — menor que o prazo porque os cupons devolvem parte do dinheiro antes do vencimento."
           : " — igual ao prazo, porque há um único pagamento, lá no fim."}{" "}
