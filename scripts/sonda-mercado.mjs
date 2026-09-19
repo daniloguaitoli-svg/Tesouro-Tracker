@@ -10,6 +10,7 @@
 // parte da coleta. Não escreve nada.
 import { INDICES, JUROS_DIARIOS, INFLACAO, macroPorId } from "../server/catalogo.js";
 import * as globais from "../server/providers/globais.js";
+import { urlSerie, interpretarCorpoSgs } from "../server/providers/bcb.js";
 import { getMercado } from "../server/datalayer.js";
 
 const ok = (b) => (b ? "ok  " : "FALHA");
@@ -32,14 +33,32 @@ for (const i of INDICES) {
   await new Promise((r) => setTimeout(r, 400));
 }
 
-console.log("\n=== séries do SGS (nível anualizado e taxa diária) ===");
-for (const j of [...Object.values(macroPorId), ...JUROS_DIARIOS.map((x) => ({ ...x, serie: x.serie }))]) {
-  const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${j.serie}/dados/ultimos/3?formato=json`;
+// Leitura CRUA, pelo MESMO endereço que o app usa — urlSerie(), de bcb.js.
+// Antes esta sonda batia em `/dados/ultimos/3`, que é outro endpoint do SGS e
+// responde coisa diferente: em 15/09/2026 deu 09/09 como último dia da série
+// 4389 enquanto o app, pelo intervalo de datas, lia até 11/09. Duas leituras
+// discordando na mesma execução dão trabalho de investigar à toa — e a sonda
+// estava abonando um caminho que o app não percorre.
+//
+// Guarda o último dia de cada série para comparar adiante com a leitura pelo
+// bcb.serie. As duas têm de concordar.
+const SERIES_SGS = [...Object.values(macroPorId), ...JUROS_DIARIOS];
+const ultimoDiaCru = new Map();
+
+console.log("\n=== séries do SGS, leitura crua (mesma URL do app) ===");
+for (const j of SERIES_SGS) {
+  const dias = j.id === "ipca" ? 2000 : 800;
   try {
-    const r = await fetch(url);
-    const dados = r.ok ? await r.json() : [];
-    const ult = dados[dados.length - 1];
-    console.log(`  ${marcar(r.ok && dados.length > 0)} série ${String(j.serie).padStart(5)}  ${(j.nome || j.id).padEnd(12)} HTTP ${r.status}  último ${ult?.data ?? "—"} = ${ult?.valor ?? "—"}`);
+    const r = await fetch(urlSerie(j.serie, { dias }));
+    const texto = r.ok ? await r.text() : "";
+    const lido = r.ok ? interpretarCorpoSgs(texto, j.serie) : { ok: false };
+    const ult = lido.ok ? lido.pontos[lido.pontos.length - 1] : null;
+    if (ult) ultimoDiaCru.set(j.serie, ult.date);
+    console.log(
+      `  ${marcar(r.ok && lido.ok && lido.pontos.length > 0)} série ${String(j.serie).padStart(5)}  ` +
+        `${(j.nome || j.id).padEnd(12)} HTTP ${r.status}  ${String(lido.pontos?.length ?? 0).padStart(4)} pts  ` +
+        `último ${ult ? `${ult.date} = ${ult.close}` : "—"}`
+    );
   } catch (e) {
     console.log(`  ${marcar(false)} série ${String(j.serie).padStart(5)}  ${e.message}`);
   }
@@ -121,7 +140,16 @@ console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
       const pts = await bcb.serie(m.serie, { dias: m.id === "ipca" ? 2000 : 800 });
       const p0 = pts[0], pN = pts[pts.length - 1];
       const dias = p0 && pN ? Math.round((Date.parse(pN.date) - Date.parse(p0.date)) / 864e5) : 0;
-      console.log(`  ${marcar(pts.length > 0)} ${String(m.serie).padStart(5)} ${(m.nome || m.id).padEnd(12)} ${String(pts.length).padStart(5)} pontos  ${p0?.date} -> ${pN?.date}  (${dias} dias de janela)`);
+      // As duas leituras da MESMA série pela MESMA URL têm de terminar no
+      // mesmo dia. Divergência aqui é cache servindo dado velho ou o parser
+      // perdendo ponto — as duas coisas que sumiriam da tela sem erro.
+      const cru = ultimoDiaCru.get(m.serie);
+      const bate = !cru || cru === pN?.date;
+      console.log(
+        `  ${marcar(pts.length > 0 && bate)} ${String(m.serie).padStart(5)} ${(m.nome || m.id).padEnd(12)} ` +
+          `${String(pts.length).padStart(5)} pontos  ${p0?.date} -> ${pN?.date}  (${dias} dias de janela)` +
+          (bate ? "" : `  DIVERGE da leitura crua (${cru})`)
+      );
       if (dias < 370 && m.id !== "ipca") console.log(`      AVISO: menos de 370 dias — a janela de 12 meses vai sair null`);
     } catch (e) {
       console.log(`  ${marcar(false)} ${String(m.serie).padStart(5)} ${(m.nome || m.id).padEnd(12)} ${e.message}`);

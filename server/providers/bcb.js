@@ -20,13 +20,27 @@ function ddmmyyyy(d) {
 
 // O endpoint "ultimos/N" do BCB rejeita N grande (HTTP 400); intervalo de datas
 // aceita vários anos tranquilamente.
+// A URL de uma série, em UM lugar só.
+//
+// Existe separada porque a sonda precisa bater exatamente no mesmo endereço que
+// o app usa. Ela batia em `/dados/ultimos/3`, que é outro endpoint do SGS — e
+// que responde coisa diferente: numa execução de 15/09/2026 o `ultimos` deu
+// 09/09 como último dia da série 4389 enquanto o intervalo de datas deu 11/09.
+// Duas leituras discordando na mesma execução dão trabalho de investigar à toa,
+// e, pior, a sonda estaria abonando um caminho que o app não percorre: se o
+// intervalo quebrasse e o `ultimos` seguisse de pé, ela diria "ok" com a tela
+// vazia.
+export function urlSerie(cod, { dias = 2000 } = {}) {
+  const ini = ddmmyyyy(new Date(Date.now() - dias * 864e5));
+  const fim = ddmmyyyy(new Date());
+  return `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${ini}&dataFinal=${fim}`;
+}
+
 export async function serie(cod, { dias = 2000 } = {}) {
   const hit = cache.get(cod);
   if (hit && Date.now() - hit.ts < TTL_MS) return hit.pontos;
 
-  const ini = ddmmyyyy(new Date(Date.now() - dias * 864e5));
-  const fim = ddmmyyyy(new Date());
-  const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${cod}/dados?formato=json&dataInicial=${ini}&dataFinal=${fim}`;
+  const url = urlSerie(cod, { dias });
 
   // O SGS ESTRANGULA requisições concorrentes, e o faz da pior maneira: devolve
   // HTTP 200 com um corpo que não é a lista de pontos. Sem tratamento a linha

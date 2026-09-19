@@ -1050,6 +1050,34 @@ conferir(
 );
 conferir(/concurrency:/.test(wfSonda), "sonda não roda sobreposta consigo mesma");
 
+console.log("\numa URL só para o SGS");
+// A sonda batia em /dados/ultimos/3 e o app em /dados?dataInicial=...&dataFinal=...
+// Dois endpoints diferentes do SGS, que respondem coisa diferente: em
+// 15/09/2026 o `ultimos` deu 09/09 como último dia da série 4389 e o intervalo
+// deu 11/09. Além de dar investigação à toa, a sonda estava abonando um caminho
+// que o app não percorre — se o intervalo quebrasse e o `ultimos` seguisse de
+// pé, ela diria "ok" com a tela vazia.
+conferir(typeof bcbProv.urlSerie === "function", "bcb.js exporta urlSerie()");
+const urlExemplo = bcbProv.urlSerie(4389, { dias: 800 });
+conferir(/bcdata\.sgs\.4389\/dados\?/.test(urlExemplo), `urlSerie monta o endpoint de intervalo (${urlExemplo.slice(40, 78)})`);
+conferir(/dataInicial=\d{2}\/\d{2}\/\d{4}/.test(urlExemplo), "urlSerie manda dataInicial em dd/mm/aaaa");
+conferir(!/ultimos/.test(urlExemplo), "urlSerie não usa o endpoint /ultimos");
+// UMA definição só: o endereço aparece montado em um lugar do server/.
+// Só linhas de CÓDIGO: o cabeçalho do arquivo documenta o endpoint de
+// propósito, e contar o comentário reprovaria o arquivo por estar bem escrito.
+const montagens = bcbSrc
+  .split("\n")
+  .filter((l) => !l.trim().startsWith("//") && /api\.bcb\.gov\.br\/dados\/serie/.test(l)).length;
+conferir(montagens === 1, `o endereço do SGS é montado uma vez só em bcb.js (${montagens})`);
+const sondaSrc = await ler("scripts/sonda-mercado.mjs");
+conferir(/urlSerie\(/.test(sondaSrc), "a sonda lê pela mesma urlSerie() do app");
+conferir(
+  !/api\.bcb\.gov\.br/.test(sondaSrc),
+  "a sonda não monta endereço do SGS à mão"
+);
+// E a divergência entre as duas leituras virou checagem, não ruído.
+conferir(/DIVERGE da leitura crua/.test(sondaSrc), "a sonda reprova se as duas leituras discordarem");
+
 console.log("\nchaves de localStorage");
 const alertasSrc = await ler("src/components/Alertas.jsx");
 const destaquesSrc = await ler("src/destaques.js");
