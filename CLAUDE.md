@@ -464,6 +464,44 @@ Nothing is written on a tolerated outage, so there is no diff, no commit and no
 pointless deploy. The workflow also has `workflow_dispatch`, so a lost window
 can be retried by hand instead of waiting three hours.
 
+### When the screen stops moving: is it them or us? (`scripts/sonda-tesouro.mjs`)
+
+A frozen price has two possible explanations that demand opposite actions — the
+Treasury stopped publishing (wait), or we are reading a stale copy (fix it) —
+and **the collector's log cannot tell them apart**: in both cases it downloads an
+intact file, parses it correctly, writes, and goes green. That is exactly what
+happened on 23/09/2026, with the screen stuck on 18/09 behind eleven consecutive
+successful collections.
+
+The probe answers it in three questions, and runs on a runner because the
+sandbox cannot reach the source:
+
+1. **What does the source say about itself** — `last_modified` on the CKAN
+   resource, which is the publisher's own statement.
+2. **Are we being served cache** — the same URL twice, the second with a
+   parameter no cache knows. Different etag or length means the defect is ours
+   and has a fix, and the probe fails.
+3. **What is inside the file** — read through the collector's own
+   `varrerSerie()`, never a parallel parser that could disagree with it.
+
+It runs beside the dry-run on `claude/**` pushes (free), and on demand via the
+collector's `somente_sonda` input, which collects nothing, writes nothing and
+commits nothing.
+
+**Measured 23/09/2026, so it need not be re-derived:** CKAN reported
+`last_modified: 2026-09-21T10:25:11` and the HTTP headers agreed
+(`last-modified: Mon, 21 Sep 2026 10:25:12 GMT`, etag `"1789986312.03-14515714"`,
+14.515.714 bytes, `cache-control: no-cache`). The cache-busted request returned
+the identical etag and length — **we were not reading cache**. Inside that file
+the newest date was 2026-09-18, complete at 30 points like every prior day. So
+the Treasury rewrote the file on Monday **without adding a date**, and the prices
+for Monday 21 and Tuesday 22 were simply never published. The precedent is
+documented above: 24–26/08/2026, stuck on 21/08, then three dates at once.
+
+The normal rhythm is **D+1** — day D's prices appear during D+1 — so the
+steady state is one business day of distance, and `LIMITE_DIAS_UTEIS.diaria = 3`
+tolerates two missed publications before the screen says anything.
+
 ### Parsing is tolerant, and fails loudly
 
 `providers/tesouro.js` detects the separator and finds columns by **regex on the
