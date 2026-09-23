@@ -488,6 +488,17 @@ It runs beside the dry-run on `claude/**` pushes (free), and on demand via the
 collector's `somente_sonda` input, which collects nothing, writes nothing and
 commits nothing.
 
+**A source that does not answer is not a failure**, and the probe learned that
+the hard way: it shipped strict and mailed a failure two hours later, when the
+site refused the connection four times at 07:57 on 23/09/2026 — two minutes
+after a clean run. Same weather the collector has tolerated since 29/08, same
+lesson. The line is between *no answer* and *an answer*: connection refused,
+timeout and 5xx pass with a loud "inconclusive" and exit 0; a 4xx is the server
+**saying** something (the resource moved, or the runner is being blocked) and
+fails, exactly as the collector does not retry a 4xx. What still fails is a
+defect on this side: the cache-buster returning different content, or a file
+that arrives and yields no date at all.
+
 **Measured 23/09/2026, so it need not be re-derived:** CKAN reported
 `last_modified: 2026-09-21T10:25:11` and the HTTP headers agreed
 (`last-modified: Mon, 21 Sep 2026 10:25:12 GMT`, etag `"1789986312.03-14515714"`,

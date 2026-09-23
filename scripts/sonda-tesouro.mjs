@@ -29,6 +29,31 @@ import { hojeISO, diasUteisEntre } from "../server/util.js";
 
 const marcar = (ok) => (ok ? "ok   " : "FALHA");
 let falhas = 0;
+// Fonte fora do ar NÃO é defeito nosso, e por isso não reprova.
+//
+// Esta sonda nasceu reprovando em qualquer tropeço e mandou um e-mail de falha
+// duas horas depois de nascer: às 07:57 de 23/09/2026 o site recusou conexão
+// nas quatro tentativas (UND_ERR_CONNECT_TIMEOUT), dois minutos depois de uma
+// execução limpa. É o mesmo soluço que o coletor já tolera desde 29/08 — e a
+// mesma lição: alerta que chora lobo por causa do tempo deixa de ser lido, e
+// aí o dia em que ele disser a verdade passa batido.
+//
+// O que continua reprovando é defeito DESTE lado: o quebra-cache trazendo
+// conteúdo diferente (estamos lendo cópia velha) e um arquivo que chega e não
+// produz data nenhuma (parser quebrado) — a mesma fronteira que o coletor usa
+// entre "recusou conexão" e "chegou e não deu para entender".
+//
+// A linha fica entre não-resposta e resposta: conexão recusada, timeout e 5xx
+// são o servidor sem conseguir falar, e passam. Um 4xx é o servidor DIZENDO
+// algo — recurso mudou de lugar, ou o site passou a barrar o runner —, e isso
+// precisa aparecer, exatamente como no coletor, que também não retenta 4xx.
+let inalcancavel = false;
+const ehRede = (e) => {
+  const txt = String(e?.cause?.code || e?.cause?.message || e?.message || e);
+  return /fetch failed|ENOTFOUND|ECONNRESET|ECONNREFUSED|EAI_AGAIN|UND_ERR|timeout|socket hang up/i.test(txt)
+    || /inalcançável após/i.test(txt)
+    || /HTTP 5\d\d/.test(txt);
+};
 
 const CABECALHOS_DE_CACHE = [
   "date",
@@ -78,11 +103,23 @@ async function cabecalhos(url, rotulo) {
     const h = Object.fromEntries(CABECALHOS_DE_CACHE.map((k) => [k, r.headers.get(k)]).filter(([, v]) => v));
     // Cancela o corpo: aqui só interessam os cabeçalhos, e são 14 MB.
     await r.body?.cancel();
-    console.log(`  ${marcar(r.ok)} ${rotulo}: HTTP ${r.status}`);
+    const naoRespondeu = r.status >= 500;
+    console.log(`  ${r.ok ? marcar(true) : naoRespondeu ? "aviso" : marcar(false)} ${rotulo}: HTTP ${r.status}`);
     for (const [k, v] of Object.entries(h)) console.log(`         ${k}: ${v}`);
-    if (!r.ok) falhas++;
-    return h;
+    if (!r.ok) {
+      if (naoRespondeu) inalcancavel = true;
+      else falhas++;
+    }
+    // Sem corpo não há o que comparar: devolver os cabeçalhos de uma resposta
+    // de erro faria a comparação "as duas são o mesmo arquivo" passar comparando
+    // duas páginas de erro idênticas — um ok que não quer dizer nada.
+    return r.ok ? h : null;
   } catch (e) {
+    if (ehRede(e)) {
+      inalcancavel = true;
+      console.log(`  aviso  ${rotulo}: fonte não respondeu (${e.cause?.code || e.message})`);
+      return null;
+    }
     console.log(`  ${marcar(false)} ${rotulo}: ${e.message}`);
     falhas++;
     return null;
@@ -112,21 +149,48 @@ console.log("\n=== o que existe dentro do arquivo (pela varredura do coletor) ==
 // pedir dois meses já responde isso lendo bem menos do que a coleta inteira.
 const desde = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
 const porData = new Map();
-await varrerSerie({
-  desdeISO: desde,
-  aoLer: (p) => {
-    if (p?.data) porData.set(p.data, (porData.get(p.data) || 0) + 1);
-  },
-});
+let leu = false;
+try {
+  await varrerSerie({
+    desdeISO: desde,
+    aoLer: (p) => {
+      if (p?.data) porData.set(p.data, (porData.get(p.data) || 0) + 1);
+    },
+  });
+  leu = true;
+} catch (e) {
+  // Mesma fronteira do coletor: conexão recusada é tempo e se resolve sozinha;
+  // qualquer outro erro veio de um arquivo que CHEGOU e não deu para entender,
+  // e isso nunca se conserta esperando.
+  if (ehRede(e)) {
+    inalcancavel = true;
+    console.log(`  aviso  a fonte não respondeu (${e.cause?.code || e.message}) — sem leitura nesta execução`);
+  } else {
+    console.log(`  ${marcar(false)} o arquivo chegou e a varredura falhou: ${e.message}`);
+    falhas++;
+  }
+}
 
 const datas = [...porData.keys()].sort();
 const ultima = datas[datas.length - 1] || null;
-console.log(`  ${marcar(!!ultima)} ${datas.length} datas nos últimos 60 dias; última: ${ultima ?? "nenhuma"}`);
-for (const d of datas.slice(-8)) console.log(`         ${d}  ${porData.get(d)} pontos`);
-if (!ultima) falhas++;
+if (leu) {
+  console.log(`  ${marcar(!!ultima)} ${datas.length} datas nos últimos 60 dias; última: ${ultima ?? "nenhuma"}`);
+  for (const d of datas.slice(-8)) console.log(`         ${d}  ${porData.get(d)} pontos`);
+  // Arquivo íntegro que não produz data nenhuma é parser quebrado, e isso
+  // reprova sempre — é o caso "chegou e não deu para entender".
+  if (!ultima) falhas++;
+}
 
 // ---------------------------------------------------------------
 console.log("\n=== veredito ===");
+if (!ultima && inalcancavel) {
+  console.log("  a fonte não respondeu nesta execução (conexão recusada ou timeout).");
+  console.log(
+    "  → nada se conclui daqui, e isso NÃO é defeito: o site do Tesouro recusa conexão de vez " +
+      "em quando e volta sozinho. A próxima janela de coleta é em no máximo três horas; " +
+      "rode a sonda de novo depois dela antes de investigar qualquer coisa."
+  );
+}
 if (ultima) {
   const hoje = hojeISO();
   // Dias úteis, não corridos: um arquivo parado na sexta não está atrasado no
@@ -147,5 +211,7 @@ if (ultima) {
   }
 }
 
-console.log(`\n${falhas === 0 ? "sonda limpa" : `${falhas} problema(s)`}`);
+console.log(
+  `\n${falhas === 0 ? (inalcancavel ? "sonda inconclusiva (fonte fora do ar) — sem defeito deste lado" : "sonda limpa") : `${falhas} problema(s)`}`
+);
 process.exit(falhas === 0 ? 0 : 1);
