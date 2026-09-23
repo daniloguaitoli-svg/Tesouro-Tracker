@@ -45,6 +45,11 @@ on:
   # Botão de "rodar agora", para não depender da próxima janela quando uma
   # execução se perde — como em 13/09/2026, com o CSV inalcançável às 22:28.
   workflow_dispatch:
+    inputs:
+      somente_sonda:
+        description: "Só sondar a fonte (não coleta, não grava, não commita)"
+        type: boolean
+        default: false
   # Numa branch de trabalho que NÃO seja a padrão, o job roda em DRY-RUN: baixa,
   # parseia e relata, sem gravar nem commitar. É como se confere que os parsers
   # ainda batem com o formato real das fontes antes de o código virar oficial.
@@ -80,8 +85,20 @@ jobs:
       # `github.event_name != 'push'` cobre schedule e workflow_dispatch, onde o
       # payload não traz repository.default_branch — e onde gravar é sempre a
       # intenção (o agendamento só dispara na própria branch padrão).
+      # A sonda da FONTE. Responde a pergunta que o log da coleta não responde:
+      # quando o preço para de andar, foi o Tesouro que parou de publicar ou
+      # somos nós lendo cópia velha? Nos dois casos a coleta termina verde, e
+      # sem esta distinção não dá para saber se há algo a consertar aqui.
+      #
+      # Roda na conferência de branch de trabalho (junto do dry-run, de graça) e
+      # sob demanda com `somente_sonda`, que é como se investiga uma tela parada
+      # sem disparar coleta nem commit.
+      - name: Sondar a fonte (é ela ou somos nós?)
+        if: inputs.somente_sonda == true || (github.event_name == 'push' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch))
+        run: node scripts/sonda-tesouro.mjs
+
       - name: Coletar e gravar (branch padrão)
-        if: github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: inputs.somente_sonda != true && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
         run: node .github/scripts/coletar-tesouro.mjs
 
       - name: Conferir os parsers contra as fontes reais (dry-run)
@@ -89,7 +106,7 @@ jobs:
         run: node .github/scripts/coletar-tesouro.mjs --dry-run
 
       - name: Commitar os dados atualizados
-        if: github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: inputs.somente_sonda != true && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

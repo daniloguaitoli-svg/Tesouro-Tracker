@@ -10,7 +10,8 @@
     "preview": "vite preview --host",
     "verificar": "node scripts/verificar.mjs",
     "fumaca": "node scripts/fumaca.mjs",
-    "coletar": "node .github/scripts/coletar-tesouro.mjs"
+    "coletar": "node .github/scripts/coletar-tesouro.mjs",
+    "sonda-tesouro": "node scripts/sonda-tesouro.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
