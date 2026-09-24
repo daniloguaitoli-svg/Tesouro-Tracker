@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-09-23T20:29:39.053Z",
+ "atualizadoEm": "2026-09-24T01:29:08.052Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -25,9 +25,9 @@
    "pu": 746.11,
    "data": "2026-09-18",
    "duration": {
-    "macaulayAnos": 2.277,
-    "modificada": 2,
-    "convexidade": 5.755,
+    "macaulayAnos": 2.274,
+    "modificada": 1.997,
+    "convexidade": 5.744,
     "variacaoPrecoMais1pp": -1.97,
     "variacaoPrecoMenos1pp": 2.03
    }
@@ -59,10 +59,10 @@
    "pu": 3083.29,
    "data": "2026-09-18",
    "duration": {
-    "macaulayAnos": 5.899,
-    "modificada": 5.483,
-    "convexidade": 35.16,
-    "variacaoPrecoMais1pp": -5.31,
+    "macaulayAnos": 5.896,
+    "modificada": 5.48,
+    "convexidade": 35.13,
+    "variacaoPrecoMais1pp": -5.3,
     "variacaoPrecoMenos1pp": 5.66
    }
   },
@@ -76,9 +76,9 @@
    "pu": 2529.18,
    "data": "2026-09-18",
    "duration": {
-    "macaulayAnos": 8.647,
-    "modificada": 8.038,
-    "convexidade": 72.083,
+    "macaulayAnos": 8.644,
+    "modificada": 8.036,
+    "convexidade": 72.04,
     "variacaoPrecoMais1pp": -7.68,
     "variacaoPrecoMenos1pp": 8.4
    }
@@ -119,7 +119,7 @@
    "metaPctAoAno": 13.75,
    "vigenteDesde": "2026-09-17",
    "ultimaVariacaoPP": -0.25,
-   "data": "2026-09-23"
+   "data": "2026-09-24"
   }
  }
 }
