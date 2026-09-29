@@ -1,5 +1,7 @@
 # Tesouro Tracker
 
+**App no ar:** [tesouro-tracker.vercel.app](https://tesouro-tracker.vercel.app)
+
 Acompanha títulos do **Tesouro Direto** a partir de fontes públicas e gratuitas.
 PWA em React + Vite, instalável no celular, usável em qualquer navegador.
 
