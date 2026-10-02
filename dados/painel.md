@@ -1,26 +1,26 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-10-01T23:57:11.197Z.
+Retrato gerado automaticamente em 2026-10-02T16:41:32.760Z.
 
 ## Acompanhados de perto
 
 | Vencimento | Título | Taxa | Significa | PU (R$) | Duration | +1 p.p. | Data |
 | --- | --- | ---: | --- | ---: | ---: | ---: | --- |
-| 01/01/2029 | Tesouro Prefixado 2029 | 13.76% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 750.51 | 2.255 a | -1.95% | 30/09/2026 |
-| 01/03/2031 | Tesouro Selic 2031 | 0.08% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 19924.06 | — | — | 30/09/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 | 7.53% | juros reais ao ano ACIMA do IPCA | 3107.25 | 5.877 a | -5.29% | 30/09/2026 |
-| 15/05/2035 | Tesouro IPCA+ 2035 | 7.43% | juros reais ao ano ACIMA do IPCA | 2570.41 | 8.625 a | -7.67% | 30/09/2026 |
+| 01/01/2029 | Tesouro Prefixado 2029 | 13.86% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 749.42 | 2.252 a | -1.95% | 01/10/2026 |
+| 01/03/2031 | Tesouro Selic 2031 | 0.08% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 19933.64 | — | — | 01/10/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 | 7.62% | juros reais ao ano ACIMA do IPCA | 3093.76 | 5.874 a | -5.28% | 01/10/2026 |
+| 15/05/2035 | Tesouro IPCA+ 2035 | 7.56% | juros reais ao ano ACIMA do IPCA | 2545.29 | 8.622 a | -7.66% | 01/10/2026 |
 
 ## Moldura
 
 | Indicador | Valor | 12 meses | 1 semana | Data |
 | --- | ---: | ---: | ---: | --- |
 | IPCA (acum. 12m) | 4.22% | — | — | 01/08/2026 |
-| Ibovespa | 187197 pts | 28.64% | 1.76% | 01/10/2026 |
-| EUR/BRL | 5.8495 | -6.22% | -0.7% | 01/10/2026 |
-| USD/BRL | 5.2079 | -2.12% | 0.55% | 01/10/2026 |
-| CDI | 13.65% a.a. | — | — | 30/09/2026 |
-| Selic (meta) | 13.75% a.a. | — | — | 01/10/2026 |
+| Ibovespa | 187455 pts | 30.22% | 2.17% | 02/10/2026 |
+| EUR/BRL | 5.8815 | -5.93% | -0.78% | 02/10/2026 |
+| USD/BRL | 5.2238 | -2.27% | 0.48% | 02/10/2026 |
+| CDI | 13.65% a.a. | — | — | 01/10/2026 |
+| Selic (meta) | 13.75% a.a. | — | — | 02/10/2026 |
 
 ## Ressalvas
 
