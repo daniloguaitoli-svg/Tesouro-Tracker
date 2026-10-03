@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-10-03T02:05:07.155Z",
+ "atualizadoEm": "2026-10-03T15:09:48.885Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -20,14 +20,14 @@
    "nome": "Tesouro Prefixado 2029",
    "vencimento": "2029-01-01",
    "comCupom": false,
-   "taxa": 13.86,
+   "taxa": 13.83,
    "taxaSignifica": "juros nominais ao ano (a inflação do período corre por conta do investidor)",
-   "pu": 749.42,
-   "data": "2026-10-01",
+   "pu": 750.25,
+   "data": "2026-10-02",
    "duration": {
     "macaulayAnos": 2.249,
     "modificada": 1.976,
-    "convexidade": 5.638,
+    "convexidade": 5.641,
     "variacaoPrecoMais1pp": -1.95,
     "variacaoPrecoMenos1pp": 2
    }
@@ -37,10 +37,10 @@
    "nome": "Tesouro Selic 2031",
    "vencimento": "2031-03-01",
    "comCupom": false,
-   "taxa": 0.08,
+   "taxa": 0.09,
    "taxaSignifica": "ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo)",
-   "pu": 19933.64,
-   "data": "2026-10-01",
+   "pu": 19943.12,
+   "data": "2026-10-02",
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -54,14 +54,14 @@
    "nome": "Tesouro IPCA+ 2032",
    "vencimento": "2032-08-15",
    "comCupom": false,
-   "taxa": 7.62,
+   "taxa": 7.6,
    "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 3093.76,
-   "data": "2026-10-01",
+   "pu": 3100.24,
+   "data": "2026-10-02",
    "duration": {
     "macaulayAnos": 5.871,
-    "modificada": 5.456,
-    "convexidade": 34.832,
+    "modificada": 5.457,
+    "convexidade": 34.845,
     "variacaoPrecoMais1pp": -5.28,
     "variacaoPrecoMenos1pp": 5.63
    }
@@ -71,14 +71,14 @@
    "nome": "Tesouro IPCA+ 2035",
    "vencimento": "2035-05-15",
    "comCupom": false,
-   "taxa": 7.56,
+   "taxa": 7.55,
    "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 2545.29,
-   "data": "2026-10-01",
+   "pu": 2549.88,
+   "data": "2026-10-02",
    "duration": {
     "macaulayAnos": 8.619,
-    "modificada": 8.013,
-    "convexidade": 71.664,
+    "modificada": 8.014,
+    "convexidade": 71.678,
     "variacaoPrecoMais1pp": -7.66,
     "variacaoPrecoMenos1pp": 8.37
    }
