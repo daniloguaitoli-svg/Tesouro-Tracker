@@ -28,7 +28,7 @@ const marcar = (bom) => { if (!bom) falhas += 1; return ok(bom); };
 const motivo = (e) => {
   const c = e?.cause || {};
   const detalhe = [c.code, c.errno, c.syscall, c.hostname].filter(Boolean).join(" ");
-  return detalhe ? `${motivo(e)} (${detalhe})` : String(e?.message ?? e);
+  return detalhe ? `${e.message} (${detalhe})` : String(e?.message ?? e);
 };
 
 console.log("=== símbolos do Yahoo ===");
