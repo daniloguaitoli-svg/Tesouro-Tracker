@@ -60,6 +60,7 @@ const SERIES_SGS = [...Object.values(macroPorId), ...JUROS_DIARIOS];
 const ultimoDiaCru = new Map();
 
 console.log("\n=== séries do SGS, leitura crua (mesma URL do app) ===");
+let sgsRespondeu = false;
 for (const j of SERIES_SGS) {
   const dias = j.id === "ipca" ? 2000 : 800;
   try {
@@ -68,6 +69,7 @@ for (const j of SERIES_SGS) {
     const lido = r.ok ? interpretarCorpoSgs(texto, j.serie) : { ok: false };
     const ult = lido.ok ? lido.pontos[lido.pontos.length - 1] : null;
     if (ult) ultimoDiaCru.set(j.serie, ult.date);
+    if (r.ok) sgsRespondeu = true;
     console.log(
       `  ${marcar(r.ok && lido.ok && lido.pontos.length > 0)} série ${String(j.serie).padStart(5)}  ` +
         `${(j.nome || j.id).padEnd(12)} HTTP ${r.status}  ${String(lido.pontos?.length ?? 0).padStart(4)} pts  ` +
@@ -77,6 +79,42 @@ for (const j of SERIES_SGS) {
     console.log(`  ${marcar(false)} série ${String(j.serie).padStart(5)}  ${motivo(e)}`);
   }
   await new Promise((r) => setTimeout(r, 300));
+}
+
+// O SGS inteiro mudo é diferente de uma série errada, e a pergunta seguinte é
+// QUAL pedaço do Banco Central caiu — porque disso depende se existe rota
+// alternativa ou se é só esperar. Esta seção só roda nesse caso, então em dia
+// normal não custa nada.
+//
+// O `lookup` separado do fetch é o ponto: ENOTFOUND diz que o NOME não resolve,
+// e aí não há o que tentar por HTTP; um nome que resolve e recusa conexão é
+// outra história, e um 403 seria a fonte barrando o runner. Em 04/10/2026 as
+// sete séries deram ENOTFOUND no host do SGS — DNS, não bloqueio.
+//
+// O host sai de urlSerie(), nunca escrito à mão: é o mesmo endereço que o app
+// resolve, e o verificar reprova a sonda que o reescreva por conta própria.
+//
+// Diagnóstico puro: nada aqui entra na conta de falhas, porque o problema já
+// foi contado acima pelas séries que não responderam.
+if (!sgsRespondeu) {
+  console.log("\n=== o SGS não respondeu: que parte do BCB está de pé? ===");
+  const { lookup } = await import("node:dns/promises");
+  const hostDoSgs = new URL(urlSerie(1)).hostname;
+  for (const host of [hostDoSgs, "www.bcb.gov.br", "olinda.bcb.gov.br", "dadosabertos.bcb.gov.br"]) {
+    let ip = null;
+    try {
+      ip = (await lookup(host)).address;
+    } catch (e) {
+      console.log(`  ${marcar(false)} ${host.padEnd(24)} DNS não resolve (${e.code || e.message})`);
+      continue;
+    }
+    try {
+      const r = await fetch(`https://${host}/`, { method: "HEAD", signal: AbortSignal.timeout(15000) });
+      console.log(`  ${marcar(r.status < 500)} ${host.padEnd(24)} ${ip.padEnd(15)} HTTP ${r.status}`);
+    } catch (e) {
+      console.log(`  aviso ${host.padEnd(24)} ${ip.padEnd(15)} resolve mas não atende (${motivo(e)})`);
+    }
+  }
 }
 
 console.log("\n=== fontes de inflação (FRED e ECB Data Portal) ===");
