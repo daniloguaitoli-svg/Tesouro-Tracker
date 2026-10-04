@@ -17,6 +17,20 @@ const ok = (b) => (b ? "ok  " : "FALHA");
 let falhas = 0;
 const marcar = (bom) => { if (!bom) falhas += 1; return ok(bom); };
 
+// "fetch failed" não diz nada, e a causa real mora em e.cause. A distinção
+// decide o diagnóstico: ENOTFOUND é o DNS não resolvendo (domínio fora do ar
+// ou resolvedor bloqueado), ECONNREFUSED/ETIMEDOUT é a máquina existir e não
+// atender, e um HTTP 403 seria a fonte barrando o runner — foi o que o CEPEA
+// fez no repo irmão. Três causas diferentes, três ações diferentes.
+//
+// No apagão do SGS de 03-04/10/2026 as sete séries disseram apenas "fetch
+// failed", e com isso não dava para saber qual dos três casos era.
+const motivo = (e) => {
+  const c = e?.cause || {};
+  const detalhe = [c.code, c.errno, c.syscall, c.hostname].filter(Boolean).join(" ");
+  return detalhe ? `${motivo(e)} (${detalhe})` : String(e?.message ?? e);
+};
+
 console.log("=== símbolos do Yahoo ===");
 for (const i of INDICES) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(i.simbolo)}?range=5d&interval=1d`;
@@ -28,7 +42,7 @@ for (const i of INDICES) {
     const ultimo = res?.indicators?.quote?.[0]?.close?.filter((x) => x != null).pop();
     console.log(`  ${marcar(r.ok && n > 0)} ${i.id.padEnd(9)} ${i.simbolo.padEnd(7)} HTTP ${r.status}  ${n} pontos  último ${ultimo ?? "—"}  moeda ${res?.meta?.currency ?? "?"}`);
   } catch (e) {
-    console.log(`  ${marcar(false)} ${i.id.padEnd(9)} ${i.simbolo.padEnd(7)} ${e.message}`);
+    console.log(`  ${marcar(false)} ${i.id.padEnd(9)} ${i.simbolo.padEnd(7)} ${motivo(e)}`);
   }
   await new Promise((r) => setTimeout(r, 400));
 }
@@ -60,7 +74,7 @@ for (const j of SERIES_SGS) {
         `último ${ult ? `${ult.date} = ${ult.close}` : "—"}`
     );
   } catch (e) {
-    console.log(`  ${marcar(false)} série ${String(j.serie).padStart(5)}  ${e.message}`);
+    console.log(`  ${marcar(false)} série ${String(j.serie).padStart(5)}  ${motivo(e)}`);
   }
   await new Promise((r) => setTimeout(r, 300));
 }
@@ -80,7 +94,7 @@ for (const m of INFLACAO.filter((x) => x.fred || x.ecb)) {
     console.log(`  ${marcar(r.ok && linhas > 12)} ${m.id.padEnd(9)} ${(m.fred || m.ecb).padEnd(22)} HTTP ${r.status}  ${linhas} linhas`);
     if (!r.ok || linhas <= 12) console.log(`      amostra: ${txt.slice(0, 140).replace(/\s+/g, " ")}`);
   } catch (e) {
-    console.log(`  ${marcar(false)} ${m.id.padEnd(9)} ${(m.fred || m.ecb).padEnd(22)} ${e.message}`);
+    console.log(`  ${marcar(false)} ${m.id.padEnd(9)} ${(m.fred || m.ecb).padEnd(22)} ${motivo(e)}`);
   }
   await new Promise((r) => setTimeout(r, 400));
 }
@@ -109,7 +123,7 @@ for (const id of ["DFEDTARU", "DFEDTARL", "DFEDTAR", "FEDFUNDS", "EFFR", "DFF"])
     );
     if (!r.ok || !res.pontos.length) console.log(`      amostra: ${txt.slice(0, 120).replace(/\s+/g, " ")}`);
   } catch (e) {
-    console.log(`  ${marcar(false)} ${id.padEnd(9)} ${e.message}`);
+    console.log(`  ${marcar(false)} ${id.padEnd(9)} ${motivo(e)}`);
   }
   await new Promise((r) => setTimeout(r, 400));
 }
@@ -152,7 +166,7 @@ console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
       );
       if (dias < 370 && m.id !== "ipca") console.log(`      AVISO: menos de 370 dias — a janela de 12 meses vai sair null`);
     } catch (e) {
-      console.log(`  ${marcar(false)} ${String(m.serie).padStart(5)} ${(m.nome || m.id).padEnd(12)} ${e.message}`);
+      console.log(`  ${marcar(false)} ${String(m.serie).padStart(5)} ${(m.nome || m.id).padEnd(12)} ${motivo(e)}`);
     }
     await new Promise((r) => setTimeout(r, 500));
   }
