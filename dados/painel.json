@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-10-05T02:04:38.639Z",
+ "atualizadoEm": "2026-10-06T01:20:14.039Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -25,9 +25,9 @@
    "pu": 750.25,
    "data": "2026-10-02",
    "duration": {
-    "macaulayAnos": 2.244,
-    "modificada": 1.971,
-    "convexidade": 5.617,
+    "macaulayAnos": 2.241,
+    "modificada": 1.969,
+    "convexidade": 5.606,
     "variacaoPrecoMais1pp": -1.94,
     "variacaoPrecoMenos1pp": 2
    }
@@ -59,11 +59,11 @@
    "pu": 3100.24,
    "data": "2026-10-02",
    "duration": {
-    "macaulayAnos": 5.866,
-    "modificada": 5.451,
-    "convexidade": 34.785,
+    "macaulayAnos": 5.863,
+    "modificada": 5.449,
+    "convexidade": 34.755,
     "variacaoPrecoMais1pp": -5.28,
-    "variacaoPrecoMenos1pp": 5.63
+    "variacaoPrecoMenos1pp": 5.62
    }
   },
   {
@@ -76,11 +76,11 @@
    "pu": 2549.88,
    "data": "2026-10-02",
    "duration": {
-    "macaulayAnos": 8.614,
-    "modificada": 8.009,
-    "convexidade": 71.591,
+    "macaulayAnos": 8.611,
+    "modificada": 8.006,
+    "convexidade": 71.548,
     "variacaoPrecoMais1pp": -7.65,
-    "variacaoPrecoMenos1pp": 8.37
+    "variacaoPrecoMenos1pp": 8.36
    }
   }
  ],
@@ -91,35 +91,35 @@
    "data": "2026-08-01"
   },
   "ibovespa": {
-   "pontos": 192115,
-   "var12mPct": 33.46,
-   "var12mDesde": "2025-10-02",
-   "var1semPct": 4.71,
-   "data": "2026-10-02"
+   "pontos": 206912,
+   "var12mPct": 43.49,
+   "var12mDesde": "2025-10-03",
+   "var1semPct": 13.07,
+   "data": "2026-10-05"
   },
   "eurbrl": {
-   "valor": 5.8815,
-   "varDiaPct": 0.55,
-   "var12mPct": -5.93,
-   "var1semPct": -0.78,
-   "data": "2026-10-02"
+   "valor": 5.5897,
+   "varDiaPct": -4.96,
+   "var12mPct": -11.05,
+   "var1semPct": -5.66,
+   "data": "2026-10-05"
   },
   "usdbrl": {
-   "valor": 5.2238,
-   "varDiaPct": 0.31,
-   "var12mPct": -2.27,
-   "var1semPct": 0.48,
-   "data": "2026-10-02"
+   "valor": 4.9859,
+   "varDiaPct": -4.55,
+   "var12mPct": -6.8,
+   "var1semPct": -4.36,
+   "data": "2026-10-05"
   },
   "cdi": {
    "pctAoAno": 13.65,
-   "data": "2026-10-01"
+   "data": "2026-10-02"
   },
   "selic": {
    "metaPctAoAno": 13.75,
    "vigenteDesde": "2026-09-17",
    "ultimaVariacaoPP": -0.25,
-   "data": "2026-10-05"
+   "data": "2026-10-06"
   }
  }
 }
