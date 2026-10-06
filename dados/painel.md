@@ -1,25 +1,25 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-10-06T01:20:14.039Z.
+Retrato gerado automaticamente em 2026-10-06T17:17:07.306Z.
 
 ## Acompanhados de perto
 
 | Vencimento | Título | Taxa | Significa | PU (R$) | Duration | +1 p.p. | Data |
 | --- | --- | ---: | --- | ---: | ---: | ---: | --- |
-| 01/01/2029 | Tesouro Prefixado 2029 | 13.83% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 750.25 | 2.241 a | -1.94% | 02/10/2026 |
-| 01/03/2031 | Tesouro Selic 2031 | 0.09% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 19943.12 | — | — | 02/10/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 | 7.6% | juros reais ao ano ACIMA do IPCA | 3100.24 | 5.863 a | -5.28% | 02/10/2026 |
-| 15/05/2035 | Tesouro IPCA+ 2035 | 7.55% | juros reais ao ano ACIMA do IPCA | 2549.88 | 8.611 a | -7.65% | 02/10/2026 |
+| 01/01/2029 | Tesouro Prefixado 2029 | 12.74% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 766.8 | 2.241 a | -1.96% | 05/10/2026 |
+| 01/03/2031 | Tesouro Selic 2031 | 0.09% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 19952.71 | — | — | 05/10/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 | 6.91% | juros reais ao ano ACIMA do IPCA | 3220.25 | 5.863 a | -5.31% | 05/10/2026 |
+| 15/05/2035 | Tesouro IPCA+ 2035 | 6.86% | juros reais ao ano ACIMA do IPCA | 2695.45 | 8.611 a | -7.7% | 05/10/2026 |
 
 ## Moldura
 
 | Indicador | Valor | 12 meses | 1 semana | Data |
 | --- | ---: | ---: | ---: | --- |
 | IPCA (acum. 12m) | 4.22% | — | — | 01/08/2026 |
-| Ibovespa | 206912 pts | 43.49% | 13.07% | 05/10/2026 |
-| EUR/BRL | 5.5897 | -11.05% | -5.66% | 05/10/2026 |
-| USD/BRL | 4.9859 | -6.8% | -4.36% | 05/10/2026 |
-| CDI | 13.65% a.a. | — | — | 02/10/2026 |
+| Ibovespa | 205657 pts | 43.21% | 11.87% | 06/10/2026 |
+| EUR/BRL | 5.5975 | -10.18% | -5.41% | 06/10/2026 |
+| USD/BRL | 4.9698 | -6.63% | -4.8% | 06/10/2026 |
+| CDI | 13.65% a.a. | — | — | 05/10/2026 |
 | Selic (meta) | 13.75% a.a. | — | — | 06/10/2026 |
 
 ## Ressalvas
