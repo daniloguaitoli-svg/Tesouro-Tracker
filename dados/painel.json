@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-10-09T00:27:48.099Z",
+ "atualizadoEm": "2026-10-09T17:28:40.861Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -20,14 +20,14 @@
    "nome": "Tesouro Prefixado 2029",
    "vencimento": "2029-01-01",
    "comCupom": false,
-   "taxa": 12.55,
+   "taxa": 12.53,
    "taxaSignifica": "juros nominais ao ano (a inflação do período corre por conta do investidor)",
-   "pu": 770.39,
-   "data": "2026-10-07",
+   "pu": 771.05,
+   "data": "2026-10-08",
    "duration": {
     "macaulayAnos": 2.233,
     "modificada": 1.984,
-    "convexidade": 5.699,
+    "convexidade": 5.701,
     "variacaoPrecoMais1pp": -1.96,
     "variacaoPrecoMenos1pp": 2.01
    }
@@ -39,8 +39,8 @@
    "comCupom": false,
    "taxa": 0.09,
    "taxaSignifica": "ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo)",
-   "pu": 19972.34,
-   "data": "2026-10-07",
+   "pu": 19981.94,
+   "data": "2026-10-08",
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -54,16 +54,16 @@
    "nome": "Tesouro IPCA+ 2032",
    "vencimento": "2032-08-15",
    "comCupom": false,
-   "taxa": 6.95,
+   "taxa": 6.82,
    "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 3216.5,
-   "data": "2026-10-07",
+   "pu": 3240.94,
+   "data": "2026-10-08",
    "duration": {
     "macaulayAnos": 5.855,
-    "modificada": 5.474,
-    "convexidade": 35.087,
-    "variacaoPrecoMais1pp": -5.3,
-    "variacaoPrecoMenos1pp": 5.65
+    "modificada": 5.481,
+    "convexidade": 35.172,
+    "variacaoPrecoMais1pp": -5.31,
+    "variacaoPrecoMenos1pp": 5.66
    }
   },
   {
@@ -71,49 +71,49 @@
    "nome": "Tesouro IPCA+ 2035",
    "vencimento": "2035-05-15",
    "comCupom": false,
-   "taxa": 6.95,
+   "taxa": 6.84,
    "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 2678.84,
-   "data": "2026-10-07",
+   "pu": 2703.83,
+   "data": "2026-10-08",
    "duration": {
     "macaulayAnos": 8.603,
-    "modificada": 8.044,
-    "convexidade": 72.222,
-    "variacaoPrecoMais1pp": -7.68,
-    "variacaoPrecoMenos1pp": 8.4
+    "modificada": 8.052,
+    "convexidade": 72.371,
+    "variacaoPrecoMais1pp": -7.69,
+    "variacaoPrecoMenos1pp": 8.41
    }
   }
  ],
  "moldura": {
   "ipca": {
-   "acumulado12mPct": 4.22,
-   "ultimoMesPct": -0.32,
-   "data": "2026-08-01"
+   "acumulado12mPct": 4.58,
+   "ultimoMesPct": 0.82,
+   "data": "2026-09-01"
   },
   "ibovespa": {
-   "pontos": 206220,
-   "var12mPct": 45.08,
-   "var12mDesde": "2025-10-08",
-   "var1semPct": 10.16,
-   "data": "2026-10-08"
+   "pontos": 208528,
+   "var12mPct": 47.15,
+   "var12mDesde": "2025-10-09",
+   "var1semPct": 8.54,
+   "data": "2026-10-09"
   },
   "eurbrl": {
-   "valor": 5.6093,
-   "varDiaPct": 0.4,
-   "var12mPct": -9.55,
-   "var1semPct": -4.11,
-   "data": "2026-10-08"
+   "valor": 5.5844,
+   "varDiaPct": -0.44,
+   "var12mPct": -9.77,
+   "var1semPct": -5.05,
+   "data": "2026-10-09"
   },
   "usdbrl": {
-   "valor": 5.0119,
-   "varDiaPct": 0.37,
-   "var12mPct": -6.19,
-   "var1semPct": -3.76,
-   "data": "2026-10-08"
+   "valor": 4.9892,
+   "varDiaPct": -0.45,
+   "var12mPct": -6.81,
+   "var1semPct": -4.49,
+   "data": "2026-10-09"
   },
   "cdi": {
    "pctAoAno": 13.65,
-   "data": "2026-10-07"
+   "data": "2026-10-08"
   },
   "selic": {
    "metaPctAoAno": 13.75,

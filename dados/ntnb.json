@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-10-09T00:27:48.099Z",
+ "atualizadoEm": "2026-10-09T17:28:40.861Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
   "tesouro": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
@@ -15,22 +15,22 @@
    "vencimento": "2029-05-15",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 2.6,
-   "taxa": 6.91,
-   "taxaCompra": 6.91,
-   "taxaVenda": 7.03,
-   "pu": 4004.26,
-   "puCompra": 4004.26,
-   "puVenda": 3990.71,
+   "taxa": 6.79,
+   "taxaCompra": 6.79,
+   "taxaVenda": 6.91,
+   "pu": 4017.83,
+   "puCompra": 4017.83,
+   "puVenda": 4004.26,
    "duration": {
     "macaulayAnos": 2.6,
-    "modificada": 2.432,
-    "convexidade": 8.189,
+    "modificada": 2.435,
+    "convexidade": 8.208,
     "variacaoPrecoMais1pp": -2.39,
-    "variacaoPrecoMenos1pp": 2.47
+    "variacaoPrecoMenos1pp": 2.48
    },
-   "pontosNaSerie": 936
+   "pontosNaSerie": 937
   },
   {
    "slug": "ipca-juros-2030-08-15",
@@ -39,22 +39,22 @@
    "vencimento": "2030-08-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 3.852,
-   "taxa": 6.97,
-   "taxaCompra": 6.97,
-   "taxaVenda": 7.09,
-   "pu": 4656.56,
-   "puCompra": 4656.56,
-   "puVenda": 4636.31,
+   "taxa": 6.83,
+   "taxaCompra": 6.83,
+   "taxaVenda": 6.95,
+   "pu": 4679.87,
+   "puCompra": 4679.87,
+   "puVenda": 4659.55,
    "duration": {
-    "macaulayAnos": 3.465,
-    "modificada": 3.239,
-    "convexidade": 14.252,
+    "macaulayAnos": 3.466,
+    "modificada": 3.244,
+    "convexidade": 14.295,
     "variacaoPrecoMais1pp": -3.17,
-    "variacaoPrecoMenos1pp": 3.31
+    "variacaoPrecoMenos1pp": 3.32
    },
-   "pontosNaSerie": 1660
+   "pontosNaSerie": 1661
   },
   {
    "slug": "ipca-juros-2032-08-15",
@@ -63,22 +63,22 @@
    "vencimento": "2032-08-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 5.855,
-   "taxa": 6.94,
-   "taxaCompra": 6.94,
-   "taxaVenda": 7.06,
-   "pu": 4599.33,
-   "puCompra": 4599.33,
-   "puVenda": 4571.64,
+   "taxa": 6.81,
+   "taxaCompra": 6.81,
+   "taxaVenda": 6.93,
+   "pu": 4629.33,
+   "puCompra": 4629.33,
+   "puVenda": 4601.45,
    "duration": {
-    "macaulayAnos": 4.968,
-    "modificada": 4.646,
-    "convexidade": 28.305,
-    "variacaoPrecoMais1pp": -4.5,
-    "variacaoPrecoMenos1pp": 4.79
+    "macaulayAnos": 4.971,
+    "modificada": 4.654,
+    "convexidade": 28.398,
+    "variacaoPrecoMais1pp": -4.51,
+    "variacaoPrecoMenos1pp": 4.8
    },
-   "pontosNaSerie": 1156
+   "pontosNaSerie": 1157
   },
   {
    "slug": "ipca-2032-08-15",
@@ -87,22 +87,22 @@
    "vencimento": "2032-08-15",
    "comCupom": false,
    "destaque": true,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 5.855,
-   "taxa": 6.95,
-   "taxaCompra": 6.95,
-   "taxaVenda": 7.07,
-   "pu": 3216.5,
-   "puCompra": 3216.5,
-   "puVenda": 3193.97,
+   "taxa": 6.82,
+   "taxaCompra": 6.82,
+   "taxaVenda": 6.94,
+   "pu": 3240.94,
+   "puCompra": 3240.94,
+   "puVenda": 3218.25,
    "duration": {
     "macaulayAnos": 5.855,
-    "modificada": 5.474,
-    "convexidade": 35.087,
-    "variacaoPrecoMais1pp": -5.3,
-    "variacaoPrecoMenos1pp": 5.65
+    "modificada": 5.481,
+    "convexidade": 35.172,
+    "variacaoPrecoMais1pp": -5.31,
+    "variacaoPrecoMenos1pp": 5.66
    },
-   "pontosNaSerie": 171
+   "pontosNaSerie": 172
   },
   {
    "slug": "ipca-juros-2035-05-15",
@@ -111,22 +111,22 @@
    "vencimento": "2035-05-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 8.603,
-   "taxa": 6.94,
-   "taxaCompra": 6.94,
-   "taxaVenda": 7.06,
-   "pu": 4602.87,
-   "puCompra": 4602.87,
-   "puVenda": 4566.68,
+   "taxa": 6.83,
+   "taxaCompra": 6.83,
+   "taxaVenda": 6.95,
+   "pu": 4636.53,
+   "puCompra": 4636.53,
+   "puVenda": 4600.03,
    "duration": {
-    "macaulayAnos": 6.638,
-    "modificada": 6.207,
-    "convexidade": 51.45,
-    "variacaoPrecoMais1pp": -5.95,
-    "variacaoPrecoMenos1pp": 6.46
+    "macaulayAnos": 6.646,
+    "modificada": 6.221,
+    "convexidade": 51.638,
+    "variacaoPrecoMais1pp": -5.96,
+    "variacaoPrecoMenos1pp": 6.48
    },
-   "pontosNaSerie": 1937
+   "pontosNaSerie": 1938
   },
   {
    "slug": "ipca-2035-05-15",
@@ -135,22 +135,22 @@
    "vencimento": "2035-05-15",
    "comCupom": false,
    "destaque": true,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 8.603,
-   "taxa": 6.95,
-   "taxaCompra": 6.95,
-   "taxaVenda": 7.07,
-   "pu": 2678.84,
-   "puCompra": 2678.84,
-   "puVenda": 2651.97,
+   "taxa": 6.84,
+   "taxaCompra": 6.84,
+   "taxaVenda": 6.96,
+   "pu": 2703.83,
+   "puCompra": 2703.83,
+   "puVenda": 2676.7,
    "duration": {
     "macaulayAnos": 8.603,
-    "modificada": 8.044,
-    "convexidade": 72.222,
-    "variacaoPrecoMais1pp": -7.68,
-    "variacaoPrecoMenos1pp": 8.4
+    "modificada": 8.052,
+    "convexidade": 72.371,
+    "variacaoPrecoMais1pp": -7.69,
+    "variacaoPrecoMenos1pp": 8.41
    },
-   "pontosNaSerie": 1937
+   "pontosNaSerie": 1938
   },
   {
    "slug": "ipca-juros-2037-05-15",
@@ -159,22 +159,22 @@
    "vencimento": "2037-05-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 10.605,
-   "taxa": 6.95,
-   "taxaCompra": 6.95,
-   "taxaVenda": 7.07,
-   "pu": 4556.56,
-   "puCompra": 4556.56,
-   "puVenda": 4515.26,
+   "taxa": 6.85,
+   "taxaCompra": 6.85,
+   "taxaVenda": 6.97,
+   "pu": 4591.7,
+   "puCompra": 4591.7,
+   "puVenda": 4550.03,
    "duration": {
-    "macaulayAnos": 7.725,
-    "modificada": 7.223,
-    "convexidade": 70.755,
-    "variacaoPrecoMais1pp": -6.87,
-    "variacaoPrecoMenos1pp": 7.58
+    "macaulayAnos": 7.738,
+    "modificada": 7.241,
+    "convexidade": 71.036,
+    "variacaoPrecoMais1pp": -6.89,
+    "variacaoPrecoMenos1pp": 7.6
    },
-   "pontosNaSerie": 171
+   "pontosNaSerie": 172
   },
   {
    "slug": "ipca-juros-2040-08-15",
@@ -183,22 +183,22 @@
    "vencimento": "2040-08-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 13.86,
-   "taxa": 6.76,
-   "taxaCompra": 6.76,
-   "taxaVenda": 6.88,
-   "pu": 4498.31,
-   "puCompra": 4498.31,
-   "puVenda": 4449.17,
+   "taxa": 6.73,
+   "taxaCompra": 6.73,
+   "taxaVenda": 6.85,
+   "pu": 4512.39,
+   "puCompra": 4512.39,
+   "puVenda": 4463.07,
    "duration": {
-    "macaulayAnos": 9.399,
-    "modificada": 8.804,
-    "convexidade": 106.712,
-    "variacaoPrecoMais1pp": -8.27,
-    "variacaoPrecoMenos1pp": 9.34
+    "macaulayAnos": 9.406,
+    "modificada": 8.813,
+    "convexidade": 106.873,
+    "variacaoPrecoMais1pp": -8.28,
+    "variacaoPrecoMenos1pp": 9.35
    },
-   "pontosNaSerie": 1660
+   "pontosNaSerie": 1661
   },
   {
    "slug": "ipca-2040-08-15",
@@ -207,14 +207,14 @@
    "vencimento": "2040-08-15",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 13.86,
    "taxa": 6.69,
    "taxaCompra": 6.69,
    "taxaVenda": 6.81,
-   "pu": 1948.79,
-   "puCompra": 1948.79,
-   "puVenda": 1917.9,
+   "pu": 1949.76,
+   "puCompra": 1949.76,
+   "puVenda": 1918.86,
    "duration": {
     "macaulayAnos": 13.86,
     "modificada": 12.991,
@@ -222,7 +222,7 @@
     "variacaoPrecoMais1pp": -12.09,
     "variacaoPrecoMenos1pp": 13.9
    },
-   "pontosNaSerie": 420
+   "pontosNaSerie": 421
   },
   {
    "slug": "ipca-juros-2045-05-15",
@@ -231,22 +231,22 @@
    "vencimento": "2045-05-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 18.611,
-   "taxa": 6.71,
-   "taxaCompra": 6.71,
-   "taxaVenda": 6.83,
-   "pu": 4539.42,
-   "puCompra": 4539.42,
-   "puVenda": 4482.04,
+   "taxa": 6.69,
+   "taxaCompra": 6.69,
+   "taxaVenda": 6.81,
+   "pu": 4550.96,
+   "puCompra": 4550.96,
+   "puVenda": 4493.41,
    "duration": {
-    "macaulayAnos": 10.957,
-    "modificada": 10.268,
-    "convexidade": 155.463,
-    "variacaoPrecoMais1pp": -9.49,
-    "variacaoPrecoMenos1pp": 11.05
+    "macaulayAnos": 10.966,
+    "modificada": 10.278,
+    "convexidade": 155.687,
+    "variacaoPrecoMais1pp": -9.5,
+    "variacaoPrecoMenos1pp": 11.06
    },
-   "pontosNaSerie": 1937
+   "pontosNaSerie": 1938
   },
   {
    "slug": "ipca-2045-05-15",
@@ -255,22 +255,22 @@
    "vencimento": "2045-05-15",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 18.611,
-   "taxa": 6.63,
-   "taxaCompra": 6.63,
-   "taxaVenda": 6.75,
-   "pu": 1451.47,
-   "puCompra": 1451.47,
-   "puVenda": 1420.9,
+   "taxa": 6.64,
+   "taxaCompra": 6.64,
+   "taxaVenda": 6.76,
+   "pu": 1449.68,
+   "puCompra": 1449.68,
+   "puVenda": 1419.15,
    "duration": {
     "macaulayAnos": 18.611,
-    "modificada": 17.454,
-    "convexidade": 321.003,
+    "modificada": 17.452,
+    "convexidade": 320.943,
     "variacaoPrecoMais1pp": -15.85,
     "variacaoPrecoMenos1pp": 19.06
    },
-   "pontosNaSerie": 1937
+   "pontosNaSerie": 1938
   },
   {
    "slug": "ipca-juros-2050-08-15",
@@ -279,22 +279,22 @@
    "vencimento": "2050-08-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 23.866,
-   "taxa": 6.7,
-   "taxaCompra": 6.7,
-   "taxaVenda": 6.82,
-   "pu": 4432.86,
-   "puCompra": 4432.86,
-   "puVenda": 4369.32,
+   "taxa": 6.69,
+   "taxaCompra": 6.69,
+   "taxaVenda": 6.81,
+   "pu": 4440.24,
+   "puCompra": 4440.24,
+   "puVenda": 4376.57,
    "duration": {
-    "macaulayAnos": 12.498,
-    "modificada": 11.714,
-    "convexidade": 210.904,
-    "variacaoPrecoMais1pp": -10.66,
-    "variacaoPrecoMenos1pp": 12.77
+    "macaulayAnos": 12.505,
+    "modificada": 11.721,
+    "convexidade": 211.103,
+    "variacaoPrecoMais1pp": -10.67,
+    "variacaoPrecoMenos1pp": 12.78
    },
-   "pontosNaSerie": 1937
+   "pontosNaSerie": 1938
   },
   {
    "slug": "ipca-2050-08-15",
@@ -303,22 +303,22 @@
    "vencimento": "2050-08-15",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 23.866,
-   "taxa": 6.62,
-   "taxaCompra": 6.62,
-   "taxaVenda": 6.74,
-   "pu": 1040.62,
-   "puCompra": 1040.62,
-   "puVenda": 1012.74,
+   "taxa": 6.65,
+   "taxaCompra": 6.65,
+   "taxaVenda": 6.77,
+   "pu": 1034.21,
+   "puCompra": 1034.21,
+   "puVenda": 1006.52,
    "duration": {
     "macaulayAnos": 23.866,
-    "modificada": 22.384,
-    "convexidade": 522.035,
+    "modificada": 22.378,
+    "convexidade": 521.741,
     "variacaoPrecoMais1pp": -19.77,
     "variacaoPrecoMenos1pp": 24.99
    },
-   "pontosNaSerie": 420
+   "pontosNaSerie": 421
   },
   {
    "slug": "ipca-juros-2055-05-15",
@@ -327,22 +327,22 @@
    "vencimento": "2055-05-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 28.616,
-   "taxa": 6.63,
-   "taxaCompra": 6.63,
-   "taxaVenda": 6.75,
-   "pu": 4516.59,
-   "puCompra": 4516.59,
-   "puVenda": 4448.25,
+   "taxa": 6.61,
+   "taxaCompra": 6.61,
+   "taxaVenda": 6.73,
+   "pu": 4530,
+   "puCompra": 4530,
+   "puVenda": 4461.38,
    "duration": {
-    "macaulayAnos": 13.22,
-    "modificada": 12.398,
-    "convexidade": 251.135,
-    "variacaoPrecoMais1pp": -11.14,
-    "variacaoPrecoMenos1pp": 13.65
+    "macaulayAnos": 13.239,
+    "modificada": 12.418,
+    "convexidade": 251.732,
+    "variacaoPrecoMais1pp": -11.16,
+    "variacaoPrecoMenos1pp": 13.68
    },
-   "pontosNaSerie": 1660
+   "pontosNaSerie": 1661
   },
   {
    "slug": "ipca-juros-2060-08-15",
@@ -351,14 +351,14 @@
    "vencimento": "2060-08-15",
    "comCupom": true,
    "destaque": false,
-   "data": "2026-10-07",
+   "data": "2026-10-08",
    "anosAteVencer": 33.874,
    "taxa": 6.62,
    "taxaCompra": 6.62,
    "taxaVenda": 6.74,
-   "pu": 4431.75,
-   "puCompra": 4431.75,
-   "puVenda": 4360.21,
+   "pu": 4433.94,
+   "puCompra": 4433.94,
+   "puVenda": 4362.38,
    "duration": {
     "macaulayAnos": 14.142,
     "modificada": 13.264,
@@ -366,7 +366,7 @@
     "variacaoPrecoMais1pp": -11.78,
     "variacaoPrecoMenos1pp": 14.74
    },
-   "pontosNaSerie": 420
+   "pontosNaSerie": 421
   }
  ]
 }
