@@ -1,26 +1,26 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-10-13T23:46:04.366Z.
+Retrato gerado automaticamente em 2026-10-14T15:51:39.647Z.
 
 ## Acompanhados de perto
 
 | Vencimento | Título | Taxa | Significa | PU (R$) | Duration | +1 p.p. | Data |
 | --- | --- | ---: | --- | ---: | ---: | ---: | --- |
-| 01/01/2029 | Tesouro Prefixado 2029 | 12.3% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 774.89 | 2.222 a | -1.95% | 09/10/2026 |
-| 01/03/2031 | Tesouro Selic 2031 | 0.09% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 19991.91 | — | — | 09/10/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 | 6.65% | juros reais ao ano ACIMA do IPCA | 3278.07 | 5.844 a | -5.3% | 09/10/2026 |
-| 15/05/2035 | Tesouro IPCA+ 2035 | 6.66% | juros reais ao ano ACIMA do IPCA | 2748.88 | 8.592 a | -7.69% | 09/10/2026 |
+| 01/01/2029 | Tesouro Prefixado 2029 | 12.4% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 773.74 | 2.219 a | -1.95% | 13/10/2026 |
+| 01/03/2031 | Tesouro Selic 2031 | 0.09% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 20001.6 | — | — | 13/10/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 | 6.68% | juros reais ao ano ACIMA do IPCA | 3274.46 | 5.841 a | -5.3% | 13/10/2026 |
+| 15/05/2035 | Tesouro IPCA+ 2035 | 6.69% | juros reais ao ano ACIMA do IPCA | 2743.75 | 8.589 a | -7.69% | 13/10/2026 |
 
 ## Moldura
 
 | Indicador | Valor | 12 meses | 1 semana | Data |
 | --- | ---: | ---: | ---: | --- |
 | IPCA (acum. 12m) | 4.58% | — | — | 01/09/2026 |
-| Ibovespa | 206888 pts | 45.92% | 0.51% | 13/10/2026 |
+| Ibovespa | 204969 pts | 44.67% | 0.33% | 14/10/2026 |
 | EUR/BRL | 5.6092 | -11.3% | 0.21% | 13/10/2026 |
 | USD/BRL | 5.0096 | -8.3% | 0.8% | 13/10/2026 |
-| CDI | 13.65% a.a. | — | — | 09/10/2026 |
-| Selic (meta) | 13.75% a.a. | — | — | 13/10/2026 |
+| CDI | 13.65% a.a. | — | — | 13/10/2026 |
+| Selic (meta) | 13.75% a.a. | — | — | 14/10/2026 |
 
 ## Ressalvas
 
