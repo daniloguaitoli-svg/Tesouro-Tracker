@@ -211,7 +211,14 @@ if (ultima) {
   }
 }
 
+// "Inconclusiva" só quando NÃO houve leitura. Em 22/10/2026 a sonda leu o
+// arquivo inteiro, deu o veredito certo (fonte parada há 5 dias úteis) e mesmo
+// assim assinou "inconclusiva", porque um ECONNRESET no pedido com quebra-cache
+// — um de três pedidos, e o menos importante deles — tinha ligado a bandeira.
+// Uma sonda que responde a pergunta e diz que não respondeu é pior do que uma
+// que falha: convida a investigar de novo o que já estava medido.
+const semLeitura = !ultima;
 console.log(
-  `\n${falhas === 0 ? (inalcancavel ? "sonda inconclusiva (fonte fora do ar) — sem defeito deste lado" : "sonda limpa") : `${falhas} problema(s)`}`
+  `\n${falhas === 0 ? (semLeitura && inalcancavel ? "sonda inconclusiva (fonte fora do ar) — sem defeito deste lado" : inalcancavel ? "sonda limpa (um dos pedidos não respondeu; a leitura do arquivo valeu)" : "sonda limpa") : `${falhas} problema(s)`}`
 );
 process.exit(falhas === 0 ? 0 : 1);
