@@ -138,6 +138,19 @@ conferir(
   "convexidade: −1 p.p. ganha mais do que +1 p.p. perde"
 );
 conferir(zero.variacaoPor1pp < 0 && zero.variacaoMenos1pp > 0, "taxa sobe -> preço cai, e vice-versa");
+// O choque de 2 p.p. NÃO é o dobro do de 1 p.p., e é a convexidade que faz a
+// diferença: ela entra ao quadrado, então amortece a perda na alta e amplia o
+// ganho na baixa. Se alguém "simplificar" a tela dobrando o ±1 p.p. à mão,
+// estes dois abrem — e o erro seria do tipo que ninguém nota, porque o número
+// continua plausível (−10,5% em vez de −10,2%).
+conferir(
+  zero.variacaoPor2pp < 0 && zero.variacaoPor2pp > 2 * zero.variacaoPor1pp,
+  `+2 p.p. perde menos que o dobro de +1 p.p. (${zero.variacaoPor2pp.toFixed(2)}% contra ${(2 * zero.variacaoPor1pp).toFixed(2)}%)`
+);
+conferir(
+  zero.variacaoMenos2pp > 2 * zero.variacaoMenos1pp,
+  `−2 p.p. ganha mais que o dobro de −1 p.p. (${zero.variacaoMenos2pp.toFixed(2)}% contra ${(2 * zero.variacaoMenos1pp).toFixed(2)}%)`
+);
 
 // Preço ao par: um título com cupom precificado à própria taxa de cupom vale ~100.
 const par = util.precoPor100({ vencimentoISO: "2035-05-15", comCupom: true, taxaReal: 0.06, hojeISO: HOJE });

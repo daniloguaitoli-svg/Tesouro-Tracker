@@ -135,6 +135,10 @@ export default function App() {
         </>
       )}
 
+      {/* O rodapé não aparece no Detalhe: lá o mesmo aviso mora dobrado em
+          "Fontes e método", e a tela ficaria com a frase duas vezes — uma
+          recolhida e outra por extenso logo abaixo. */}
+      {!slug && (
       <footer className="footer">
         <strong>Aviso:</strong>{" "}
         {dados?.aviso ||
@@ -146,6 +150,7 @@ export default function App() {
           <> Última coleta: {dataBR(dados.atualizadoEm)} às {horaBR(dados.atualizadoEm)}.</>
         )}
       </footer>
+      )}
 
       <BarraInferior value={slug ? null : tab} onChange={irPara} tabs={TABS} />
     </div>

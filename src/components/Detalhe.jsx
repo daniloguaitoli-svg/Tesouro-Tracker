@@ -7,7 +7,8 @@
 // prazo — melhor do que qualquer parágrafo.
 import { useEffect, useState } from "react";
 import { getDetalhe } from "../api.js";
-import { AreaChart } from "./AreaChart.jsx";
+import { GraficoTaxa } from "./GraficoTaxa.jsx";
+import { Chip } from "./Chip.jsx";
 import { ErroBox, Loading } from "./States.jsx";
 import { taxa, pct, pp, anos, reais, dataBR, num, sinal, sinalTaxa, unidadeTaxa } from "../format.js";
 
@@ -56,26 +57,25 @@ export function Detalhe({ slug, onBack }) {
     <div>
       <button className="backlink" onClick={onBack}>← voltar</button>
 
-      <div className="detail-head">
-        <div style={{ flex: 1 }}>
-          <div className="label muted">{t.nome}</div>
-          <div className="price">{taxa(t.taxa, t.tipo === "selic" ? 4 : 2)}</div>
-          <div className="label">
-            <strong>{unidadeTaxa(t.tipo)}</strong> · PU {reais(t.pu)}
-          </div>
-          <div className={`label ${sinalTaxa(t.taxaVarPP)}`}>
-            {pp(t.taxaVarPP)} na taxa{" "}
-            {t.puVarPct != null && <span className={sinal(t.puVarPct)}>· {pct(t.puVarPct)} no preço</span>}
-          </div>
-          <div>
-            <span className="pill">vence {dataBR(t.vencimento)}</span>
-            <span className="pill">
-              {t.tipo === "selic" ? "pós-fixado (Selic)" : t.comCupom ? "juros semestrais" : "sem cupom"}
-            </span>
-            {t.secundario?.taxaIndicativa != null && (
-              <span className="pill">ANBIMA {taxa(t.secundario.taxaIndicativa)}</span>
-            )}
-          </div>
+      <div className="det-cabeca">
+        <div className="det-taxa-linha">
+          <b className="det-taxa mono">{taxa(t.taxa, t.tipo === "selic" ? 4 : 2)}</b>
+          <span className="det-unidade">{unidadeTaxa(t.tipo)}</span>
+        </div>
+
+        {/* Os mesmos três chips do cartão do Painel, na mesma ordem: quem
+            chegou aqui tocando num cartão reencontra os números onde os
+            deixou, em vez de ter de procurá-los noutro arranjo. */}
+        <div className="chips">
+          <Chip rotulo="taxa" valor={pp(t.taxaVarPP)} dir={sinalTaxa(t.taxaVarPP)} />
+          <Chip rotulo="preço" valor={pct(t.puVarPct)} dir={sinal(t.puVarPct)} />
+          <Chip rotulo="PU" valor={reais(t.pu)} />
+        </div>
+
+        <div className="det-sub">
+          {t.tipo === "selic" ? "Pós-fixado (Selic)" : t.comCupom ? "Juros semestrais" : "Sem cupom"} · vence{" "}
+          {dataBR(t.vencimento)} · preço de {dataBR(t.data)}
+          {t.secundario?.taxaIndicativa != null && <> · ANBIMA {taxa(t.secundario.taxaIndicativa)}</>}
         </div>
       </div>
 
@@ -87,9 +87,13 @@ export function Detalhe({ slug, onBack }) {
         ))}
       </div>
 
-      <AreaChart points={dados.pontos} campo="taxa" />
+      <GraficoTaxa
+        pontos={dados.pontos}
+        media={dados.estatisticas?.media ?? null}
+        rotulo={`${t.nome}: taxa de ${taxa(dados.estatisticas?.minima)} a ${taxa(dados.estatisticas?.maxima)} no período, média ${taxa(dados.estatisticas?.media)}, hoje ${taxa(t.taxa)}`}
+      />
       <div className="pricedate" style={{ textAlign: "right" }}>
-        taxa real · {dados.pontos.length} pontos até {dataBR(t.data)}
+        {unidadeTaxa(t.tipo)} · {dados.pontos.length} pontos até {dataBR(t.data)}
       </div>
 
       {dados.estatisticas && (
@@ -118,32 +122,52 @@ export function Detalhe({ slug, onBack }) {
         </div>
       )}
 
-      {d.macaulay != null && (<>
-      <div className="section-title">Sensibilidade a juros</div>
-      <div className="statgrid">
-        <div className="stat">
-          <div className="k">duration</div>
-          <div className="v">{anos(d.macaulay)}</div>
-        </div>
-        <div className="stat">
-          <div className="k">se +1 p.p.</div>
-          <div className={`v ${sinal(d.variacaoPor1pp)}`}>{pct(d.variacaoPor1pp)}</div>
-        </div>
-        <div className="stat">
-          <div className="k">se −1 p.p.</div>
-          <div className={`v ${sinal(d.variacaoMenos1pp)}`}>{pct(d.variacaoMenos1pp)}</div>
-        </div>
-      </div>
-      <div className="note">
-        Duration de {anos(d.macaulay)} contra um prazo de {anos(t.anosAteVencer)}
-        {t.comCupom
-          ? " — menor que o prazo porque os cupons devolvem parte do dinheiro antes do vencimento."
-          : " — igual ao prazo, porque há um único pagamento, lá no fim."}{" "}
-        Duration modificada {num(d.modificada, 2)}: é quanto o preço se move, em %, por ponto
-        percentual de taxa. As duas pontas não são simétricas por causa da convexidade
-        ({num(d.convexidade, 1)}).
-      </div>
-      </>)}
+      {d.macaulay != null && (
+        <>
+          <div className="section-title">Se a taxa mudar…</div>
+          {/* Quatro cenários em vez de dois: ±1 p.p. sozinho não mostra que a
+              reação é assimétrica, e é a assimetria que importa aqui — a queda
+              de 2 p.p. ganha mais do que a alta de 2 p.p. tira. Os quatro vêm
+              do servidor (ver calcularDuration), nunca de dobrar o ±1 na tela:
+              a convexidade entra ao quadrado e dobrar exageraria a perda. */}
+          <div className="cenarios">
+            {[
+              ["−2 p.p.", d.variacaoMenos2pp],
+              ["−1 p.p.", d.variacaoMenos1pp],
+              ["+1 p.p.", d.variacaoPor1pp],
+              ["+2 p.p.", d.variacaoPor2pp],
+            ].map(([rotulo, v]) => (
+              <div key={rotulo}>
+                <div className="cen-rotulo mono">{rotulo}</div>
+                <div className={`cen-valor mono ${sinal(v)}`}>{pct(v)}</div>
+              </div>
+            ))}
+          </div>
+          <p className="section-sub">
+            Variação no <strong>preço de mercado</strong>. Levado até o vencimento, você recebe{" "}
+            {unidadeTaxa(t.tipo)} {taxa(t.taxa)} de qualquer forma.
+          </p>
+          <div className="det-metricas">
+            <span>
+              duration <b className="mono">{anos(d.macaulay)}</b>
+            </span>
+            <span>
+              modificada <b className="mono">{num(d.modificada, 2)}</b>
+            </span>
+            <span>
+              convexidade <b className="mono">{num(d.convexidade, 1)}</b>
+            </span>
+          </div>
+          <div className="note">
+            Duration de {anos(d.macaulay)} contra um prazo de {anos(t.anosAteVencer)}
+            {t.comCupom
+              ? " — menor que o prazo porque os cupons devolvem parte do dinheiro antes do vencimento."
+              : " — igual ao prazo, porque há um único pagamento, lá no fim."}{" "}
+            A duration modificada é quanto o preço se move, em %, por ponto percentual de taxa;
+            as duas pontas não são simétricas por causa da convexidade.
+          </div>
+        </>
+      )}
 
       {fluxos.length > 0 && (
         <>
@@ -167,7 +191,15 @@ export function Detalhe({ slug, onBack }) {
       )}
 
       {dados.notaHistorico && <div className="note">{dados.notaHistorico}</div>}
-      <div className="note">{dados.aviso}</div>
+
+      {/* O aviso recolhido, não escondido: ele é a mesma frase em todas as
+          telas e, aberto por extenso no fim de cada uma, vira texto que
+          ninguém lê. Dobrado atrás de "Fontes e método" continua a um toque,
+          e `details` já é acessível por teclado sem JS nenhum. */}
+      <details className="fontes">
+        <summary>Fontes e método</summary>
+        <p>{dados.aviso}</p>
+      </details>
     </div>
   );
 }

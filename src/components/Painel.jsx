@@ -14,6 +14,7 @@
 import { taxa, pct, pp, anos, reais, dataBR, sinal, sinalTaxa, num, unidadeTaxa } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
 import { PainelLateral } from "./PainelLateral.jsx";
+import { Chip } from "./Chip.jsx";
 import { useTelaLarga } from "../telaLarga.js";
 
 // Um vencimento acompanhado, em três faixas de leitura: identidade à esquerda
@@ -86,17 +87,6 @@ function CartaoTitulo({ t, onOpen }) {
         <span className="ct-dur ct-dur-nota">Pós-fixado: acompanha a Selic, quase sem risco de juros.</span>
       )}
     </button>
-  );
-}
-
-// Um chip de variação. A cor vai só no NÚMERO, nunca no chip inteiro: pintar
-// o rótulo junto faria "preço" parecer ser o que subiu ou caiu.
-function Chip({ rotulo, valor, dir }) {
-  const tom = dir === "up" || dir === "down" ? ` chip-${dir}` : "";
-  return (
-    <span className={`chip${tom}`}>
-      {rotulo} <b className={`mono ${dir || ""}`}>{valor}</b>
-    </span>
   );
 }
 

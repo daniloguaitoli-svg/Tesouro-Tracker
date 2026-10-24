@@ -443,6 +443,24 @@ It is **not an inflation forecast** — it carries an inflation risk premium and
 liquidity difference, so it sits above true expectations. The UI says so; keep
 it saying so.
 
+### The Detalhe screen reads, the others glance
+
+`GraficoTaxa.jsx` is the detail chart and it is **not** `AreaChart`: that one
+draws with `preserveAspectRatio="none"` and is `aria-hidden`, which makes it a
+shape, not something you read — any text inside it stretches with the viewport.
+The detail chart keeps its ratio, carries an `aria-label` with the figures, and
+adds the three things the bare line could not answer: **rate labels** on the
+left, **dates** below, and the period's **average** as a dashed line, which is
+the reference that makes "expensive or cheap" mean something. Date labels
+switch from `dd/mm` to `mm/aa` past ~180 days on screen, since three identical
+months on a five-year chart say nothing. The dashed average uses a **butt**
+linecap for the reason the Curva legend documents: a round cap eats the gap and
+the dashes close into a solid line.
+
+The disclaimer there is folded into a `<details>` labelled "Fontes e método",
+and `App.jsx` drops its own footer while a slug is open — otherwise the same
+sentence appears twice on one screen, once folded and once in full right below.
+
 ### The bond math lives in `server/util.js`
 
 This is the part where a bug means the app lies about risk, so it is checked by
@@ -453,7 +471,18 @@ identities rather than fixtures:
 - `fluxosNTNB()` walks back from maturity in 6-month steps, which is what
   produces the real coupon dates (15/02 & 15/08, or 15/05 & 15/11).
 - `calcularDuration()` returns Macaulay, modified, convexity and the ±1 p.p.
-  price effect (`−D_mod·Δy + ½·C·Δy²`).
+  price effect (`−D_mod·Δy + ½·C·Δy²`), and the same expansion at **±2 p.p.**
+  (`variacaoPor2pp` / `variacaoMenos2pp`), which the Detalhe screen shows as a
+  four-cell scenario row. Two p.p. is deliberately **not** twice one p.p.:
+  convexity enters squared, so the rise hurts less and the fall gains more than
+  doubling would say. Never double the ±1 figure in a component —
+  `verificar.mjs` asserts both inequalities, because the doubled number stays
+  plausible (−10,5% against the true −10,2%) and would never look wrong.
+
+  `getItem` in `datalayer.js` copies the duration object **field by field**
+  (`fluxos` must not ride along on a payload carrying dozens of maturities), so
+  a new scenario has to be listed there too. That omission is exactly how the
+  ±2 p.p. cells first reached the screen as "—".
 
 `verificar.mjs` asserts the invariants that must always hold: zero-coupon
 duration **equals** the term; a coupon bond's is strictly shorter; modified =

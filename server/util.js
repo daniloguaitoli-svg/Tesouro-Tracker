@@ -415,7 +415,11 @@ export function fluxosNTNB({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_N
 // sobe) hoje se a taxa real subir (ou cair) 1 ponto percentual — já com o termo
 // de convexidade, que é o que torna a subida e a descida assimétricas.
 export function calcularDuration({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_NTNB, taxaReal, hojeISO: hoje = hojeISO() }) {
-  const vazio = { macaulay: null, modificada: null, convexidade: null, variacaoPor1pp: null, variacaoMenos1pp: null };
+  const vazio = {
+    macaulay: null, modificada: null, convexidade: null,
+    variacaoPor1pp: null, variacaoMenos1pp: null,
+    variacaoPor2pp: null, variacaoMenos2pp: null,
+  };
   if (taxaReal == null || !Number.isFinite(taxaReal) || taxaReal <= -1) return vazio;
 
   const fluxos = fluxosNTNB({ vencimentoISO, comCupom, cupomAnual, hojeISO: hoje });
@@ -446,6 +450,12 @@ export function calcularDuration({ vencimentoISO, comCupom, cupomAnual = CUPOM_A
     convexidade,
     variacaoPor1pp: variacao(0.01),
     variacaoMenos1pp: variacao(-0.01),
+    // ±2 p.p. sai da MESMA expansão, não de dobrar o ±1: a convexidade entra
+    // ao quadrado, então o choque de 2 p.p. não é duas vezes o de 1 p.p. — a
+    // alta machuca menos e a baixa ganha mais do que a conta linear diria.
+    // Dobrar à mão na tela exageraria a perda e encolheria o ganho.
+    variacaoPor2pp: variacao(0.02),
+    variacaoMenos2pp: variacao(-0.02),
     fluxos,
   };
 }
