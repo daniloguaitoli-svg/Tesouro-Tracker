@@ -16,14 +16,42 @@ import { dataBR, horaBR } from "../format.js";
 
 const diaMes = (iso) => dataBR(iso).slice(0, 5);
 
+// Engole o próximo clique da página inteira. O toque que fecha o balão é um
+// pointerdown seguido de um click — e esse click, sem isto, chega ao cartão que
+// estava por baixo e abre o Detalhe: a pessoa queria só fechar o balão.
+// Escuta na CAPTURA do document, que roda antes da raiz onde o React registra
+// os seus ouvintes, então o onClick do cartão nunca dispara. Se o gesto virar
+// rolagem (pointercancel) ou não produzir click, o ouvinte sai sozinho — senão
+// engoliria um toque legítimo minutos depois.
+function engolirProximoClique() {
+  const engolir = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    sair();
+  };
+  const sair = () => {
+    document.removeEventListener("click", engolir, true);
+    document.removeEventListener("pointercancel", sair, true);
+    clearTimeout(prazo);
+  };
+  const prazo = setTimeout(sair, 1000);
+  document.addEventListener("click", engolir, true);
+  document.addEventListener("pointercancel", sair, true);
+}
+
 export function SeloDados({ itens, atualizadoEm }) {
   const [aberto, setAberto] = useState(false);
   const raiz = useRef(null);
 
-  // Fecha ao tocar fora ou com Esc. Ouvintes só enquanto o balão está aberto.
+  // Fecha ao tocar fora ou com Esc — e o toque de fora SÓ fecha (ver
+  // engolirProximoClique). Ouvintes só enquanto o balão está aberto.
   useEffect(() => {
     if (!aberto) return;
-    const fora = (e) => raiz.current && !raiz.current.contains(e.target) && setAberto(false);
+    const fora = (e) => {
+      if (!raiz.current || raiz.current.contains(e.target)) return;
+      engolirProximoClique();
+      setAberto(false);
+    };
     const esc = (e) => e.key === "Escape" && setAberto(false);
     document.addEventListener("pointerdown", fora);
     window.addEventListener("keydown", esc);
