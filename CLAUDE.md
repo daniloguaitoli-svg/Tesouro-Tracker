@@ -141,7 +141,7 @@ If you add a tab to `TABS` in `App.jsx`, add its label to `ABAS_ESPERADAS` in
 index.html            entry, fonts, PWA tags (lang="pt-BR")
 src/
   main.jsx            mounts React + service worker (PROD only, auto-reload on update)
-  App.jsx             frame: topbar (brand + IPCA 12m), 5 tabs, full-screen Detalhe
+  App.jsx             frame: topbar (brand + selo de data), 7 abas, full-screen Detalhe
   api.js              the only data import for the UI — thin fetch wrappers over /api
   format.js           pt-BR formatting (num, taxa, pct, pp, anos, reais, dataBR, …)
   destaques.js        which maturities the user follows (localStorage, per device)
