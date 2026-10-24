@@ -103,7 +103,11 @@ function montarItem(slug, { comSerie = false } = {}) {
         cupomAnual,
         taxaReal: taxa == null ? null : taxa / 100,
       })
-    : { macaulay: null, modificada: null, convexidade: null, variacaoPor1pp: null, variacaoMenos1pp: null };
+    : {
+        macaulay: null, modificada: null, convexidade: null,
+        variacaoPor1pp: null, variacaoMenos1pp: null,
+        variacaoPor2pp: null, variacaoMenos2pp: null,
+      };
 
   const item = {
     slug,
@@ -122,12 +126,19 @@ function montarItem(slug, { comSerie = false } = {}) {
     anosAteVencer: anosEntre(hojeISO(), vencimento),
     pontos: serie.length,
     ...variacaoDaSerie(serie),
+    // Campo a campo, e não `...duration`, porque `fluxos` não cabe aqui: o
+    // payload de /api/titulos leva dezenas de vencimentos, e o fluxo de caixa
+    // de cada um só interessa na tela de detalhe. Ao acrescentar um cenário,
+    // lembre de listá-lo aqui também — foi o que faltou quando os ±2 p.p.
+    // nasceram e chegaram à tela como "—".
     duration: {
       macaulay: duration.macaulay,
       modificada: duration.modificada,
       convexidade: duration.convexidade,
       variacaoPor1pp: duration.variacaoPor1pp,
       variacaoMenos1pp: duration.variacaoMenos1pp,
+      variacaoPor2pp: duration.variacaoPor2pp,
+      variacaoMenos2pp: duration.variacaoMenos2pp,
     },
   };
 
