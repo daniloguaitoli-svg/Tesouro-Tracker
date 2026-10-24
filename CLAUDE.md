@@ -86,7 +86,7 @@ Never hand-edit `dados/` — the bot owns it. Expect frequent
 | Language | **Plain JavaScript (ESM)** + JSX. **No TypeScript** — do not add it. |
 | UI | React 18, function components + hooks only. |
 | Build | Vite 5 (`"type": "module"`) |
-| Dependencies | **react + react-dom only** at runtime. No UI kit, no chart library, no CSV parser, no state manager. Charts are hand-rolled SVG (`Sparkline`, `AreaChart`, `CurvaChart`); CSV parsing is hand-rolled and streaming. Keep it that way unless asked. In devDependencies there is one addition beyond vite: **jsdom**, used only by `scripts/fumaca.mjs` — nothing in `src/` or `server/` may import it. It is **pinned to `^26`, and that pin is load-bearing**: jsdom 27+ requires Node ≥20.19 and jsdom 30 requires Node ≥22.22, while this project (and the CI runner) is on Node 18+/20. Upgrading it makes `npm run fumaca` die on the runner with `webidl.util.markAsUncloneable is not a function` — from the bundled `undici`, not from any code here. jsdom 26 declares `engines.node: ">=18"` and does not depend on undici at all. |
+| Dependencies | **react + react-dom only** at runtime. No UI kit, no chart library, no CSV parser, no state manager. Charts are hand-rolled SVG (`Sparkline`, `GraficoTaxa`, `CurvaChart`); CSV parsing is hand-rolled and streaming. Keep it that way unless asked. In devDependencies there is one addition beyond vite: **jsdom**, used only by `scripts/fumaca.mjs` — nothing in `src/` or `server/` may import it. It is **pinned to `^26`, and that pin is load-bearing**: jsdom 27+ requires Node ≥20.19 and jsdom 30 requires Node ≥22.22, while this project (and the CI runner) is on Node 18+/20. Upgrading it makes `npm run fumaca` die on the runner with `webidl.util.markAsUncloneable is not a function` — from the bundled `undici`, not from any code here. jsdom 26 declares `engines.node: ">=18"` and does not depend on undici at all. |
 | Styling | One global stylesheet, `src/styles.css`. No CSS modules, no Tailwind. |
 | Tests / lint | **No test runner, no ESLint, no Prettier** — don't invent an `npm test`. What exists is three plain scripts: `npm run build`, `npm run verificar` (`scripts/verificar.mjs`, dependency-free) and `npm run fumaca` (`scripts/fumaca.mjs`, mounts the app in jsdom). CI runs all three on every PR. |
 | Node | 18+ |
@@ -963,7 +963,16 @@ existing bridge file.
   - surfaces `--bg` `--surface` `--surface-2` `--line`
   - text `--text` `--muted`
   - semantics `--up` `--down` `--accent` `--accent-2`
-  - type `--display` (Space Grotesk) `--ui` (Inter) `--mono` (IBM Plex Mono)
+  - type `--display` and `--ui` (both **IBM Plex Sans**) `--mono` (IBM Plex
+    Mono). One text family and its mono sibling, since the 2026-10 redesign:
+    three unrelated faces on one screen (Space Grotesk heading, Inter body,
+    Plex Mono figures) never looked like one thing. `--display` survives as a
+    *role* even pointing at the same font — weight and size separate the two,
+    and keeping the name leaves the distinction sayable.
+  - **The mono is for numbers only.** Not for a sentence that happens to hold
+    one: `.pricedate` was monospaced back when it was just a date, and by the
+    time it carried "BCB / SGS (série 432)" it was a paragraph in a typewriter
+    face. Tabular figures stay wherever digits need to line up.
   - layout `--s1`…`--s7` (4→48px) `--radius` `--maxw`
 - **Loading / error / empty states** come from `components/States.jsx`
   (`Loading`, `Skeletons`, `ErroBox`, `Vazio`, `AguardandoColeta`). Extend those
@@ -976,6 +985,25 @@ existing bridge file.
 - **Missing data is `null`, rendered as `—`.** Never substitute 0 or a guess.
 - Effects that set state use a local `vivo` flag to avoid updating an unmounted
   component.
+
+### The icon is drawn, not an emoji
+
+`MarcaIcone.jsx` (in the app, on tokens) and `public/icone.svg` (for the
+favicon, the `apple-touch-icon` and the manifest, on literal hexes, since a
+file served on its own cannot see custom properties) hold the **same** drawing.
+Change one and change the other.
+
+It replaced 🏛️ because an emoji is not our drawing: every platform ships its
+own (colour on Apple, flat on Android, missing on some Linux), so the brand
+changed face with the device — and on a home-screen shortcut that icon *is* the
+app. `icone-192.png` and `icone-512.png` are rasterised from the same SVG for
+the manifest; regenerate them if the drawing changes, and keep the artwork
+inside ~68% of the canvas, because a maskable icon is cropped to a circle by
+some launchers.
+
+Changing anything precached (`/`, `/index.html`, `/manifest.webmanifest`) means
+bumping `CACHE` in `public/sw.js` — it went to `tesouro-tracker-v2` with these
+icons.
 
 ## Honest-caveats rule
 

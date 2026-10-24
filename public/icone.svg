@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tesouro Tracker">
+  <!-- O ícone do app, desenhado. Antes era o emoji 🏛️, que cada sistema
+       desenha do seu jeito (colorido na Apple, chapado no Android, ausente em
+       parte dos Linux) — num atalho de tela inicial isso é a marca inteira
+       mudando de aparelho para aparelho. Aqui a forma é a mesma em todo lugar.
+
+       As cores são literais de propósito: um arquivo servido solto não enxerga
+       as custom properties do styles.css. São os mesmos valores dos tokens
+       --bg, --surface-2, --line e --accent, e precisam ser mudados junto se a
+       paleta mudar.
+
+       O desenho fica dentro de ~68% da área: ícone maskable é recortado em
+       círculo por alguns lançadores, e o que escapar do raio seguro some. -->
+  <rect width="512" height="512" rx="112" fill="#080b14"/>
+  <rect x="96" y="96" width="320" height="320" rx="72" fill="#182033" stroke="#26314a" stroke-width="8"/>
+  <g stroke="#7aa7ff" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 150l88 44H168z"/>
+    <path d="M176 214h160M184 330h144M160 366h192"/>
+    <path d="M196 214v116M256 214v116M316 214v116"/>
+  </g>
+</svg>
