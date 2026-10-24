@@ -170,20 +170,38 @@ scripts/verificar.mjs           invariantes do server/ (sem dependência)
 scripts/fumaca.mjs              monta o app num DOM e abre cada aba (jsdom)
 ```
 
-The Painel's **Moldura** renders its six cards in a fixed order — IPCA |
-Ibovespa, EUR/BRL | USD/BRL, CDI | Selic — inside a single `.grid-2`, so the
-card order *is* the row pairing. Ibovespa and both FX pairs show **12-month and
-1-week variation**; Ibovespa leads with the 12-month figure instead of the index
-level (171.032 points says nothing without a reference). Those windows come from
-`variacaoPeriodo()` in `server/util.js` and are computed **before** the
-`slice(-120)` that trims the payload — 120 daily points is ~6 months, so
-computing them after the trim silently yields `null` for the 12-month figure.
-It returns `null` (rendered `—`) when the series doesn't reach back far enough,
-rather than comparing against the oldest point available and calling that a
-year. Yahoo therefore fetches `range=2y`, not `1y`. They render **unconditionally**, showing "—"
-when a source is down: a card that disappears reflows the grid and breaks the
-pairing. Below 460px the grid collapses to one column and it becomes a list in
-the same order — expected, not a regression.
+The Painel opens with a **four-cell macro strip** — IPCA 12m · Selic · CDI ·
+USD/BRL — above the followed maturities. It replaced six cards in three rows
+(IPCA | Ibovespa, EUR/BRL | USD/BRL, CDI | Selic) in the 2026-10 redesign.
+**Ibovespa and EUR/BRL left the screen, not the app**: the Mercado tab carries
+both on the same five windows, with four more exchanges beside them, and on the
+Painel they were competing for height with what that screen exists to show.
+`dados/painel.json` is untouched — its `moldura` object still carries all six,
+because the bridge file's shape is frozen and external consumers read it.
+
+Each cell renders **unconditionally**, showing "—" when a source is down. The
+reason survived the redesign: a cell that disappears reflows the strip and
+moves the others, and position is how you find a number without reading its
+label. What does not fit in ~90px — the reference date, the month's IPCA —
+goes in the cell's `title`, rather than being dropped.
+
+The 12-month and 1-week windows still exist on the payload and still come from
+`variacaoPeriodo()` in `server/util.js`, computed **before** the `slice(-120)`
+that trims it — 120 daily points is ~6 months, so computing them after the trim
+silently yields `null` for the 12-month figure. They return `null` (rendered
+`—`) when the series doesn't reach back far enough, rather than comparing
+against the oldest point available and calling that a year. Yahoo therefore
+fetches `range=2y`, not `1y`. The Mercado grid is what reads them now.
+
+A followed maturity is one `.cartao-titulo`: name and term on the left, **rate
+on the right** (stacked, every rate lands in the same column, so two of them
+compare at a glance), the day's moves as chips, and duration on a **fixed 0–20
+year rule**. Fixed is the point — a bar normalised to the screen's largest
+value changes meaning with each selection, where 100% is the 2035 one day and
+the 2060 the next. Above 20 years it saturates, which is honest: it is "long"
+either way. The LFT has no duration by construction (see **Family semantics**),
+so it gets a sentence in place of the rule — an empty bar read as missing data
+rather than as a quantity that does not exist.
 
 The seven tabs in `App.jsx` are `Painel · Títulos · Curva · Mercado ·
 Calculadora · Notícias · Alertas`, and `Detalhe` replaces the whole frame when

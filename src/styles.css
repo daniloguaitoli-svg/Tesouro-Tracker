@@ -16,6 +16,11 @@
   --down: #e8735e;   /* baixa — coral */
   --accent: #7aa7ff; /* azul-centáurea; aba ativa e foco */
   --accent-2: #3d5a8f;
+  /* Fundo dos chips de variação: derivado do próprio semântico, para alta e
+     baixa não poderem divergir da cor do número que eles envolvem. */
+  --up-bg: color-mix(in srgb, var(--up) 12%, var(--surface));
+  --down-bg: color-mix(in srgb, var(--down) 12%, var(--surface));
+
   --warn: #f2b45a;    /* âmbar — atraso de dado, não variação */
   --warn-bg: #2a1f10;
   --warn-line: #6b4a1e;
@@ -209,11 +214,54 @@ body {
 }
 .pill + .pill { margin-left: var(--s1); }
 
-/* ---------- Duration ---------- */
-.durbar { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s2); }
-.durbar .trilho { flex: 1; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-.durbar .trilho > i { display: block; height: 100%; border-radius: 999px; background: var(--accent-2); }
-.durbar .trilho > i.forte { background: var(--accent); }
+/* ---------- Painel: faixa macro ----------
+   Quatro células numa tira só. O fundo da grade é a própria linha e o `gap`
+   de 1px deixa a borda aparecer entre elas — uma borda por célula somaria
+   2px em cada divisa e engordaria a tira inteira. */
+.faixa-macro {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden; margin-bottom: var(--s5);
+}
+.faixa-macro > div { background: var(--surface); padding: var(--s2) var(--s3); min-width: 0; }
+.fm-rotulo { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.fm-valor { font-size: 14px; font-weight: 600; }
+
+/* ---------- Painel: cartão de um vencimento ---------- */
+.lista-cartoes { display: grid; gap: var(--s3); }
+.cartao-titulo {
+  display: flex; flex-direction: column; gap: var(--s3); width: 100%;
+  text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--s4);
+}
+.cartao-titulo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ct-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); }
+.ct-id, .ct-num { display: flex; flex-direction: column; min-width: 0; }
+.ct-num { align-items: flex-end; text-align: right; }
+.ct-nome { font-weight: 600; }
+.ct-sub, .ct-unidade { font-size: 12px; color: var(--muted); }
+/* A taxa é o número que se compara entre cartões, então é o maior da tela.
+   O `letter-spacing` negativo tira a folga do tabular em corpo grande. */
+.ct-taxa { font-size: 24px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.chip {
+  display: inline-flex; align-items: baseline; gap: var(--s1);
+  padding: 3px var(--s2); border-radius: 6px;
+  background: var(--surface-2); font-size: 12px; color: var(--muted);
+}
+.chip b { font-weight: 600; color: var(--text); }
+.chip-up { background: var(--up-bg); }
+.chip-down { background: var(--down-bg); }
+
+.ct-dur { display: flex; flex-direction: column; gap: var(--s1); padding-top: var(--s2); border-top: 1px solid var(--line); }
+.ct-dur-linha { display: flex; justify-content: space-between; gap: var(--s2); font-size: 12px; color: var(--muted); }
+.ct-dur-linha b { font-weight: 500; color: var(--text); }
+.ct-trilho { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--surface-2); }
+.ct-trilho > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.ct-escala { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.ct-dur-nota { font-size: 12px; color: var(--muted); }
 
 /* ---------- Fluxo de caixa ---------- */
 .fluxos { display: grid; gap: 3px; margin-top: var(--s3); }
