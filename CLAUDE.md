@@ -170,14 +170,24 @@ scripts/verificar.mjs           invariantes do server/ (sem dependência)
 scripts/fumaca.mjs              monta o app num DOM e abre cada aba (jsdom)
 ```
 
-The Painel opens with a **four-cell macro strip** — IPCA 12m · Selic · CDI ·
-USD/BRL — above the followed maturities. It replaced six cards in three rows
-(IPCA | Ibovespa, EUR/BRL | USD/BRL, CDI | Selic) in the 2026-10 redesign.
-**Ibovespa and EUR/BRL left the screen, not the app**: the Mercado tab carries
-both on the same five windows, with four more exchanges beside them, and on the
-Painel they were competing for height with what that screen exists to show.
-`dados/painel.json` is untouched — its `moldura` object still carries all six,
-because the bridge file's shape is frozen and external consumers read it.
+The Painel opens with a **four-cell macro strip** — IPCA 12m · Selic ·
+IBOV 12m · EUR/BRL — above the followed maturities. It replaced six cards in
+three rows (IPCA | Ibovespa, EUR/BRL | USD/BRL, CDI | Selic) in the 2026-10
+redesign; four is what fits one row at 390px, and the choice of which four is
+the owner's. **CDI and USD/BRL left the strip, not the app**: the Mercado tab
+carries both on the same five windows — CDI beside Selic, USD/BRL beside
+EUR/BRL — and on the Painel all six were competing for height with what that
+screen exists to show. `dados/painel.json` is untouched — its `moldura` object
+still carries all six, because the bridge file's shape is frozen and external
+consumers read it.
+
+**Three cells show a level and the Ibovespa one shows a 12-month change**,
+signed and carrying the up/down colour, with the index level in its `title`.
+That asymmetry is the point: a level in points (139.512) is the one number on
+the strip that says nothing without a scale, while 1 day of Ibovespa says
+nothing about the year the bonds are being held into. Its label is the B3
+ticker — `IBOV 12m` and not `Ibovespa 12m`, which needs 71px in a cell that
+offers 64px at 390px and 57px at 360px, and overflowed onto its neighbour.
 
 Each cell renders **unconditionally**, showing "—" when a source is down. The
 reason survived the redesign: a cell that disappears reflows the strip and
@@ -196,9 +206,12 @@ fetches `range=2y`, not `1y`. The Mercado grid is what reads them now.
 **Above 960px the Painel grows a side column** (`PainelLateral.jsx`): the
 followed maturities become a grid of 280px cards on the left, and the width
 that frees up on the right takes the shape of the IPCA+ curve and the macro
-frame as a six-row list — Ibovespa and EUR/BRL included, since what pushed
-them off the phone was height, not relevance. The four-cell strip hides there,
-because repeating IPCA/Selic/CDI/USD two hand-widths away is noise.
+frame as a six-row list — CDI and USD/BRL included, since what keeps them off
+the phone is width, not relevance. The four-cell strip hides there, because
+repeating IPCA/Selic/IBOV/EUR two hand-widths away is noise. The list shows the
+Ibovespa's **level**, not its 12-month change: five rows of level and one of
+variation would break the column's reading, which is the mirror of why the
+strip does the opposite.
 
 Two details are load-bearing:
 

@@ -93,9 +93,15 @@ function CartaoTitulo({ t, onOpen }) {
 // A faixa macro: os quatro números que emolduram a leitura dos títulos, numa
 // tira só em vez de seis cartões em três linhas.
 //
-// Ibovespa e EUR/BRL saíram daqui, e não do app: a aba Mercado mostra os dois
-// com as cinco janelas e mais quatro bolsas ao lado. No Painel eles disputavam
-// altura com o que esta tela existe para mostrar, que são os vencimentos.
+// Quais quatro é escolha de dono: inflação (o que a NTN-B corrige), Selic (o
+// juro curto, que é a alternativa de não comprar título), Ibovespa em 12 meses
+// (a alternativa de sair da renda fixa) e EUR/BRL (o câmbio de referência de
+// quem usa este app; o dólar ficou na aba Mercado, ao lado dele).
+//
+// CDI e USD/BRL saíram da TIRA, não do app: a aba Mercado mostra os dois nas
+// cinco janelas, e o CDI ao lado da Selic — onde a diferença entre eles é o
+// que se quer ver. Aqui eles eram quase a repetição do vizinho: CDI 13,65% ao
+// lado de Selic 13,75%, e o dólar ao lado do euro.
 //
 // Cada célula sai SEMPRE, com "—" quando falta dado. É a mesma razão de antes:
 // uma célula que some reflui a tira e troca a posição das outras, e é pela
@@ -116,14 +122,26 @@ function FaixaMacro({ macro }) {
       titulo: ind.selic ? `meta a.a. · ${dataBR(ind.selic.data)}` : "sem dados agora",
     },
     {
-      rotulo: "CDI",
-      valor: ind.cdi?.valor != null ? `${num(ind.cdi.valor)}%` : "—",
-      titulo: ind.cdi ? `a.a. · ${dataBR(ind.cdi.data)}` : "sem dados agora",
+      // O Ibovespa entra pela VARIAÇÃO, nunca pelo nível: "203.803 pontos" não
+      // informa nada sem referência, e o que se quer saber ao lado de uma taxa
+      // real de 6,8% é quanto a bolsa rendeu no mesmo intervalo. É a única
+      // célula com sinal e cor — o rótulo diz "12m" justamente para ela não
+      // ser lida como as outras três, que são nível.
+      // "IBOV 12m" e não "Ibovespa 12m": o nome por extenso pede 71px numa
+      // célula de 64px (57px num aparelho de 360px) e vazava por cima da
+      // vizinha. IBOV é o ticker da B3, então encurtar aqui não é abreviar por
+      // falta de espaço — é usar o nome curto que já existe.
+      rotulo: "IBOV 12m",
+      valor: ind.ibovespa?.var12m?.pct != null ? pct(ind.ibovespa.var12m.pct) : "—",
+      dir: ind.ibovespa?.var12m?.pct != null ? sinal(ind.ibovespa.var12m.pct) : null,
+      titulo: ind.ibovespa?.var12m
+        ? `Ibovespa desde ${dataBR(ind.ibovespa.var12m.de)} · ${num(ind.ibovespa.valor, 0)} pontos em ${dataBR(ind.ibovespa.data)}`
+        : "sem dados agora",
     },
     {
-      rotulo: "USD/BRL",
-      valor: ind.usdbrl?.valor != null ? num(ind.usdbrl.valor, 4) : "—",
-      titulo: ind.usdbrl ? `PTAX venda · ${dataBR(ind.usdbrl.data)}` : "sem dados agora",
+      rotulo: "EUR/BRL",
+      valor: ind.eurbrl?.valor != null ? num(ind.eurbrl.valor, 4) : "—",
+      titulo: ind.eurbrl ? `PTAX venda · ${dataBR(ind.eurbrl.data)}` : "sem dados agora",
     },
   ];
 
@@ -132,7 +150,7 @@ function FaixaMacro({ macro }) {
       {celulas.map((c) => (
         <div key={c.rotulo} title={c.titulo}>
           <div className="fm-rotulo">{c.rotulo}</div>
-          <div className="fm-valor mono">{c.valor}</div>
+          <div className={`fm-valor mono ${c.dir || ""}`}>{c.valor}</div>
         </div>
       ))}
     </div>
