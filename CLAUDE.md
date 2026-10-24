@@ -193,6 +193,29 @@ silently yields `null` for the 12-month figure. They return `null` (rendered
 against the oldest point available and calling that a year. Yahoo therefore
 fetches `range=2y`, not `1y`. The Mercado grid is what reads them now.
 
+**Above 960px the Painel grows a side column** (`PainelLateral.jsx`): the
+followed maturities become a grid of 280px cards on the left, and the width
+that frees up on the right takes the shape of the IPCA+ curve and the macro
+frame as a six-row list — Ibovespa and EUR/BRL included, since what pushed
+them off the phone was height, not relevance. The four-cell strip hides there,
+because repeating IPCA/Selic/CDI/USD two hand-widths away is noise.
+
+Two details are load-bearing:
+
+- **The breakpoint lives twice, on purpose, and must stay in step**:
+  `LARGURA_LATERAL` in `src/telaLarga.js` and the `@media (min-width: 960px)`
+  block in `styles.css`. The hook is not duplicating the CSS — it decides
+  whether the column **mounts**, and the column fetches `getCurva()`. Hiding
+  it with `display: none` would make every phone pay for a request whose
+  result it never shows.
+- **`useTelaLarga` guards `window.matchMedia`** because jsdom does not
+  implement it, and the smoke test is precisely the thing that catches a
+  component dying on mount.
+
+The whole frame widens to 1200px there as well, not just the Painel: keeping
+`--maxw` at 620 with a column beside it would leave the header and every other
+tab in a narrow strip in the middle of the screen.
+
 A followed maturity is one `.cartao-titulo`: name and term on the left, **rate
 on the right** (stacked, every rate lands in the same column, so two of them
 compare at a glance), the day's moves as chips, and duration on a **fixed 0–20

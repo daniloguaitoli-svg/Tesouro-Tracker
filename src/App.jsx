@@ -114,7 +114,13 @@ export default function App() {
           {dados && (
             <main>
               {tab === "painel" && (
-                <Painel dados={dados} itens={itensDestaque} onOpen={setSlug} onIrParaTitulos={() => irPara("titulos")} />
+                <Painel
+                  dados={dados}
+                  itens={itensDestaque}
+                  onOpen={setSlug}
+                  onIrParaTitulos={() => irPara("titulos")}
+                  onIrParaCurva={() => irPara("curva")}
+                />
               )}
               {tab === "titulos" && (
                 <Titulos dados={dados} onOpen={setSlug} marcados={marcados} onAlternar={alternar} />

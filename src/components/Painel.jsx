@@ -13,6 +13,8 @@
 // horizonte longo.
 import { taxa, pct, pp, anos, reais, dataBR, sinal, sinalTaxa, num, unidadeTaxa } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
+import { PainelLateral } from "./PainelLateral.jsx";
+import { useTelaLarga } from "../telaLarga.js";
 
 // Um vencimento acompanhado, em três faixas de leitura: identidade à esquerda
 // e taxa à direita, as variações como chips, e a duration numa régua.
@@ -147,11 +149,18 @@ function FaixaMacro({ macro }) {
   );
 }
 
-export function Painel({ dados, itens, onOpen, onIrParaTitulos }) {
+export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva }) {
+  // Em tela larga a coluna da direita assume a moldura (os seis indicadores) e
+  // a tira de quatro some — ver .faixa-macro no CSS. O hook decide a MONTAGEM
+  // da lateral, não só a visibilidade: ela busca a curva, e um celular não
+  // deve pagar essa requisição para nada.
+  const larga = useTelaLarga();
   if (dados.pendente) return <AguardandoColeta />;
   const destaques = itens || [];
-  return (
-    <div>
+  const slugs = new Set(destaques.map((t) => t.slug));
+
+  const principal = (
+    <div className="painel-principal">
       <FaixaMacro macro={dados.macro} />
 
       {/* O aviso de preço velho saiu daqui: agora é o selo do topo (SeloDados),
@@ -179,6 +188,15 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos }) {
           ))}
         </div>
       )}
+    </div>
+  );
+
+  if (!larga) return principal;
+
+  return (
+    <div className="painel-largo">
+      {principal}
+      <PainelLateral macro={dados.macro} slugsAcompanhados={slugs} onIrParaCurva={onIrParaCurva} />
     </div>
   );
 }
