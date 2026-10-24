@@ -402,6 +402,57 @@ body {
 .selo-balao p { margin: 6px 0 0; }
 .selo-balao .muted { font-size: 12px; }
 
+/* ---------- Painel em tela larga (>= 960px) ----------
+   Acima deste ponto o cartão para de crescer — dois por linha — e sobra
+   largura à direita. É essa faixa que a coluna lateral ocupa.
+   O mesmo 960 está em src/telaLarga.js, que decide a MONTAGEM da lateral;
+   aqui só o arranjo. Se mudar um, mude o outro. */
+@media (min-width: 960px) {
+  /* O quadro inteiro alarga: manter 620px com uma coluna ao lado deixaria o
+     cabeçalho e as outras abas numa tira estreita no meio da tela. */
+  .app { max-width: 1200px; }
+
+  .painel-largo { display: flex; align-items: flex-start; gap: var(--s5); }
+  /* 999 contra 1: a área principal fica com toda a sobra, e a lateral só
+     encolhe quando a principal já está no seu mínimo de 560px. */
+  .painel-principal { flex: 999 1 560px; min-width: 0; }
+  .painel-lateral {
+    flex: 1 1 320px; min-width: 0;
+    display: flex; flex-direction: column; gap: var(--s4);
+    position: sticky; top: var(--s4);
+  }
+
+  /* Dois (ou mais) cartões por linha, por largura e não por contagem: com
+     `auto-fill` o mesmo CSS serve 1200px e 1600px sem outro ponto de quebra. */
+  .lista-cartoes { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+
+  /* A tira de quatro sai: a lateral traz os seis, e repetir IPCA/Selic/CDI/USD
+     a dois palmos de distância é ruído. */
+  .faixa-macro { display: none; }
+}
+
+.lat-card { display: flex; flex-direction: column; gap: var(--s2); }
+.lat-topo { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
+.lat-titulo {
+  margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.lat-link {
+  background: none; border: 0; padding: 0; font: inherit; font-size: 13px;
+  color: var(--accent); cursor: pointer;
+}
+.lat-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lat-nota { margin: 0; font-size: 12px; color: var(--muted); }
+.lat-lista { display: flex; flex-direction: column; }
+.lat-linha {
+  display: flex; justify-content: space-between; gap: var(--s2);
+  padding: var(--s2) 0; border-bottom: 1px solid var(--line);
+}
+.lat-linha:last-child { border-bottom: 0; }
+.lat-linha b { font-weight: 600; }
+/* Na lateral o quadro é mais baixo que na aba Curva (150 contra 220). */
+.painel-lateral .curva { height: 150px; }
+
 /* ---------- Barra inferior (celular) ----------
    Abaixo de 720px a tira de abas some e a barra fixa no rodapé assume. */
 .barra-inferior, .folha-fundo { display: none; }
