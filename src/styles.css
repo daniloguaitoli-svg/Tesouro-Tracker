@@ -16,6 +16,9 @@
   --down: #e8735e;   /* baixa — coral */
   --accent: #7aa7ff; /* azul-centáurea; aba ativa e foco */
   --accent-2: #3d5a8f;
+  --warn: #f2b45a;    /* âmbar — atraso de dado, não variação */
+  --warn-bg: #2a1f10;
+  --warn-line: #6b4a1e;
 
   --display: "Space Grotesk", system-ui, sans-serif;
   --ui: "Inter", system-ui, sans-serif;
@@ -294,13 +297,6 @@ body {
   letter-spacing: 0.02em; color: var(--down); border: 1px solid var(--down);
   border-radius: 999px; padding: 1px 7px;
 }
-.stale-banner {
-  display: flex; gap: var(--s2); align-items: flex-start;
-  background: color-mix(in srgb, var(--down) 10%, var(--surface));
-  border: 1px solid var(--down); border-radius: var(--radius);
-  padding: var(--s3) var(--s4); margin-top: var(--s4); font-size: 13px;
-}
-.stale-banner b { color: var(--down); }
 
 /* ---------- Estados ---------- */
 .state { text-align: center; color: var(--muted); padding: var(--s7) var(--s4); }
@@ -329,3 +325,79 @@ body {
   padding: var(--s2) 0; display: inline-flex; align-items: center; gap: 6px;
 }
 .backlink:hover { color: var(--text); }
+
+/* ---------- Selo de data dos preços (topo) ----------
+   Um só aviso, no mesmo lugar em todas as telas. Neutro quando em dia, âmbar
+   quando há atraso — âmbar e não coral porque coral já significa "o preço
+   caiu" nos números, e um atraso de coleta não é perda. */
+.topo-direita { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
+.topo-direita .macro { margin-left: 0; }
+.selo-dados { position: relative; }
+.selo-botao {
+  appearance: none; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  font: 500 12px var(--ui); white-space: nowrap;
+  color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+}
+.selo-botao:hover { color: var(--text); }
+.selo-botao.atrasado { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-line); }
+.selo-botao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.selo-balao {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+  width: min(300px, calc(100vw - 2 * var(--s4)));
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: var(--s3) var(--s4); font-size: 13px; line-height: 1.5;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.selo-balao b { color: var(--warn); }
+.selo-balao ul { margin: 6px 0; padding-left: 18px; }
+.selo-balao p { margin: 6px 0 0; }
+.selo-balao .muted { font-size: 12px; }
+
+/* ---------- Barra inferior (celular) ----------
+   Abaixo de 720px a tira de abas some e a barra fixa no rodapé assume. */
+.barra-inferior, .folha-fundo { display: none; }
+
+@media (max-width: 719px) {
+  .tabs { display: none; }
+  /* Espaço para a barra não cobrir o rodapé (inclui a área segura do iPhone). */
+  .app { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+  .barra-inferior {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--bg) 92%, var(--surface));
+    border-top: 1px solid var(--line);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .barra-item {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    min-height: 52px; padding: 4px 2px; border-radius: 10px;
+    color: var(--muted); font: 500 11px var(--ui);
+  }
+  .barra-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barra-item[aria-current="page"] { color: var(--accent); font-weight: 600; }
+  .barra-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .folha-fundo {
+    display: block; position: fixed; inset: 0; z-index: 35;
+    background: rgba(4, 6, 12, 0.55);
+  }
+  .folha {
+    position: absolute; left: var(--s3); right: var(--s3);
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: var(--s2); display: flex; flex-direction: column;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+  }
+  .folha-item {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    display: flex; align-items: center; gap: var(--s3);
+    min-height: 48px; padding: 0 var(--s3); border-radius: 10px;
+    color: var(--text); font: 500 15px var(--ui); text-align: left;
+  }
+  .folha-item:hover { background: var(--surface); }
+  .folha-item[aria-current="page"] { color: var(--accent); }
+}

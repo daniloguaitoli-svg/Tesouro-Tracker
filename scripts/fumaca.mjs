@@ -29,7 +29,7 @@
 
 import { JSDOM } from "jsdom";
 import { createServer } from "vite";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -51,7 +51,9 @@ const relato = [];
 
 // ---------- 1. Os payloads, montados pelo servidor de verdade ----------
 
-const datalayer = await import(join(RAIZ, "server/datalayer.js"));
+// pathToFileURL e não o caminho cru: no Windows "C:\..." é lido como um
+// URL de esquema "c:" e o import explode antes de testar qualquer coisa.
+const datalayer = await import(pathToFileURL(join(RAIZ, "server/datalayer.js")).href);
 
 const ROTAS = {
   "/api/titulos": datalayer.getTitulos,

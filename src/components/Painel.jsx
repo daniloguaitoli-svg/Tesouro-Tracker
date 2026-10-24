@@ -1,5 +1,5 @@
 // components/Painel.jsx — a primeira tela: os vencimentos acompanhados de
-// perto, a moldura macro e o aviso de dado velho.
+// perto e a moldura macro. (O aviso de dado velho mora no selo do topo.)
 //
 // QUEM aparece aqui é escolha do usuário, feita na aba Títulos (a estrela) e
 // guardada neste aparelho — ver src/destaques.js. O App resolve a lista e passa
@@ -35,7 +35,6 @@ function CartaoTitulo({ t, onOpen }) {
       </div>
       <div className="pricedate" style={{ marginTop: 6 }}>
         PU {reais(t.pu)} · {dataBR(t.data)}
-        {t.desatualizado && <span className="stale" style={{ marginLeft: 6 }}>desatualizado</span>}
       </div>
     </button>
   );
@@ -154,23 +153,10 @@ function Macro({ macro }) {
 export function Painel({ dados, itens, onOpen, onIrParaTitulos }) {
   if (dados.pendente) return <AguardandoColeta />;
   const destaques = itens || [];
-  // O aviso de preço velho segue a ESCOLHA do usuário, não a lista do catálogo
-  // que o servidor mandou: avisar sobre um vencimento que a pessoa não
-  // acompanha é ruído, e calar sobre um que ela acompanha é pior.
-  const desatualizados = destaques.filter((t) => t.desatualizado).map((t) => t.nome);
-
   return (
     <div>
-      {desatualizados.length > 0 && (
-        <div className="stale-banner" role="status">
-          <span aria-hidden="true">⚠</span>
-          <span>
-            <b>Cotações desatualizadas:</b> {desatualizados.join(", ")}. O arquivo do
-            Tesouro é diário e só sai em dia útil — se persistir, confira o job de coleta.
-          </span>
-        </div>
-      )}
-
+      {/* O aviso de preço velho saiu daqui: agora é o selo do topo (SeloDados),
+          que segue a mesma regra — só os vencimentos acompanhados. */}
       <div className="section-title">Acompanhados de perto</div>
       {destaques.length === 0 ? (
         <div className="note">
