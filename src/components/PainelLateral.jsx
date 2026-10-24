@@ -6,10 +6,9 @@
 // é onde cabem as duas coisas que no celular competiam por altura com os
 // títulos: o FORMATO da curva e a moldura macro inteira.
 //
-// A moldura aqui traz os SEIS indicadores, inclusive Ibovespa e EUR/BRL, que
-// saíram da tira do celular. Eles não foram cortados por serem dispensáveis;
-// foram cortados por falta de altura numa tela de 390px. Onde há espaço,
-// voltam.
+// A moldura aqui traz os SEIS indicadores, inclusive CDI e USD/BRL, que não
+// cabem na tira de quatro células do celular. Nenhum dos seis é dispensável —
+// o que não cabe é largura, numa tela de 390px. Onde há espaço, todos voltam.
 //
 // A curva é buscada aqui dentro, como a aba Curva faz com o mesmo endpoint, e
 // não no App: assim o celular nunca paga essa requisição, já que o componente
@@ -112,9 +111,11 @@ function MolduraLista({ macro }) {
           valor={ind.eurbrl?.valor != null ? num(ind.eurbrl.valor, 4) : "—"}
           titulo={quando(ind.eurbrl, "venda")}
         />
-        {/* O Ibovespa entra pelo nível aqui, com a variação de 12 meses ao
-            lado no title: em lista, uma linha que mostra variação onde as
-            outras cinco mostram nível quebra a leitura da coluna. */}
+        {/* O Ibovespa entra pelo nível aqui, com a variação de 12 meses no
+            title — ao contrário da tira do celular, que mostra a variação.
+            Em lista, uma linha que varia onde as outras cinco mostram nível
+            quebra a leitura da coluna; numa tira de quatro, o nível do índice
+            seria o único número sem escala. */}
         <Linha
           rotulo="Ibovespa"
           valor={ind.ibovespa?.valor != null ? num(ind.ibovespa.valor, 0) : "—"}
