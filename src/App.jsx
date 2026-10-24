@@ -12,7 +12,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getTitulos } from "./api.js";
 import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque } from "./destaques.js";
-import { Tabs } from "./components/Tabs.jsx";
+import { Tabs, BarraInferior } from "./components/Tabs.jsx";
+import { SeloDados } from "./components/SeloDados.jsx";
 import { Painel } from "./components/Painel.jsx";
 import { Titulos } from "./components/Titulos.jsx";
 import { Curva } from "./components/Curva.jsx";
@@ -61,6 +62,17 @@ export default function App() {
   // em que a pessoa foi clicando — o Painel fica estável entre visitas.
   const itensDestaque = useMemo(() => todos.filter((t) => marcados.has(t.slug)), [todos, marcados]);
 
+  // Trocar de tela pela navegação também fecha o Detalhe (a barra inferior
+  // continua visível sobre ele) e volta ao topo — a tela nova não deve abrir
+  // no meio da rolagem da anterior.
+  const irPara = (id) => {
+    setSlug(null);
+    setTab(id);
+    // Só rola se precisar: além de evitar trabalho à toa, o jsdom do teste de
+    // fumaça não implementa scrollTo e encheria o log de erro.
+    if (window.scrollY > 0) window.scrollTo(0, 0);
+  };
+
   const alternar = (slug) => {
     setEscolha((atual) => {
       const proxima = alternarDestaque(atual, todos, slug);
@@ -79,19 +91,22 @@ export default function App() {
             <small>títulos do Tesouro Direto · taxas e duration</small>
           </span>
         </div>
-        {ipca12 != null && (
-          <div className="macro">
-            IPCA 12m<br />
-            <b className="mono">{num(ipca12)}%</b>
-          </div>
-        )}
+        <div className="topo-direita">
+          {ipca12 != null && (
+            <div className="macro">
+              IPCA 12m<br />
+              <b className="mono">{num(ipca12)}%</b>
+            </div>
+          )}
+          <SeloDados itens={itensDestaque} atualizadoEm={dados?.atualizadoEm} />
+        </div>
       </header>
 
       {slug ? (
         <Detalhe slug={slug} onBack={() => setSlug(null)} />
       ) : (
         <>
-          <Tabs value={tab} onChange={setTab} tabs={TABS} />
+          <Tabs value={tab} onChange={irPara} tabs={TABS} />
 
           {carregando && !dados && <Skeletons n={5} />}
           {erro && !dados && <ErroBox erro={erro} onRetry={carregar} />}
@@ -99,7 +114,7 @@ export default function App() {
           {dados && (
             <main>
               {tab === "painel" && (
-                <Painel dados={dados} itens={itensDestaque} onOpen={setSlug} onIrParaTitulos={() => setTab("titulos")} />
+                <Painel dados={dados} itens={itensDestaque} onOpen={setSlug} onIrParaTitulos={() => irPara("titulos")} />
               )}
               {tab === "titulos" && (
                 <Titulos dados={dados} onOpen={setSlug} marcados={marcados} onAlternar={alternar} />
@@ -125,6 +140,8 @@ export default function App() {
           <> Última coleta: {dataBR(dados.atualizadoEm)} às {horaBR(dados.atualizadoEm)}.</>
         )}
       </footer>
+
+      <BarraInferior value={slug ? null : tab} onChange={irPara} tabs={TABS} />
     </div>
   );
 }
