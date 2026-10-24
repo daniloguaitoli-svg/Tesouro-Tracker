@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getTitulos } from "./api.js";
 import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque } from "./destaques.js";
+import { MarcaIcone } from "./components/MarcaIcone.jsx";
 import { Tabs, BarraInferior } from "./components/Tabs.jsx";
 import { SeloDados } from "./components/SeloDados.jsx";
 import { Painel } from "./components/Painel.jsx";
@@ -85,7 +86,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="selo" aria-hidden="true">🏛️</span>
+          <MarcaIcone />
           <span>
             Tesouro
             <small>títulos do Tesouro Direto · taxas e duration</small>

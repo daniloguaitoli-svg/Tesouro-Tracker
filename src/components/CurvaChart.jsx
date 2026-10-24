@@ -1,6 +1,7 @@
 // components/CurvaChart.jsx — a curva de juros reais, sem dependências.
 //
-// Diferente do AreaChart: aqui o eixo X é o PRAZO em anos, que não é
+// Diferente do GraficoTaxa, onde o eixo X é o tempo: aqui ele é o PRAZO em
+// anos, que não é
 // igualmente espaçado (há vencimentos em 3, 9 e 34 anos). Então o X é escalado
 // de verdade, não por índice — senão a curva mentiria sobre a forma dela, que é
 // justamente o que se quer ler.

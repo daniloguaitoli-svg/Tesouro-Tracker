@@ -10,7 +10,7 @@
 // registro em main.jsx recarrega a página uma vez quando detecta a atualização.
 //
 // CACHE é a string de versão a subir quando os assets precachados mudarem.
-const CACHE = "tesouro-tracker-v1";
+const CACHE = "tesouro-tracker-v2";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

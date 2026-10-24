@@ -1,10 +1,10 @@
 // components/GraficoTaxa.jsx — a série histórica da taxa, com eixos.
 //
-// POR QUE NÃO É O AreaChart: aquele desenha `preserveAspectRatio="none"` e é
-// `aria-hidden` — ele é uma forma, não um gráfico que se lê. Esticar o viewBox
-// na horizontal distorce qualquer texto dentro dele, então rótulo de eixo ali
-// sairia achatado ou gordo conforme a largura da tela. Aqui a proporção é
-// mantida e o SVG tem rótulo acessível.
+// POR QUE SUBSTITUIU O AreaChart (que saiu do repo com ele): aquele desenhava
+// com `preserveAspectRatio="none"` e era `aria-hidden` — uma forma, não um
+// gráfico que se lê. Esticar o viewBox na horizontal distorce qualquer texto
+// dentro dele, então rótulo de eixo ali sairia achatado ou gordo conforme a
+// largura da tela. Aqui a proporção é mantida e o SVG tem rótulo acessível.
 //
 // O que os eixos acrescentam: antes a linha subia e descia sem escala nenhuma
 // — dava para ver que a taxa tinha caído, não de quanto para quanto, nem
