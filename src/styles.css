@@ -73,8 +73,6 @@ body {
   display: block; font-family: var(--ui); font-weight: 500; font-size: 11px;
   letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
 }
-.topbar .macro { margin-left: auto; text-align: right; font-size: 12px; color: var(--muted); }
-.topbar .macro b { color: var(--text); }
 
 /* ---------- Abas ---------- */
 .tabs {
@@ -371,7 +369,6 @@ body {
    quando há atraso — âmbar e não coral porque coral já significa "o preço
    caiu" nos números, e um atraso de coleta não é perda. */
 .topo-direita { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
-.topo-direita .macro { margin-left: 0; }
 .selo-dados { position: relative; }
 .selo-botao {
   appearance: none; display: inline-flex; align-items: center; gap: 6px;
