@@ -24,7 +24,7 @@ import { Calculadora } from "./components/Calculadora.jsx";
 import { Alertas } from "./components/Alertas.jsx";
 import { Detalhe } from "./components/Detalhe.jsx";
 import { ErroBox, Skeletons } from "./components/States.jsx";
-import { num, dataBR, horaBR } from "./format.js";
+import { dataBR, horaBR } from "./format.js";
 
 const TABS = [
   { id: "painel", label: "Painel" },
@@ -54,8 +54,6 @@ export default function App() {
       .finally(() => setCarregando(false));
   };
   useEffect(carregar, []);
-
-  const ipca12 = dados?.macro?.indicadores?.ipca?.acumulado12m;
 
   const todos = useMemo(() => (dados?.categorias || []).flatMap((c) => c.itens), [dados]);
   const marcados = useMemo(() => resolverDestaques(escolha, todos), [escolha, todos]);
@@ -92,13 +90,11 @@ export default function App() {
             <small>títulos do Tesouro Direto · taxas e duration</small>
           </span>
         </div>
+        {/* Só o selo de data aqui. O IPCA 12m saiu: desde que o Painel ganhou a
+            tira macro, ele aparecia DUAS VEZES na mesma tela, a quatro dedos de
+            distância — e, espremido entre a marca e o selo, obrigava o subtítulo
+            a quebrar em três linhas num iPhone. */}
         <div className="topo-direita">
-          {ipca12 != null && (
-            <div className="macro">
-              IPCA 12m<br />
-              <b className="mono">{num(ipca12)}%</b>
-            </div>
-          )}
           <SeloDados itens={itensDestaque} atualizadoEm={dados?.atualizadoEm} />
         </div>
       </header>
