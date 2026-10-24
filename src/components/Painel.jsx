@@ -1,5 +1,6 @@
-// components/Painel.jsx — a primeira tela: os vencimentos acompanhados de
-// perto e a moldura macro. (O aviso de dado velho mora no selo do topo.)
+// components/Painel.jsx — a primeira tela: uma tira de quatro números macro e,
+// abaixo, os vencimentos acompanhados de perto. (O aviso de dado velho mora no
+// selo do topo.)
 //
 // QUEM aparece aqui é escolha do usuário, feita na aba Títulos (a estrela) e
 // guardada neste aparelho — ver src/destaques.js. O App resolve a lista e passa
@@ -13,140 +14,136 @@
 import { taxa, pct, pp, anos, reais, dataBR, sinal, sinalTaxa, num, unidadeTaxa } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
 
+// Um vencimento acompanhado, em três faixas de leitura: identidade à esquerda
+// e taxa à direita, as variações como chips, e a duration numa régua.
+//
+// A taxa à direita existe para a COMPARAÇÃO: empilhados, os números grandes
+// caem todos na mesma coluna e a diferença entre dois vencimentos se lê de
+// relance. No layout anterior cada taxa começava onde o nome acabava.
 function CartaoTitulo({ t, onOpen }) {
+  const mac = t.duration?.macaulay ?? null;
+  // "pós-fixado" em vez de "sem cupom" para a LFT: ela não tem cupom, mas
+  // dizer isso sugere que o que importa nela é o mesmo que numa NTN-B curta.
+  const sub = [
+    t.tipo === "selic" ? "pós-fixado" : t.comCupom ? "com cupom" : "sem cupom",
+    `vence ${dataBR(t.vencimento)}`,
+  ].join(" · ");
+
   return (
-    <button className="card" onClick={() => onOpen(t.slug)} style={{ textAlign: "left", cursor: "pointer", font: "inherit", color: "inherit" }}>
-      <div className="label">{t.nome}</div>
-      <div className="big">
-        {taxa(t.taxa)} <span className="unit">{unidadeTaxa(t.tipo)}</span>
-      </div>
-      <div className={`delta ${sinalTaxa(t.taxaVarPP)}`}>
-        {pp(t.taxaVarPP)} na taxa {t.puVarPct != null && <span className={sinal(t.puVarPct)}>· {pct(t.puVarPct)} no preço</span>}
-      </div>
-      <div className="durbar">
-        <span className="label" style={{ minWidth: 74 }}>duration {anos(t.duration?.macaulay)}</span>
-        <span className="trilho">
-          {/* Escala até 20 anos: cobre de uma NTN-B curta à 2060 com cupom. */}
-          <i className="forte" style={{ width: `${Math.min(100, ((t.duration?.macaulay ?? 0) / 20) * 100)}%` }} />
+    <button className="cartao-titulo" onClick={() => onOpen(t.slug)}>
+      <span className="ct-topo">
+        <span className="ct-id">
+          <b className="ct-nome">{t.nome}</b>
+          <span className="ct-sub">{sub}</span>
         </span>
-      </div>
-      <div className="label" style={{ marginTop: 6 }}>
-        se a taxa subir 1 p.p.: <span className={sinal(t.duration?.variacaoPor1pp)}>{pct(t.duration?.variacaoPor1pp)}</span> no preço
-      </div>
-      <div className="pricedate" style={{ marginTop: 6 }}>
-        PU {reais(t.pu)} · {dataBR(t.data)}
-      </div>
+        <span className="ct-num">
+          <b className="ct-taxa mono">{taxa(t.taxa)}</b>
+          <span className="ct-unidade">{unidadeTaxa(t.tipo)}</span>
+        </span>
+      </span>
+
+      <span className="chips">
+        <Chip rotulo="taxa" valor={pp(t.taxaVarPP)} dir={sinalTaxa(t.taxaVarPP)} />
+        <Chip rotulo="preço" valor={pct(t.puVarPct)} dir={sinal(t.puVarPct)} />
+        <Chip rotulo="PU" valor={reais(t.pu)} />
+      </span>
+
+      {mac != null ? (
+        <span className="ct-dur">
+          <span className="ct-dur-linha">
+            <span>
+              duration <b className="mono">{anos(mac)}</b>
+            </span>
+            <span>
+              +1 p.p. na taxa →{" "}
+              <b className={`mono ${sinal(t.duration?.variacaoPor1pp)}`}>{pct(t.duration?.variacaoPor1pp)}</b>
+            </span>
+          </span>
+          {/* Régua de escala FIXA, 0 a 20 anos. Uma barra normalizada pelo
+              maior valor da tela muda de significado a cada recorte: 100%
+              seria a 2035 num dia e a 2060 no outro. Fixa, a mesma largura é
+              sempre o mesmo risco de juros, e dois cartões se comparam sem
+              ler número nenhum. O teto de 20 anos cobre da NTN-B curta à 2060
+              com cupom (duration ~13,5a); acima dele a barra satura, e isso
+              está certo — é "longa" de qualquer jeito. */}
+          <span className="ct-trilho">
+            <i style={{ width: `${Math.min(100, (mac / 20) * 100)}%` }} />
+          </span>
+          <span className="ct-escala" aria-hidden="true">
+            <span>0</span>
+            <span>5a</span>
+            <span>10a</span>
+            <span>15a</span>
+            <span>20a</span>
+          </span>
+        </span>
+      ) : (
+        // A LFT não tem duration por construção (ver CLAUDE.md, semântica das
+        // famílias). Antes a régua aparecia vazia, o que lia como dado
+        // faltando em vez de grandeza que não existe.
+        <span className="ct-dur ct-dur-nota">Pós-fixado: acompanha a Selic, quase sem risco de juros.</span>
+      )}
     </button>
   );
 }
 
-// As duas janelas de variação, lado a lado. Cada uma leva a data de onde a
-// comparação parte — "12 meses" nunca cai exatamente 365 dias atrás (fim de
-// semana, feriado), e mostrar a data de origem evita fingir precisão.
-// `mostrar12m` fica falso quando o número grande do cartão JÁ é a variação de
-// 12 meses (Ibovespa) — repetir logo abaixo seria ruído.
-function Janelas({ v12m, v1sem, mostrar12m = true }) {
-  if (!v12m && !v1sem) return null;
+// Um chip de variação. A cor vai só no NÚMERO, nunca no chip inteiro: pintar
+// o rótulo junto faria "preço" parecer ser o que subiu ou caiu.
+function Chip({ rotulo, valor, dir }) {
+  const tom = dir === "up" || dir === "down" ? ` chip-${dir}` : "";
   return (
-    <div className="varlinha">
-      {mostrar12m && (
-        <span>
-          12 meses <b className={sinal(v12m?.pct)}>{v12m ? pct(v12m.pct) : "—"}</b>
-        </span>
-      )}
-      <span>
-        1 semana <b className={sinal(v1sem?.pct)}>{v1sem ? pct(v1sem.pct) : "—"}</b>
-      </span>
-    </div>
+    <span className={`chip${tom}`}>
+      {rotulo} <b className={`mono ${dir || ""}`}>{valor}</b>
+    </span>
   );
 }
 
-// Cartão de um indicador da moldura. Renderiza SEMPRE, mesmo sem dado: mostra
-// "—" em vez de sumir. Duas razões — a regra da casa ("dado ausente é —, nunca
-// omitido") e a grade: um cartão que some reflui a linha e desfaz o
-// pareamento pedido (IPCA|Ibovespa, EUR|USD, CDI|Selic).
+// A faixa macro: os quatro números que emolduram a leitura dos títulos, numa
+// tira só em vez de seis cartões em três linhas.
 //
-// `comoVariacao` troca o número grande pelo retorno de 12 meses (é o caso do
-// Ibovespa: o nível do índice em pontos não diz nada sozinho — 171.032 só
-// significa alguma coisa comparado com onde estava).
-function CartaoMacro({ titulo, ind, casas = 2, sufixo = "%", rodape, comoVariacao = false, janelas = false }) {
-  const v12m = ind?.var12m;
-  const v1sem = ind?.var1sem;
-  const grande = comoVariacao
-    ? v12m
-      ? pct(v12m.pct)
-      : "—"
-    : ind?.valor == null
-      ? "—"
-      : `${num(ind.valor, casas)}${sufixo}`;
-
-  return (
-    <div className="card">
-      <div className="label">{titulo}</div>
-      <div className={`big ${comoVariacao ? sinal(v12m?.pct) : ""}`}>{grande}</div>
-      <div className={`label ${!comoVariacao && ind?.changePct != null ? sinal(ind.changePct) : ""}`}>
-        {ind ? (
-          comoVariacao ? (
-            // A data de origem da comparação, não a de hoje: "12 meses" parte
-            // do último pregão em ou antes de 365 dias atrás, e dizer qual é
-            // evita fingir que a janela é exata.
-            <>em 12 meses{v12m && <> · desde {dataBR(v12m.de)}</>}</>
-          ) : (
-            <>
-              {ind.changePct != null && <>{pct(ind.changePct)} · </>}
-              {rodape}
-              {ind.data && <> {dataBR(ind.data)}</>}
-            </>
-          )
-        ) : (
-          "sem dados agora"
-        )}
-      </div>
-      {janelas && <Janelas v12m={v12m} v1sem={v1sem} mostrar12m={!comoVariacao} />}
-    </div>
-  );
-}
-
-// A moldura macro, em três linhas de dois — nesta ordem, de propósito:
-//   IPCA | Ibovespa     (a inflação que corrige a NTN-B, e a bolsa ao lado)
-//   EUR/BRL | USD/BRL   (câmbio)
-//   CDI | Selic         (o juro curto, que é a alternativa a comprar título)
-// A grade é `grid-2`, então a ordem dos cartões É o pareamento das linhas.
-// Em telas estreitas (<460px) ela colapsa para uma coluna e vira uma lista na
-// mesma ordem — comportamento responsivo esperado, não perda do layout.
-function Macro({ macro }) {
+// Ibovespa e EUR/BRL saíram daqui, e não do app: a aba Mercado mostra os dois
+// com as cinco janelas e mais quatro bolsas ao lado. No Painel eles disputavam
+// altura com o que esta tela existe para mostrar, que são os vencimentos.
+//
+// Cada célula sai SEMPRE, com "—" quando falta dado. É a mesma razão de antes:
+// uma célula que some reflui a tira e troca a posição das outras, e é pela
+// posição que se acha o número sem ler o rótulo.
+function FaixaMacro({ macro }) {
   const ind = macro?.indicadores || {};
+  const celulas = [
+    {
+      rotulo: "IPCA 12m",
+      valor: ind.ipca?.acumulado12m != null ? `${num(ind.ipca.acumulado12m)}%` : "—",
+      // A data vai no title, não na tira: ela é o que não cabe em 90px, e
+      // some-la de vez seria esconder que o IPCA é de um mês fechado.
+      titulo: ind.ipca ? `último mês ${num(ind.ipca.valor)}% · ref. ${dataBR(ind.ipca.data)}` : "sem dados agora",
+    },
+    {
+      rotulo: "Selic",
+      valor: ind.selic?.valor != null ? `${num(ind.selic.valor)}%` : "—",
+      titulo: ind.selic ? `meta a.a. · ${dataBR(ind.selic.data)}` : "sem dados agora",
+    },
+    {
+      rotulo: "CDI",
+      valor: ind.cdi?.valor != null ? `${num(ind.cdi.valor)}%` : "—",
+      titulo: ind.cdi ? `a.a. · ${dataBR(ind.cdi.data)}` : "sem dados agora",
+    },
+    {
+      rotulo: "USD/BRL",
+      valor: ind.usdbrl?.valor != null ? num(ind.usdbrl.valor, 4) : "—",
+      titulo: ind.usdbrl ? `PTAX venda · ${dataBR(ind.usdbrl.data)}` : "sem dados agora",
+    },
+  ];
+
   return (
-    <>
-      <div className="section-title">Moldura</div>
-      <p className="section-sub">
-        A NTN-B paga IPCA <em>mais</em> a taxa real. Estes números são o outro lado da conta.
-      </p>
-      <div className="grid grid-2" style={{ marginTop: 0 }}>
-        <div className="card">
-          <div className="label">IPCA acumulado 12 meses</div>
-          <div className="big">
-            {ind.ipca?.acumulado12m != null ? `${num(ind.ipca.acumulado12m)}%` : "—"}
-          </div>
-          <div className="label">
-            {ind.ipca ? (
-              <>último mês {num(ind.ipca.valor)}% · {dataBR(ind.ipca.data)}</>
-            ) : (
-              "sem dados agora"
-            )}
-          </div>
+    <div className="faixa-macro">
+      {celulas.map((c) => (
+        <div key={c.rotulo} title={c.titulo}>
+          <div className="fm-rotulo">{c.rotulo}</div>
+          <div className="fm-valor mono">{c.valor}</div>
         </div>
-        {/* O Ibovespa entra pela VARIAÇÃO, não pelo nível: "171.032 pontos" não
-            informa nada sem referência; "+18% em 12 meses" informa. */}
-        <CartaoMacro titulo="Ibovespa" ind={ind.ibovespa} comoVariacao janelas />
-
-        <CartaoMacro titulo="EUR/BRL (PTAX)" ind={ind.eurbrl} casas={4} sufixo="" rodape="" janelas />
-        <CartaoMacro titulo="USD/BRL (PTAX)" ind={ind.usdbrl} casas={4} sufixo="" rodape="" janelas />
-
-        <CartaoMacro titulo="CDI" ind={ind.cdi} rodape="a.a. ·" />
-        <CartaoMacro titulo="Selic meta" ind={ind.selic} rodape="a.a. ·" />
-      </div>
-    </>
+      ))}
+    </div>
   );
 }
 
@@ -155,6 +152,8 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos }) {
   const destaques = itens || [];
   return (
     <div>
+      <FaixaMacro macro={dados.macro} />
+
       {/* O aviso de preço velho saiu daqui: agora é o selo do topo (SeloDados),
           que segue a mesma regra — só os vencimentos acompanhados. */}
       <div className="section-title">Acompanhados de perto</div>
@@ -172,14 +171,14 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos }) {
           )}
         </div>
       ) : (
-        <div className="grid grid-2" style={{ marginTop: 0 }}>
+        // Uma coluna, não duas: o cartão compacto tem chips e régua, e em 390px
+        // dois por linha espremem as três faixas até nenhuma se ler.
+        <div className="lista-cartoes">
           {destaques.map((t) => (
             <CartaoTitulo key={t.slug} t={t} onOpen={onOpen} />
           ))}
         </div>
       )}
-
-      <Macro macro={dados.macro} />
     </div>
   );
 }
