@@ -38,6 +38,7 @@ dados/painel.json     the Painel tab as one object: highlights + macro frame (th
                       external consumers read — see INSTRUCOES-ASSISTENTE.md)
 dados/painel.md       the same, as tables
 dados/historico.json  the daily series per maturity, all families — what the app reads
+dados/futuros.json    B3 futures: DI1 and the clean FX coupon, accumulated daily
 ```
 
 `ntnb.json` keeps its original shape forever; each family got a **sibling**
@@ -160,14 +161,17 @@ server/
     globais.js        Fed (FRED csv) + ECB (Data Portal csv) — collector only
     noticias.js       Google News RSS per region — request-time, best-effort
     yahoo.js          Ibovespa (^BVSP) chart API — request-time, best-effort
+    b3.js             DI1 + cupom cambial from B3's public file (collector only)
 api/                  Vercel functions: titulos, detalhe, curva, macro, mercado, noticias
 dados/                the committed data (bot-owned) — see "the bridge" above
 .github/
   workflows/coletar-tesouro.yml   scheduled collection + dry-run on claude/** push
   workflows/ci.yml                build + verificar + fumaça on PRs
+  workflows/sonda-b3.yml          B3 reconnaissance, manual + on futuros/** push
   scripts/coletar-tesouro.mjs     the collector itself
 scripts/verificar.mjs           invariantes do server/ (sem dependência)
 scripts/fumaca.mjs              monta o app num DOM e abre cada aba (jsdom)
+scripts/sonda-b3.mjs            reconhecimento das fontes da B3 (runner, sob demanda)
 ```
 
 The Painel opens with a **four-cell macro strip** — IPCA 12m · Selic ·
@@ -538,6 +542,75 @@ case) and silent about where it actually cost: the Calculadora's terminal value
 ran up to **1.08% high** on the IPCA+ 2050, always upward. If you touch the
 convention, update this section, the README caveat and the `convencao`
 strings in `ponte.js` — external consumers read those.
+
+### The B3 futures curves (`providers/b3.js`)
+
+Two curves from one free file, and **they do not share a convention**:
+
+| | count | shape |
+|---|---|---|
+| DI1 — pre-fixed BRL curve | business days/252 | exponential, `PU = 100000/(1+i)^(du/252)` |
+| DDI and FRC — FX coupon, USD | calendar days/360 | **linear**, `PU = 100000/(1+c·n/360)` |
+
+Both verified against B3's own settlement prices on 2026-10-23: DI1F27 at
+13.468% over 47 business days gives 97,671.4 against 97,671.01 published;
+DDIF27 at 9.216% over 73 calendar days gives 98,165.46 against 98,165.48. Each
+closes to the cent **in its own convention**. Swapping them produces a
+plausible wrong number — the same failure mode that moved the whole repo to
+business days in 10/2026.
+
+**The USD curve is built from FRC, never from DDI.** The DDI gives the *dirty*
+coupon: its PU is denominated against the **previous** business day's PTAX, so
+the rate carries the FX move that already happened. At the short vertex this is
+devastating — measured the same day, DDIX26 (11 days) printed **29.032%** while
+the FRC for the same window printed **5.38%**. Twenty-three percentage points
+of dirt.
+
+The FRC is the forward rate between the first open DDI and each maturity — what
+the local market calls *cupom limpo*. **It is not an instrument**: it is how the
+DDI is traded (buy the short, sell the long), which is why it has a rate and no
+settlement price. Confirmed by B3's own numbers, to 0.0001% across six
+maturities:
+
+```
+(1 + c_long·n_long/360) = (1 + c_short·n_short/360) · (1 + f·Δn/360)
+```
+
+**The USD curve therefore starts at the first open maturity, not at D0**, and
+the screen has to say so. Anchoring at today means cleaning the stub, which
+needs the spot rate, which comes from `spot = DOL − casado` — and **the casado
+is not in any free public source**. Measured, so it need not be re-derived: it
+does not appear in B3's consolidated file (it is structured operation CSD2 with
+spot leg USDP0002, and leaves no open position), and B3's Reference Rates page
+sits behind a Cloudflare challenge. PTAX does not substitute: it is an average,
+not the closing spot. The short vertex stays **out of the plotted curve** for
+the same reason — 29% next to 5.4% is yesterday's PTAX, not the market — but
+travels on the payload marked `cupomSujo`, because the screen needs it to
+explain where the curve begins.
+
+**The legacy portal is dead; do not go back to it.** `TxRef1.asp` returns 404,
+`lum-ajustes-do-pregao` redirects or returns an empty body, and
+`SistemaPregao_excel1.asp` either hangs or lands on `Erro.asp`. The live path is
+UP2DATA, in **two steps**: `requestname?fileName=X&date=AAAA-MM-DD` returns a
+token, and only the token downloads the file. A first step answering 200 proves
+nothing. `TradeInformationConsolidatedFile` (~5 MB) carries `AdjstdQt` (price)
+and `AdjstdQtTax` (rate); `InstrumentsConsolidatedFile` (~19 MB) carries
+`XprtnDt`, without which there is no x axis. Both open with a stray
+`Status do Arquivo: Final` line **before** the header, so the header is found by
+searching for `RptDt`, never by line number.
+
+**This is collector work, not request-time.** 5 MB plus 19 MB cannot be
+downloaded per request — the same division of labour as the Treasury CSV. And
+**the B3 section runs before the Treasury one**: the collector exits early and
+green when the Treasury is unreachable, which is right for that source, but
+with B3 further down a Treasury outage silently cost a day of futures history
+from a source that was up. Two sources, two destinations, two failures.
+`verificar.mjs` pins that order.
+
+Writing `dados/futuros.json` is **conditional on the bootstrap identity**: if it
+opens beyond 1e-4 (measured 1e-6, a hundredfold margin), a convention changed at
+B3 — the file arrived and was not understood, and writing over good data is
+worse than not writing.
 
 ### The download retries; the parse does not
 
