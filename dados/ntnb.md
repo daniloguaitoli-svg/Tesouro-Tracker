@@ -1,25 +1,25 @@
 # NTN-B — Tesouro IPCA+
 
-Retrato gerado automaticamente em 2026-10-25T01:17:26.003Z.
+Retrato gerado automaticamente em 2026-10-25T14:58:37.017Z.
 Fonte: Tesouro Nacional (Tesouro Transparente).
 
 | Vencimento | Título | Taxa real | PU (R$) | Duration | Dur. mod. | +1 p.p. | −1 p.p. | Data |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 15/05/2029 | Tesouro IPCA+ 2029 | 6.77% | 4034.07 | 2.556 a | 2.394 | -2.35% | 2.43% | 15/10/2026 |
-| 15/08/2030 | Tesouro IPCA+ 2030 (juros semestrais) | 6.79% | 4702.58 | 3.423 a | 3.205 | -3.13% | 3.27% | 15/10/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 (juros semestrais) | 6.79% | 4650.12 | 4.928 a | 4.615 | -4.47% | 4.75% | 15/10/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 ⭐ | 6.8% | 3256.04 | 5.811 a | 5.441 | -5.27% | 5.61% | 15/10/2026 |
-| 15/05/2035 | Tesouro IPCA+ 2035 (juros semestrais) | 6.82% | 4655.94 | 6.603 a | 6.182 | -5.93% | 6.44% | 15/10/2026 |
-| 15/05/2035 | Tesouro IPCA+ 2035 ⭐ | 6.84% | 2713.48 | 8.559 a | 8.011 | -7.65% | 8.37% | 15/10/2026 |
-| 15/05/2037 | Tesouro IPCA+ 2037 (juros semestrais) | 6.83% | 4614.72 | 7.696 a | 7.204 | -6.85% | 7.56% | 15/10/2026 |
-| 15/08/2040 | Tesouro IPCA+ 2040 (juros semestrais) | 6.75% | 4520.51 | 9.358 a | 8.766 | -8.24% | 9.3% | 15/10/2026 |
-| 15/08/2040 | Tesouro IPCA+ 2040 | 6.73% | 1946.62 | 13.816 a | 12.945 | -12.05% | 13.84% | 15/10/2026 |
-| 15/05/2045 | Tesouro IPCA+ 2045 (juros semestrais) | 6.75% | 4539.28 | 10.896 a | 10.207 | -9.44% | 10.98% | 15/10/2026 |
-| 15/05/2045 | Tesouro IPCA+ 2045 | 6.73% | 1432.33 | 18.567 a | 17.396 | -15.8% | 18.99% | 15/10/2026 |
-| 15/08/2050 | Tesouro IPCA+ 2050 (juros semestrais) | 6.75% | 4425.02 | 12.421 a | 11.636 | -10.59% | 12.68% | 15/10/2026 |
-| 15/08/2050 | Tesouro IPCA+ 2050 | 6.74% | 1017.35 | 23.822 a | 22.318 | -19.72% | 24.91% | 15/10/2026 |
-| 15/05/2055 | Tesouro IPCA+ 2055 (juros semestrais) | 6.71% | 4490.44 | 13.104 a | 12.28 | -11.04% | 13.52% | 15/10/2026 |
-| 15/08/2060 | Tesouro IPCA+ 2060 (juros semestrais) | 6.73% | 4385.8 | 13.972 a | 13.091 | -11.64% | 14.54% | 15/10/2026 |
+| 15/05/2029 | Tesouro IPCA+ 2029 | 6.77% | 4034.07 | 2.528 a | 2.367 | -2.33% | 2.41% | 15/10/2026 |
+| 15/08/2030 | Tesouro IPCA+ 2030 (juros semestrais) | 6.79% | 4702.58 | 3.392 a | 3.176 | -3.11% | 3.25% | 15/10/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 (juros semestrais) | 6.79% | 4650.12 | 4.893 a | 4.582 | -4.44% | 4.72% | 15/10/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 ⭐ | 6.8% | 3256.04 | 5.77 a | 5.402 | -5.23% | 5.57% | 15/10/2026 |
+| 15/05/2035 | Tesouro IPCA+ 2035 (juros semestrais) | 6.82% | 4655.94 | 6.557 a | 6.138 | -5.89% | 6.39% | 15/10/2026 |
+| 15/05/2035 | Tesouro IPCA+ 2035 ⭐ | 6.84% | 2713.48 | 8.496 a | 7.952 | -7.6% | 8.31% | 15/10/2026 |
+| 15/05/2037 | Tesouro IPCA+ 2037 (juros semestrais) | 6.83% | 4614.72 | 7.645 a | 7.156 | -6.81% | 7.5% | 15/10/2026 |
+| 15/08/2040 | Tesouro IPCA+ 2040 (juros semestrais) | 6.75% | 4520.51 | 9.305 a | 8.717 | -8.19% | 9.24% | 15/10/2026 |
+| 15/08/2040 | Tesouro IPCA+ 2040 | 6.73% | 1946.62 | 13.73 a | 12.864 | -11.98% | 13.75% | 15/10/2026 |
+| 15/05/2045 | Tesouro IPCA+ 2045 (juros semestrais) | 6.75% | 4539.28 | 10.838 a | 10.153 | -9.39% | 10.92% | 15/10/2026 |
+| 15/05/2045 | Tesouro IPCA+ 2045 | 6.73% | 1432.33 | 18.44 a | 17.278 | -15.7% | 18.85% | 15/10/2026 |
+| 15/08/2050 | Tesouro IPCA+ 2050 (juros semestrais) | 6.75% | 4425.02 | 12.366 a | 11.584 | -10.55% | 12.62% | 15/10/2026 |
+| 15/08/2050 | Tesouro IPCA+ 2050 | 6.74% | 1017.35 | 23.659 a | 22.165 | -19.6% | 24.73% | 15/10/2026 |
+| 15/05/2055 | Tesouro IPCA+ 2055 (juros semestrais) | 6.71% | 4490.44 | 13.053 a | 12.232 | -11% | 13.46% | 15/10/2026 |
+| 15/08/2060 | Tesouro IPCA+ 2060 (juros semestrais) | 6.73% | 4385.8 | 13.929 a | 13.051 | -11.61% | 14.49% | 15/10/2026 |
 
 ## Como ler
 
@@ -44,8 +44,8 @@ Fonte: Tesouro Nacional (Tesouro Transparente).
 
 - Os dados têm defasagem de pelo menos um dia útil: o arquivo do Tesouro é de
   fechamento e este retrato é gerado uma vez por dia.
-- Duration e sensibilidade usam dias corridos/365. A convenção oficial da ANBIMA
-  para NTN-B é dias úteis/252 — a diferença é desprezível para duration, mas existe.
+- Prazo, duration e sensibilidade usam dias úteis/252, a convenção oficial do
+  Tesouro e da ANBIMA. O calendário são os feriados nacionais.
 - A sensibilidade é uma aproximação de segunda ordem (duration + convexidade), não
   uma reprecificação exata.
 - Uso informativo. Não é recomendação de investimento.

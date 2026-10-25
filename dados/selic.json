@@ -1,12 +1,12 @@
 {
- "atualizadoEm": "2026-10-25T01:17:26.003Z",
+ "atualizadoEm": "2026-10-25T14:58:37.017Z",
  "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
   "tesouro": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
   "anbima": null
  },
- "convencao": "Taxas em % ao ano sobre o IPCA (taxa real). PU em reais. Duration em anos, calculada em dias corridos/365 (a convenção oficial da ANBIMA é dias úteis/252; a diferença é desprezível para duration). variacaoPrecoMais1pp = variação % estimada do preço se a taxa real subir 1 ponto percentual, já com convexidade.",
+ "convencao": "Taxas em % ao ano sobre o IPCA (taxa real). PU em reais. Prazo e duration em anos de DIAS ÚTEIS/252, a convenção do Tesouro e da ANBIMA (até 10/2026 este campo saía em dias corridos/365). variacaoPrecoMais1pp = variação % estimada do preço se a taxa real subir 1 ponto percentual, já com convexidade.",
  "aviso": "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
  "titulos": [
   {
@@ -17,7 +17,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-10-15",
-   "anosAteVencer": 0.348,
+   "anosAteVencer": 0.337,
    "taxa": 0.01,
    "taxaCompra": 0.01,
    "taxaVenda": 0.02,
@@ -41,7 +41,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-10-15",
-   "anosAteVencer": 1.351,
+   "anosAteVencer": 1.341,
    "taxa": 0.03,
    "taxaCompra": 0.03,
    "taxaVenda": 0.04,
@@ -65,7 +65,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-10-15",
-   "anosAteVencer": 2.351,
+   "anosAteVencer": 2.325,
    "taxa": 0.05,
    "taxaCompra": 0.05,
    "taxaVenda": 0.06,
@@ -89,7 +89,7 @@
    "comCupom": false,
    "destaque": true,
    "data": "2026-10-15",
-   "anosAteVencer": 4.351,
+   "anosAteVencer": 4.31,
    "taxa": 0.09,
    "taxaCompra": 0.09,
    "taxaVenda": 0.1,
