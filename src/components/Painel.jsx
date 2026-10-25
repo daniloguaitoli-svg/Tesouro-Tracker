@@ -62,7 +62,7 @@ function CartaoTitulo({ t, onOpen }) {
               <b className={`mono ${sinal(t.duration?.variacaoPor1pp)}`}>{pct(t.duration?.variacaoPor1pp)}</b>
             </span>
           </span>
-          {/* Régua de escala FIXA, 0 a 20 anos. Uma barra normalizada pelo
+          {/* Escala FIXA, de 0 a 20 anos. Uma barra normalizada pelo
               maior valor da tela muda de significado a cada recorte: 100%
               seria a 2035 num dia e a 2060 no outro. Fixa, a mesma largura é
               sempre o mesmo risco de juros, e dois cartões se comparam sem
