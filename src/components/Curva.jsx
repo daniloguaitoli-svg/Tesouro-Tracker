@@ -9,6 +9,7 @@ import { getCurva } from "../api.js";
 import { CurvaChart, CurvaLegenda } from "./CurvaChart.jsx";
 import { taxa, anos, dataBR } from "../format.js";
 import { ErroBox, Skeletons, AguardandoColeta } from "./States.jsx";
+import { CurvaFuturos } from "./CurvaFuturos.jsx";
 
 // A inflação implícita (breakeven): o que o mercado precisa que a inflação seja
 // para o prefixado empatar com o IPCA+ de mesmo prazo. Acima disso o IPCA+
@@ -232,6 +233,11 @@ export function Curva({ marcados }) {
         )}{" "}
         {dados.aviso}
       </div>
+
+      {/* O mercado futuro entra DEPOIS do aviso das curvas de título, e não
+          antes: é bloco de outra fonte, com ressalva própria, e empurrá-lo
+          para o meio faria o aviso de cima parecer cobrir os dois. */}
+      <CurvaFuturos />
     </div>
   );
 }

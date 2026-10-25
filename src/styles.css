@@ -266,6 +266,11 @@ body {
    `--muted`, porque a cor fraca ficava por conta do traço, não da palavra. */
 .legenda { display: flex; gap: var(--s3) var(--s4); flex-wrap: wrap; font-size: 13px; color: var(--text); margin-top: var(--s3); }
 .legenda-item { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+
+/* Célula de número que não pode quebrar. "0,2 a" partido em duas linhas lê
+   como dois valores, e a coluna de prazo encolhe sempre que o cabeçalho
+   vizinho é comprido — foi o que aconteceu com "Taxa (% a.a. em dólar)". */
+.tbl td.inteiro { white-space: nowrap; }
 .legenda-traco { width: 30px; height: 12px; flex: none; overflow: visible; }
 
 /* ---------- Calculadora ---------- */

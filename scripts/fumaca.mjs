@@ -59,6 +59,7 @@ const datalayer = await import(pathToFileURL(join(RAIZ, "server/datalayer.js")).
 const ROTAS = {
   "/api/titulos": datalayer.getTitulos,
   "/api/curva": datalayer.getCurva,
+  "/api/futuros": datalayer.getFuturos,
   "/api/mercado": datalayer.getMercado,
   "/api/noticias": datalayer.getNoticias,
   "/api/macro": datalayer.getMacro,

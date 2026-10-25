@@ -458,7 +458,7 @@ export function curvasDeFuturos(arquivo) {
     {
       id: "cupom-limpo",
       nome: "Cupom cambial limpo",
-      sufixo: "% a.a. em dólar",
+      sufixo: "% a.a. US$",
       convencao: "dias corridos/360, linear",
       agora: pontosEm(ultima, ehFRC, prazoCorrido),
       umMesAtras: pontosEm(umMes, ehFRC, prazoCorrido),
