@@ -9,6 +9,9 @@ async function getJSON(url) {
 
 export const getTitulos = () => getJSON("/api/titulos");
 export const getCurva = () => getJSON("/api/curva");
+// Endpoint próprio, e não um campo do /api/curva: a fonte é a B3, não o
+// Tesouro, e um dia sem coleta lá não pode esvaziar a curva dos títulos.
+export const getFuturos = () => getJSON("/api/futuros");
 export const getMacro = () => getJSON("/api/macro");
 export const getMercado = () => getJSON("/api/mercado");
 export const getNoticias = () => getJSON("/api/noticias");
