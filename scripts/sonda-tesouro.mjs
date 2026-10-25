@@ -5,7 +5,7 @@
 // nada a fazer além de esperar), ou nós estamos lendo uma cópia velha (defeito
 // nosso, com conserto). Sem esta sonda a diferença é indistinguível de fora: o
 // coletor loga "sucesso" nos dois casos, porque nos dois casos ele baixa um
-// arquivo íntegro, parseia certo e grava. Foi exatamente a dúvida de 23/09/2026,
+// arquivo íntegro, lê certo e grava. Foi exatamente a dúvida de 23/09/2026,
 // com a tela parada em 18/09 e onze coletas seguidas verdes.
 //
 // `tesourotransparente.gov.br` não responde do ambiente de desenvolvimento (o

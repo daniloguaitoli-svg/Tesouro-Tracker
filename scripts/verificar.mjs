@@ -336,13 +336,13 @@ console.log("\nparsers do Fed e do BCE");
 const globais = await import("../server/providers/globais.js");
 const fredFix = "observation_date,DFEDTARU\n2026-06-01,4.50\n2026-08-18,4.25\n2026-08-20,4.25";
 const fredR = globais.parseCsvFred(fredFix);
-conferir(fredR.ok && fredR.pontos.length === 3, "CSV do FRED parseia (cabeçalho observation_date)");
-conferir(globais.parseCsvFred("DATE,DFEDTARU\n2026-08-18,4.25").ok, "CSV do FRED parseia (cabeçalho DATE antigo)");
+conferir(fredR.ok && fredR.pontos.length === 3, "CSV do FRED é lido (cabeçalho observation_date)");
+conferir(globais.parseCsvFred("DATE,DFEDTARU\n2026-08-18,4.25").ok, "CSV do FRED é lido (cabeçalho DATE antigo)");
 const dec = globais.ultimaDecisao(fredR.pontos);
 conferir(dec.taxa === 4.25 && dec.vigenteDesde === "2026-08-18" && dec.variacaoPP === -0.25,
   "última decisão derivada da série (taxa, vigência e variação)");
 const bceFix = "KEY,FREQ,TIME_PERIOD,OBS_VALUE\nx,B,2026-06-10,2.15\nx,B,2026-08-19,2.00";
-conferir(globais.parseCsvBce(bceFix).ok, "csvdata do BCE parseia (TIME_PERIOD/OBS_VALUE por nome)");
+conferir(globais.parseCsvBce(bceFix).ok, "csvdata do BCE é lido (TIME_PERIOD/OBS_VALUE por nome)");
 conferir(globais.parseCsvFred("lixo").ok === false && globais.parseCsvBce("lixo").ok === false,
   "formato irreconhecível devolve ok:false com amostra (nunca chute)");
 
@@ -665,7 +665,7 @@ conferir(
 // não rodou num dia em que o job aparece verde.
 conferir(/console\.warn\(/.test(coletor), "a saída tolerante avisa alto (console.warn)");
 
-// dados/ é commitado DE PROPÓSITO — é a ponte inteira. Ignorá-lo esvazia a
+// dados/ é versionado DE PROPÓSITO — é a ponte inteira. Ignorá-lo esvazia a
 // produção e deixa o dev perfeito, que é o pior formato possível de defeito.
 for (const arq of [".gitignore", ".vercelignore"]) {
   const txt = await ler(arq).catch(() => null);

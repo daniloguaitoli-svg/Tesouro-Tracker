@@ -7,7 +7,7 @@
 //    request; se varre uma vez por dia, num runner do GitHub, e se destila.
 //
 // 2. O resultado destilado fica VERSIONADO no repositório. Como o /tmp da
-//    Vercel morre a cada cold start, o arquivo commitado é o único histórico
+//    Vercel morre a cada cold start, o arquivo versionado é o único histórico
 //    que sobrevive — e o commit ainda dispara um deploy novo, que é como o dado
 //    chega ao ar.
 //

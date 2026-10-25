@@ -976,12 +976,20 @@ existing bridge file.
   is the only place with open network where the RSS parser can be checked
   against the real feed.
 
-## Conventions## Conventions
+## Conventions
 
 - **Portuguese everywhere** — identifiers (`carregar`, `pontos`,
   `desatualizado`, `vivo`), UI copy, and comments. Don't mix in English names.
   The one exception is `dados/*.json`, which is an interchange format: dot
   decimals and ISO dates, documented in the README.
+- **No English verb with a Portuguese ending, anywhere that is written down.**
+  "commitar", "setar", "parsear", "deployar" are spoken developer slang; they
+  are not written Portuguese, and documentation is written Portuguese. An
+  English **noun** is fine left alone — commit, deploy, parser, cache, branch,
+  workflow, dry-run — so the fix is never to translate the noun, it is to drop
+  the invented verb: "faz commit" not "commita", "definir" not "setar", "lê"
+  not "parseia", "versionado" not "commitado". This applies to comments, the
+  README, this file, commit messages, workflow step names and any UI copy.
 - **Comments explain *why*.** Every module opens with a header comment stating
   its job and the reasoning behind non-obvious choices (why the collector
   exists, why `createRequire` and not `readFile`, why parsing is tolerant).

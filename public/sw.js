@@ -5,7 +5,7 @@
 //     aponta para o JavaScript mais recente); cai no cache só quando offline.
 //   - Assets com hash (/assets/*.js|css) -> CACHE-FIRST: são imutáveis e o nome
 //     muda a cada build, então versões novas entram sozinhas.
-//   - /api/*            -> sempre rede (dados nunca são cacheados).
+//   - /api/*            -> sempre rede (dados nunca vão para o cache).
 // O par skipWaiting + clients.claim faz a versão nova assumir na hora; o
 // registro em main.jsx recarrega a página uma vez quando detecta a atualização.
 //

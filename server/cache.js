@@ -2,7 +2,7 @@
 //
 // É DAQUI que o app lê em produção. O CSV do Tesouro tem dezenas de MB e não
 // pode ser varrido a cada request; quem faz isso é o job agendado, que destila
-// tudo em dois arquivos commitados no próprio repositório:
+// tudo em dois arquivos versionados no próprio repositório:
 //
 //   dados/historico.json  série diária por vencimento (o app)
 //   dados/ntnb.json       retrato do dia dos vencimentos em destaque (a ponte)
