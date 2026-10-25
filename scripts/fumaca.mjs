@@ -1,4 +1,5 @@
-// scripts/fumaca.mjs — teste de fumaça: monta o app DE VERDADE e abre cada aba.
+// scripts/fumaca.mjs — teste de fumaça (smoke test): monta o app DE VERDADE e
+// abre cada aba.
 //
 // POR QUE ISTO EXISTE: nem `build` nem `verificar` renderizam um componente
 // React. O `vite build` só empacota — código que quebra ao rodar empacota

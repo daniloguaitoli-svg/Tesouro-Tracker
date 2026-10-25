@@ -20,11 +20,11 @@ azul-centáurea, todo número em monoespaçada tabular.
 
 ## A ponte: dados legíveis por máquina
 
-Este é o motivo principal do repositório existir. O arquivo oficial do Tesouro
-tem dezenas de MB e cresce todo dia — grande demais para muitas ferramentas
-baixarem, e atrás de um domínio que nem sempre é alcançável. Um job agendado
-lê esse arquivo uma vez por dia e destila o resultado em **dois arquivos
-pequenos, versionados neste repositório**:
+A **ponte** (*bridge*) é o motivo principal do repositório existir. O arquivo
+oficial do Tesouro tem dezenas de MB e cresce todo dia — grande demais para
+muitas ferramentas baixarem, e atrás de um domínio que nem sempre é
+alcançável. Um job agendado lê esse arquivo uma vez por dia e destila o
+resultado em **dois arquivos pequenos, versionados neste repositório**:
 
 | Arquivo | Para quê |
 |---|---|
