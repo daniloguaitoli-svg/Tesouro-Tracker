@@ -46,7 +46,7 @@ import {
 // devolva o nome aqui.
 export const AVISO =
   "Dados de fontes públicas (Tesouro Nacional e Banco Central), com defasagem de pelo menos um dia útil. " +
-  "Duration e sensibilidade são calculadas em dias corridos/365, aproximação da convenção oficial de dias úteis/252. " +
+  "Prazo, duration e sensibilidade em dias úteis/252, a convenção do Tesouro e da ANBIMA. " +
   "Uso informativo — não é recomendação de investimento.";
 
 // Janelas do gráfico do Detalhe, em dias corridos. MAX = tudo que houver.
