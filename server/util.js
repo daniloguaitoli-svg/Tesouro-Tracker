@@ -104,13 +104,13 @@ export function dataDeISO(iso) {
   return new Date(Date.UTC(a, m - 1, d));
 }
 
-// Prazo em anos na régua do mercado. O nome diz "úteis" de propósito: a
+// Prazo em anos na convenção do mercado. O nome diz "úteis" de propósito: a
 // convenção foi invisível uma vez e custou meses de preço torto, então quem
-// ler uma chamada destas vê qual régua está usando sem abrir este arquivo.
+// ler uma chamada destas vê em que base ela conta sem abrir este arquivo.
 //
 // Vale para TUDO — desconto de fluxo, duration, eixo da curva e o prazo
-// exibido. Uma régua só: o Detalhe compara "duration de 7,2 a contra um prazo
-// de 8,5 a", e medir os dois de jeitos diferentes tornaria a frase falsa em
+// exibido. Uma convenção só: o Detalhe compara "duration de 7,2 a contra um prazo
+// de 8,5 a", e contar os dois de jeitos diferentes tornaria a frase falsa em
 // 0,8% justamente onde ela existe para comparar.
 export function anosUteisEntre(isoInicio, isoFim) {
   return diasUteis(isoInicio, isoFim) / DIAS_UTEIS_ANO;

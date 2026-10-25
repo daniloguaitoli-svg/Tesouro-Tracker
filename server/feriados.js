@@ -6,8 +6,8 @@
 // a duration (uma razão ponderada, onde a convenção quase toda se cancela) e
 // NÃO é para o valor final da Calculadora: medido contra o PU oficial das LTN,
 // corridos/365 erra de −0,09% no vencimento mais curto a −0,50% no de 2032, e
-// o erro cresce com o prazo porque é a régua que está torta, não o
-// arredondamento. Em R$ 10.000 levados ao IPCA+ 2050, −1,08% (R$ 513).
+// o erro cresce com o prazo porque a convenção de contagem está errada, não
+// porque o arredondamento falhou. Em R$ 10.000 levados ao IPCA+ 2050, −1,08% (R$ 513).
 //
 // POR QUE REGRA E NÃO LISTA: feriado nacional brasileiro é calculável. Oito
 // datas fixas mais quatro móveis que derivam todas da Páscoa — carnaval
