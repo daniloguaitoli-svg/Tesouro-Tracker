@@ -24,7 +24,7 @@ const DELTAS = [-2, -1, -0.5, 0.5, 1, 2];
 
 export function Calculadora({ dados }) {
   // A LFT fica fora da calculadora: pós-fixada, sem duration — a pergunta
-  // "e se a taxa mexer?" não se aplica a ela nesta régua.
+  // "e se a taxa mexer?" não se aplica a ela nesta escala.
   const todos = useMemo(
     () => (dados.categorias || []).flatMap((c) => c.itens).filter((t) => t.tipo !== "selic"),
     [dados]

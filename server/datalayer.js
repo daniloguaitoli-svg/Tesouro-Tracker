@@ -238,7 +238,7 @@ export async function getDetalhe(slug, tf = "1A") {
 
   // O fluxo de caixa futuro, que é o que explica a duration de um título com
   // cupom: dá para ver o dinheiro voltando antes do vencimento. A LFT não tem
-  // fluxo a mostrar nessa régua — ela rende Selic diária até o resgate.
+  // fluxo a mostrar nessa escala — ela rende Selic diária até o resgate.
   const duration = temDuration(item.tipo)
     ? calcularDuration({
         vencimentoISO: item.vencimento,
@@ -519,10 +519,10 @@ export async function getMacro() {
 
 // O panorama de mercado: as três decisões de política monetária (Copom ao vivo
 // pelo BCB; Fed e BCE do arquivo versionado dados/global.json), e uma grade de
-// indicadores com a MESMA régua de janelas — 1 dia, 1 semana, 1 mês, no ano e
+// indicadores com a MESMA escala de janelas — 1 dia, 1 semana, 1 mês, no ano e
 // 12 meses — para câmbio, juros e bolsas.
 //
-// A régua única é o ponto da tela: só assim dá para pôr lado a lado "o IPCA+
+// A escala única é o ponto da tela: só assim dá para pôr lado a lado "o IPCA+
 // 2035 paga 7,6% real" e "o CDI rendeu 9,4% no ano, o Ibovespa 12%".
 
 // Preço e taxa não medem a mesma coisa, e a grade diz qual é qual em `base`:

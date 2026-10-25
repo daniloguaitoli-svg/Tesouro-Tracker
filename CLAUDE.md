@@ -10,7 +10,7 @@ A React + Vite PWA that tracks Brazilian government bonds (Tesouro Direto).
 kinds), Prefixado (LTN/NTN-F) and Selic (LFT) — plus monetary-policy decisions
 (Copom, Fed, ECB), PTAX FX, CDI × Selic and market headlines by region.
 RendA+/Educa+ are excluded on purpose (monthly amortisation needs a different
-ruler). See **Family semantics** below — the three families do NOT share rate
+scale). See **Family semantics** below — the three families do NOT share rate
 semantics, and mixing them up is the main way to break this app.
 
 It mirrors the architecture of the sibling ETF / Cana / Soja / Café trackers.
@@ -676,12 +676,12 @@ changed in both places**:
 
 `verificar.mjs` compares both sides.
 
-### The Mercado grid: one ruler for everything
+### The Mercado grid: one scale for everything
 
 The tab is monetary-policy cards (unchanged) plus a grid of indicators measured
 on the **same five windows** — 1 day, 1 week, 1 month, year to date, 12 months —
 in three groups: cambio (USD/BRL, EUR/BRL), juros (Selic, CDI) and bolsas (the
-five indices). The single ruler is the point: it is what lets "IPCA+ 2035 pays
+five indices). The single scale is the point: it is what lets "IPCA+ 2035 pays
 7.6% real" sit next to "CDI returned 9.4% YTD, Ibovespa 12%".
 
 **A price and a rate do not vary in the same sense, and each row says which it

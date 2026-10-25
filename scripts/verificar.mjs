@@ -287,7 +287,7 @@ conferir(cls("LTN")?.tipo === "prefixado" && cls("NTN-F")?.tipo === "prefixado-j
   "siglas da ANBIMA reconhecidas (LTN, NTN-F, LFT)");
 conferir(cls("NTN-B")?.tipo === "ipca-juros" && cls("NTN-B Principal")?.tipo === "ipca", "NTN-B e NTN-B Principal seguem certos");
 conferir(cls("Tesouro RendA+ Aposentadoria Extra") === null && cls("Tesouro Educa+") === null,
-  "RendA+ e Educa+ ficam fora (amortização mensal, régua diferente)");
+  "RendA+ e Educa+ ficam fora (amortização mensal, escala diferente)");
 conferir(cls("Tesouro Prefixado com Juros Semestrais")?.cupomAnual === 0.10, "NTN-F carrega cupom de 10%");
 
 // Sem taxa não há duration — e o app renderiza "—" em vez de inventar zero.
@@ -313,7 +313,7 @@ const pLtn = tesouro.linhaParaPonto("Tesouro Prefixado;01/01/2031;20/08/2026;13,
 conferir(pLtn?.slug === "prefixado-2031-01-01", "LTN agora entra, com o slug prefixado-*");
 conferir(
   tesouro.linhaParaPonto("Tesouro RendA+ Aposentadoria Extra;15/12/2065;20/08/2026;6,1;6,2;100,1;99,0;100,0".split(";"), idx, null) === null,
-  "RendA+/Educa+ continuam descartados (amortização mensal, régua diferente)"
+  "RendA+/Educa+ continuam descartados (amortização mensal, escala diferente)"
 );
 // A coleta real trouxe uma linha com PU 0,00 (campo vazio de título vencido).
 // Zero não é preço — passaria adiante como "R$ 0,00".
