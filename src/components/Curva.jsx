@@ -200,7 +200,7 @@ export function Curva({ marcados }) {
             <strong>Duration é quanto risco de juros o título carrega</strong> — a régua que
             permite comparar um com cupom e um sem. Repare que toda a NTN-B com juros
             semestrais cabe numa faixa estreita, por mais longo que seja o vencimento:
-            comprar prazo não é comprar risco na mesma proporção. Dias corridos/365, e
+            comprar prazo não é comprar risco na mesma proporção. Dias úteis/252, e
             calculada na data de cada curva, porque a duration encurta com o tempo.
             {misturada && (
               <>

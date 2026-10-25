@@ -114,7 +114,7 @@ conferir(
 );
 
 const zero = util.calcularDuration({ vencimentoISO: "2035-05-15", comCupom: false, taxaReal: 0.07, hojeISO: HOJE });
-const prazoZero = util.anosEntre(HOJE, "2035-05-15");
+const prazoZero = util.anosUteisEntre(HOJE, "2035-05-15");
 conferir(perto(zero.macaulay, prazoZero, 1e-9), "zero-cupom: duration de Macaulay = prazo até o vencimento");
 conferir(perto(zero.modificada, zero.macaulay / 1.07, 1e-9), "duration modificada = Macaulay / (1 + y)");
 
@@ -170,6 +170,80 @@ conferir(cupom10.macaulay < cupom6.macaulay, "cupom 10% (NTN-F) tem duration men
 // LFT: pós-fixada, fora da matemática de duration por decisão.
 conferir(util.temDuration("ipca") && util.temDuration("prefixado-juros") && !util.temDuration("selic"),
   "temDuration: todas as famílias menos a LFT");
+
+// ---------------------------------------------------------------
+// A ÚNICA conferência deste arquivo que compara a conta com a REALIDADE.
+//
+// Todas as outras acima são identidades internas — duration de zero-cupom
+// igual ao prazo, modificada = Macaulay/(1+y) — e continuam verdes sob
+// QUALQUER convenção de contagem, porque os dois lados usam a mesma régua.
+// Foi exatamente por isso que o repositório descontou fluxo em dias
+// corridos/365 por meses, com o CI verde, enquanto o mercado precifica em
+// dias úteis/252.
+//
+// A LTN é o caso limpo: não tem cupom e a face é R$ 1.000 exatos, então o PU
+// publicado pelo Tesouro tem de sair de volta da taxa publicada. Com du/252 o
+// erro medido foi de 0,0003% a 0,0009% (arredondamento de centavo); com
+// corridos/365, de −0,09% a −0,50%, crescendo com o prazo. A tolerância de
+// 0,01% fica duas ordens de grandeza entre os dois.
+//
+// Isto também é o teste do calendário de feriados: um feriado faltando
+// encurta o prazo em um dia útil e desloca o preço em (1+i)^(1/252) ≈ 0,05%,
+// cinco vezes a tolerância.
+console.log("\nconvenção de contagem (PU oficial reconstruído da taxa)");
+{
+  const { diasUteis } = await import("../server/feriados.js");
+  const { createRequire } = await import("node:module");
+  const prefixado = createRequire(join(RAIZ, "package.json"))("./dados/prefixado.json");
+  // Sem cupom e com PU: a face é 1.000 e o desconto é de um fluxo só.
+  const ltns = (prefixado.titulos || []).filter(
+    (t) => t.comCupom === false && t.puCompra > 0 && t.taxaCompra > 0 && t.data
+  );
+
+  // O repositório nasce com arquivos-semente vazios, e antes da primeira
+  // coleta não há PU para conferir — isso é estado esperado, não defeito.
+  if (!ltns.length) {
+    avisar("nenhuma LTN com PU nos dados — pulando (semente ainda não coletada?)");
+  } else {
+    // Duas medidas, porque elas separam dois defeitos diferentes. A primeira
+    // usa só o calendário; a segunda usa a precificação do app. Se as duas
+    // abrem, o feriado está errado; se só a segunda abre, a régua do app é
+    // que está.
+    const pior = (f) =>
+      ltns.reduce(
+        (p, t) => {
+          const esperado = f(t);
+          const erro = esperado == null ? Infinity : Math.abs(esperado / t.puCompra - 1);
+          return erro > p.erro
+            ? { erro, rotulo: `${t.vencimento} (oficial ${t.puCompra}, calculado ${esperado?.toFixed(2) ?? "—"})` }
+            : p;
+        },
+        { erro: 0, rotulo: "" }
+      );
+
+    const calendario = pior((t) => 1000 / Math.pow(1 + t.taxaCompra / 100, diasUteis(t.data, t.vencimento) / 252));
+    conferir(
+      calendario.erro <= 1e-4,
+      `calendário: ${ltns.length} LTN reconstruídas em du/252 — pior erro ${(calendario.erro * 100).toFixed(4)}% ${calendario.rotulo}`
+    );
+
+    // precoPor100 é a MESMA função que desconta o fluxo da NTN-B e alimenta a
+    // duration e a Calculadora. A face da LTN é 1.000, daí o ×10.
+    const app = pior((t) => {
+      const por100 = util.precoPor100({
+        vencimentoISO: t.vencimento,
+        comCupom: false,
+        taxaReal: t.taxaCompra / 100,
+        hojeISO: t.data,
+      });
+      return por100 == null ? null : por100 * 10;
+    });
+    conferir(
+      app.erro <= 1e-4,
+      `precoPor100 do app reproduz o PU oficial — pior erro ${(app.erro * 100).toFixed(4)}% ${app.rotulo}`
+    );
+  }
+}
 
 // A janela de 12 meses é o numero em DESTAQUE do cartao do Ibovespa: se ela
 // comparar com o ponto errado (ou com o mais antigo que existir, fingindo ser

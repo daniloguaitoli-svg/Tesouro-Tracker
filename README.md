@@ -235,10 +235,14 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   dia útil de atraso — às vezes mais, e em lote: já ficou parado três dias e
   depois publicou três datas de uma vez. Nada aqui é tempo real. Todo item
   carrega a data do preço, e os desatualizados são marcados.
-- **Convenção de tempo.** Duration e sensibilidade usam dias corridos/365. A
-  convenção oficial da ANBIMA para NTN-B é **dias úteis/252** — a diferença é
-  desprezível para duration (que é uma razão ponderada, onde a convenção quase
-  toda se cancela), mas existe. Não há calendário de feriados no repositório.
+- **Convenção de tempo.** Prazo, duration, sensibilidade e valor final usam
+  **dias úteis/252**, a convenção do Tesouro e da ANBIMA. O calendário é o dos
+  feriados nacionais, calculado por regra (datas fixas + as móveis derivadas da
+  Páscoa), então não cobre feriado estadual ou municipal — que também não entram
+  no calendário da ANBIMA. Até 10/2026 a conta era em dias corridos/365: ficava
+  dentro de 0,12 p.p. na duration, mas inflava o valor final em até 1,08% no
+  vencimento mais longo. `npm run verificar` confere a régua reconstruindo o PU
+  oficial das LTN a partir da taxa publicada.
 - **Sensibilidade é aproximação.** Duration + convexidade é uma expansão de
   segunda ordem, não uma reprecificação exata.
 - **"Compra" e "venda" são do ponto de vista do Tesouro.** *Venda* é o Tesouro
