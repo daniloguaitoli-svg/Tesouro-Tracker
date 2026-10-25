@@ -366,6 +366,132 @@ function inflacaoImplicita(real, nominal) {
 // atrás não começariam no mesmo lugar, que é justamente o que se quer comparar.
 const PRAZO_MINIMO_CURVA = 1.5;
 
+// ---------- /api/futuros ----------
+
+// As duas curvas do mercado futuro da B3, lidas do arquivo-ponte que o coletor
+// acumula. Endpoint próprio, e não um campo a mais no /api/curva, por dois
+// motivos: a fonte é outra (B3, não Tesouro) e a falha é independente — um dia
+// sem coleta da B3 não pode esvaziar a curva dos títulos, que está perfeita.
+//
+// CADA CURVA FICA NA SUA MOLDURA, com o x na PRÓPRIA convenção: dias
+// úteis/252 no DI, dias corridos/360 no cupom. A alternativa seria inventar um
+// eixo comum em anos corridos só para as duas caberem lado a lado — uma
+// terceira régua, criada para o desenho e não para a matemática, logo depois
+// de o repositório ter gasto quatro PRs para ficar com uma régua só por
+// sentido. Molduras separadas custam mais pixels e não custam verdade.
+// A montagem é PURA e recebe o arquivo em vez de lê-lo, pelo mesmo motivo que
+// os parsers são exportados: com a semente vazia (que é o estado até a
+// primeira coleta) não haveria como exercitar nada, e a lógica da curva
+// chegaria à tela sem um teste sequer. O verificar passa duas datas de
+// mentira aqui e confere a seleção, a ordenação e o vértice.
+export function curvasDeFuturos(arquivo) {
+  const contratos = Object.entries(arquivo?.contratos || {});
+
+  // Todas as datas já coletadas, para achar "hoje" e "um mês atrás" dentro do
+  // que existe. A B3 serve poucos meses e o histórico nasce da primeira
+  // coleta, então pedir uma data que ainda não foi coletada é o caso NORMAL no
+  // começo — e tem de devolver nada, não um erro.
+  const datas = new Set();
+  for (const [, c] of contratos) for (const d of Object.keys(c.serie || {})) datas.add(d);
+  const ordenadas = [...datas].sort();
+  const ultima = ordenadas[ordenadas.length - 1] || null;
+
+  // A data coletada mais próxima de 30 dias atrás, nunca a mais recente: sem
+  // esse piso, no primeiro mês de vida "um mês atrás" seria o próprio dia de
+  // hoje e o gráfico mostraria duas linhas idênticas como se fossem duas
+  // leituras.
+  const alvoMes = ultima ? new Date(Date.parse(ultima) - 30 * 86400000).toISOString().slice(0, 10) : null;
+  const umMes = alvoMes ? [...ordenadas].reverse().find((d) => d <= alvoMes) || null : null;
+
+  const dias = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+
+  // Um ponto por contrato vivo NAQUELA data, com a taxa daquele dia. Mesma
+  // regra da curva dos títulos: a curva de um mês atrás é feita do que estava
+  // vivo um mês atrás, não do que está vivo hoje.
+  const pontosEm = (dataISO, filtro, prazo) => {
+    if (!dataISO) return [];
+    return contratos
+      .filter(([, c]) => filtro(c) && c.vencimento > dataISO && c.serie?.[dataISO]?.[0] != null)
+      .map(([ticker, c]) => ({
+        slug: ticker,
+        nome: ticker,
+        vencimento: c.vencimento,
+        anos: prazo(dataISO, c.vencimento),
+        taxa: c.serie[dataISO][0],
+        pu: c.serie[dataISO][1] ?? null,
+        // CurvaChart separa por família e pede o campo; aqui não há cupom, e
+        // um ponto sem a chave cairia num grupo só, calado.
+        comCupom: false,
+      }))
+      .sort((a, b) => a.anos - b.anos);
+  };
+
+  const prazoUtil = (de, ate) => anosUteisEntre(de, ate);
+  const prazoCorrido = (de, ate) => dias(de, ate) / 360;
+
+  const ehDI = (c) => c.ativo === "DI1";
+  const ehFRC = (c) => c.ativo === "FRC";
+
+  // O vértice curto: o DDI mais curto vivo na data. Não é ponto de curva — a
+  // taxa dele é cupom SUJO, contaminada pela variação cambial desde a PTAX do
+  // dia anterior — mas sem ele a tela não tem como dizer por que a curva em
+  // USD começa onde começa.
+  const verticeEm = (dataISO) => {
+    if (!dataISO) return null;
+    const vivos = contratos
+      .filter(([, c]) => c.ativo === "DDI" && c.vencimento > dataISO && c.serie?.[dataISO]?.[0] != null)
+      .sort((a, b) => a[1].vencimento.localeCompare(b[1].vencimento));
+    if (!vivos.length) return null;
+    const [ticker, c] = vivos[0];
+    return { slug: ticker, vencimento: c.vencimento, dias: dias(dataISO, c.vencimento), taxaSuja: c.serie[dataISO][0] };
+  };
+
+  const curvas = [
+    {
+      id: "di-pre",
+      nome: "DI × pré",
+      sufixo: "% a.a.",
+      convencao: "dias úteis/252, exponencial",
+      agora: pontosEm(ultima, ehDI, prazoUtil),
+      umMesAtras: pontosEm(umMes, ehDI, prazoUtil),
+    },
+    {
+      id: "cupom-limpo",
+      nome: "Cupom cambial limpo",
+      sufixo: "% a.a. US$",
+      convencao: "dias corridos/360, linear",
+      agora: pontosEm(ultima, ehFRC, prazoCorrido),
+      umMesAtras: pontosEm(umMes, ehFRC, prazoCorrido),
+      vertice: verticeEm(ultima),
+    },
+  ];
+
+  return {
+    data: ultima,
+    comparadoCom: umMes,
+    diasColetados: ordenadas.length,
+    // Antes da primeira coleta o arquivo é a semente, e a tela mostra
+    // "aguardando coleta" em vez de um gráfico vazio com cara de defeito.
+    pendente: !ultima,
+    curvas,
+    nota:
+      "A curva em dólar sai do FRC, que é a taxa a termo a partir do primeiro vencimento de DDI em aberto — " +
+      "o cupom limpo. Por isso ela começa nesse vértice, e não em D0: ancorar em hoje exigiria a taxa spot, " +
+      "que não está em fonte pública gratuita. O vértice curto aparece à parte, com a taxa suja, que carrega " +
+      "a variação do câmbio desde a PTAX do dia anterior.",
+    historicoNota:
+      ordenadas.length < 25
+        ? `O histórico começou em ${ordenadas[0] || "—"} e cresce a cada coleta: a comparação com um mês atrás fica completa com o tempo.`
+        : null,
+    fonte: arquivo?.fonte || "B3",
+    aviso: AVISO,
+  };
+}
+
+export async function getFuturos() {
+  return curvasDeFuturos(cache.futuros());
+}
+
 export async function getCurva() {
   const hoje = hojeISO();
   const todos = cache.titulos().filter((t) => t.taxa != null);

@@ -42,7 +42,7 @@ const cat = await import("../server/catalogo.js");
 const tesouro = await import("../server/providers/tesouro.js");
 const anbima = await import("../server/providers/anbima.js");
 
-const ROTAS = ["getTitulos", "getDetalhe", "getCurva", "getMacro", "getMercado", "getNoticias"];
+const ROTAS = ["getTitulos", "getDetalhe", "getCurva", "getFuturos", "getMacro", "getMercado", "getNoticias"];
 for (const nome of ROTAS) conferir(typeof datalayer[nome] === "function", `datalayer exporta ${nome}()`);
 for (const rel of ["tesouro", "anbima", "bcb", "globais", "noticias", "yahoo"]) {
   await import(`../server/providers/${rel}.js`);
@@ -343,6 +343,73 @@ console.log("\ncurvas de futuros da B3 (DI1 e cupom cambial)");
 // A ACUMULAÇÃO dos futuros. O arquivo público da B3 só serve os últimos
 // meses, então o histórico nasce daqui — e erro de fusão não grita, só perde
 // dia em silêncio.
+// ---------------------------------------------------------------
+// A montagem das curvas de futuros, com duas datas de mentira. Sem isto a
+// lógica só poderia ser exercitada depois da primeira coleta de verdade —
+// quer dizer, só em produção.
+console.log("\ncurvas de futuros: montagem do payload");
+{
+  const { curvasDeFuturos } = await import("../server/datalayer.js");
+
+  const hoje = "2026-11-24";
+  const mes = "2026-10-23"; // 32 dias antes: passa do piso de 30
+  const arquivo = {
+    fonte: "B3",
+    contratos: {
+      DI1F27: { ativo: "DI1", vencimento: "2027-01-04", serie: { [mes]: [13.468, 97671.01], [hoje]: [13.1, 98500] } },
+      DI1F29: { ativo: "DI1", vencimento: "2029-01-02", serie: { [mes]: [12.642, 77264.96], [hoje]: [12.5, 78000] } },
+      DI1X26: { ativo: "DI1", vencimento: "2026-11-03", serie: { [mes]: [14.9, 99500] } }, // venceu entre as duas datas
+      FRCF27: { ativo: "FRC", vencimento: "2027-01-04", serie: { [mes]: [5.65, null], [hoje]: [5.7, null] } },
+      FRCF29: { ativo: "FRC", vencimento: "2029-01-02", serie: { [mes]: [6.18, null], [hoje]: [6.2, null] } },
+      DDIZ26: { ativo: "DDI", cupomSujo: true, vencimento: "2026-12-01", serie: { [hoje]: [21.4, null] } },
+      DDIF27: { ativo: "DDI", vencimento: "2027-01-04", serie: { [hoje]: [9.2, 98165.48] } },
+    },
+  };
+
+  const r = curvasDeFuturos(arquivo);
+  conferir(r.pendente === false && r.data === hoje, `a data da curva é a última coletada (${r.data})`);
+  conferir(r.comparadoCom === mes, `a comparação pega a coleta mais próxima de 30 dias atrás (${r.comparadoCom})`);
+
+  const di = r.curvas.find((c) => c.id === "di-pre");
+  const cupom = r.curvas.find((c) => c.id === "cupom-limpo");
+
+  conferir(di.agora.length === 2 && cupom.agora.length === 2, "cada curva pega só os contratos do seu ativo");
+  conferir(di.agora.every((p) => p.slug.startsWith("DI1")), "nenhum DDI vaza para a curva em reais");
+  conferir(cupom.agora.every((p) => p.slug.startsWith("FRC")), "nenhum DDI sujo vaza para a curva em dólar");
+
+  // A curva de um mês atrás é feita do que estava vivo NAQUELA data — o DI1X26
+  // venceu desde então e precisa aparecer lá, senão a ponta curta da linha
+  // tracejada começa mais à direita que a da linha cheia, e quem comparar as
+  // duas lê o recorte em vez do mercado. É a mesma regra da curva dos títulos.
+  conferir(di.umMesAtras.length === 3, `a curva de um mês atrás tem os vivos de então (${di.umMesAtras.length}, com o que já venceu)`);
+  conferir(di.umMesAtras.some((p) => p.slug === "DI1X26"), "o vencimento que expirou no meio-tempo está na curva antiga");
+  conferir(!di.agora.some((p) => p.slug === "DI1X26"), "e não está na de hoje");
+
+  // Cada curva no seu prazo: dias úteis/252 no DI, dias corridos/360 no cupom.
+  // Mesmo vencimento, números diferentes de propósito.
+  const diF27 = di.agora.find((p) => p.slug === "DI1F27");
+  const frcF27 = cupom.agora.find((p) => p.slug === "FRCF27");
+  conferir(Math.abs(diF27.anos - 0.112) < 0.02, `DI1F27 a ${diF27.anos.toFixed(3)} anos ÚTEIS de 24/11`);
+  conferir(Math.abs(frcF27.anos - 0.114) < 0.02, `FRCF27 a ${frcF27.anos.toFixed(3)} anos CORRIDOS/360`);
+  conferir(diF27.anos !== frcF27.anos, "as duas curvas medem o prazo em réguas diferentes, de propósito");
+
+  conferir(
+    di.agora[0].anos < di.agora[1].anos && cupom.agora[0].anos < cupom.agora[1].anos,
+    "os pontos saem ordenados por prazo — polilinha não volta para trás"
+  );
+  conferir(di.agora.every((p) => p.comCupom === false), "todo ponto carrega comCupom, senão o separador de famílias agrupa tudo calado");
+
+  // O vértice curto é o DDI mais curto vivo, e vem com a taxa SUJA marcada.
+  conferir(cupom.vertice?.slug === "DDIZ26", `vértice curto é o DDI mais curto (${cupom.vertice?.slug})`);
+  conferir(cupom.vertice?.taxaSuja === 21.4, "o vértice traz a taxa suja, não uma taxa limpa qualquer");
+
+  conferir(r.historicoNota != null, "com poucos dias coletados a tela avisa que o histórico ainda cresce");
+
+  const vazio = curvasDeFuturos({ contratos: {} });
+  conferir(vazio.pendente === true && vazio.curvas.every((c) => c.agora.length === 0), "arquivo-semente devolve pendente, não gráfico vazio");
+  conferir(curvasDeFuturos(null).pendente === true, "arquivo ausente não estoura");
+}
+
 console.log("\nacumulação de dados/futuros.json");
 {
   const { montarFuturos } = await import("../server/ponte.js");
@@ -694,13 +761,31 @@ conferir(!mdPainel.includes("undefined") && !mdPainel.includes("[object"), "mark
 conferir(mdPainel.includes("| Ibovespa |"), "tabela da moldura traz o Ibovespa");
 
 console.log("\nregra dos três lugares (datalayer + api/ + devApi)");
+{
+  // LACUNA QUE EU CAÍ DENTRO em 25/10/2026: acrescentei a rota /api/futuros ao
+  // devApi e esqueci de importar getFuturos. A regra dos três lugares olhava a
+  // rota e o arquivo em api/, não o import — então o CI passou e só o
+  // `npm run dev` teria quebrado, com ReferenceError em tempo de requisição. A
+  // fumaça também não pega: ela serve /api direto do datalayer, sem passar
+  // pelo vite.
+  const vite = await ler("vite.config.js");
+  const importado = new Set((vite.match(/import \{([^}]+)\} from "\.\/server\/datalayer\.js"/)?.[1] || "").split(",").map((x) => x.trim()));
+  const chamadas = [...vite.matchAll(/url\.pathname === "\/api\/[a-z]+"\)\s*return send\(200, await (\w+)\(/g)].map((m) => m[1]);
+  const semImport = chamadas.filter((f) => !importado.has(f));
+  conferir(chamadas.length >= 5, `${chamadas.length} rotas do devApi conferidas`);
+  conferir(semImport.length === 0, `toda função chamada pelo devApi está importada${semImport.length ? ` (falta ${semImport.join(", ")})` : ""}`);
+}
 const vite = await ler("vite.config.js");
 for (const nome of ROTAS) {
   const rota = nome.replace(/^get/, "").toLowerCase();
   const temArquivo = await ler(`api/${rota}.js`).then(() => true).catch(() => false);
   conferir(temArquivo, `api/${rota}.js existe (função da Vercel)`);
   conferir(vite.includes(`/api/${rota}`), `devApi() serve /api/${rota}`);
-  conferir(vite.includes(nome), `vite.config.js importa ${nome}`);
+  // `includes` aqui é fraco de propósito: ele casa com a linha da ROTA
+  // também. Quem confere o import de verdade é o bloco acima, que lê a
+  // lista de nomes importados — esta linha sobrevive só como sinal de que
+  // o nome aparece em algum lugar do arquivo.
+  conferir(vite.includes(nome), `vite.config.js menciona ${nome}`);
 }
 
 // ---------------------------------------------------------------
