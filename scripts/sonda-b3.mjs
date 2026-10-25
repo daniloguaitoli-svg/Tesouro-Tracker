@@ -6,53 +6,62 @@
 // barreira do Yahoo, do SGS e do Tesouro, e a mesma solução: um runner do
 // GitHub é o único lugar com rede aberta para esses endereços.
 //
-// ESTA SONDA É DIFERENTE DAS OUTRAS DUAS. A sonda-tesouro e a sonda-mercado
-// verificam fonte CONHECIDA: sabem o formato, e um desvio é defeito. Esta
-// ainda não sabe o formato — ela existe para DESCOBRIR qual endereço responde
-// e com que corpo, porque não dá para escrever parser contra arquivo que nunca
-// se viu (foi assim que o repositório errou com a ANBIMA). Daí ela imprimir
-// amostra, que é o produto dela, e não reprovar em 404: as URLs são palpite, e
-// um 404 é resposta útil, não falha. Quando houver parser, ela herda a
-// fronteira das irmãs.
+// ESTA SONDA É DIFERENTE DAS OUTRAS DUAS. As irmãs verificam fonte CONHECIDA:
+// sabem o formato, e um desvio é defeito. Esta existe para DESCOBRIR o
+// formato, porque não dá para escrever parser contra arquivo que nunca se viu
+// (foi assim que o repositório errou com a ANBIMA). Daí ela imprimir amostra,
+// que é o produto dela, e não reprovar em 404. Quando houver parser, ela
+// herda a fronteira das irmãs.
 //
 // ---------------------------------------------------------------------------
-// RODADA 1, medida em 25/10/2026 — NÃO PRECISA SER REFEITA.
+// RODADA 1 — 25/10/2026. O PORTAL ANTIGO MORREU; NÃO INSISTA NELE.
 //
-// Nove candidatos do portal antigo, nenhum devolveu tabela:
+//   TxRef1.asp (slcTaxa PRE, DOC, DOL) ... 404 nos três
+//   lum-ajustes-do-pregao-ptBR.asp ....... 200, redireciona para a página nova
+//                                          do Boletim Diário, SPA sem <table>
+//   lum-ajustes ?dData1=DD/MM/AAAA ....... 200 com corpo VAZIO
+//   SistemaPregao_excel1.asp DI1 ......... aceitou a conexão, não respondeu
+//   SistemaPregao_excel1.asp FRC e DDI ... 200 → Erro.asp "Unspecified error"
 //
-//   TxRef1.asp (slcTaxa PRE, DOC, DOL) ........ 404 nos três
-//   lum-ajustes-do-pregao-ptBR.asp ............ 200, mas redireciona para a
-//                                               página nova do Boletim Diário,
-//                                               50 KB de SPA, sem <table>
-//   lum-ajustes... ?dData1=DD/MM/AAAA ......... 200 com corpo VAZIO (0 bytes)
-//   SistemaPregao_excel1.asp DI1 .............. aceitou a conexão e não
-//                                               respondeu em 20s
-//   SistemaPregao_excel1.asp FRC e DDI ........ 200, redirecionam para
-//                                               Erro.asp "Unspecified error"
-//   arquivos.b3.com.br (raiz) ................. 200, casca de SPA Angular
-//                                               ("B3 - UP2DATA WEB")
+// RODADA 2 — 25/10/2026. O UP2DATA RESPONDE, em dois passos.
 //
-// Conclusão: o portal www2.bmf.com.br é de uma geração anterior e não serve
-// mais. Não insista nele. O caminho vivo aparenta ser o UP2DATA, atrás
-// daquele SPA, e é o que esta rodada 2 investiga.
+//   requestname?fileName=X&date=AAAA-MM-DD  →  JSON com token
+//   download/?token=…                       →  o arquivo
+//
+//   TradeInformationConsolidatedFile ..... 200 · ~5 MB · CSV ;
+//   TradeInformationConsolidated ......... idem (os dois nomes servem)
+//   InstrumentsConsolidatedFile .......... 200 · ~19 MB · CSV ;
+//   SettlementPrices / PriceReport /
+//   EconomicIndicatorPrice ............... 400, não existem
+//
+//   O CSV abre com uma linha solta "Status do Arquivo: Final" ANTES do
+//   cabeçalho — quem der split e assumir a linha 0 como cabeçalho lê tudo
+//   deslocado. Decimal é vírgula, separador é ponto e vírgula.
+//
+//   Colunas que interessam em TradeInformationConsolidated:
+//     RptDt TckrSymb ISIN SgmtNm MinPric MaxPric TradAvrgPric LastPric
+//     OscnPctg AdjstdQt AdjstdQtTax RefPric TradQty FinInstrmQty NtlFinVol
+//   AdjstdQt é o PREÇO de ajuste e AdjstdQtTax é a TAXA de ajuste.
+//
+//   E em InstrumentsConsolidated: TckrSymb Asst XprtnDt SctyCtgyNm MktNm —
+//   é o cadastro que traduz o código do contrato na data de vencimento.
 // ---------------------------------------------------------------------------
 //
-// RODADA 2 — o UP2DATA tem download em DOIS PASSOS: pede-se o arquivo pelo
-// nome e recebe-se um token, e só o token baixa o conteúdo. Por isso a sonda
-// faz os dois: um primeiro passo que responde 200 não prova nada se o segundo
-// não entregar bytes.
+// RODADA 3 — a pergunta que falta: DI1, FRC e DDI estão mesmo lá dentro, com
+// taxa de ajuste preenchida? Saber que o arquivo tem as colunas certas não é
+// o mesmo que saber que tem as linhas certas, e é a diferença entre "fonte
+// encontrada" e "fonte confirmada".
 
 import { ehDiaUtil } from "../server/feriados.js";
 
 const MS_DIA = 86400000;
 const BASE = "https://arquivos.b3.com.br/api/download";
+const LIMITE_MS = 30000;
 
-// O fetch do Node NÃO tem timeout padrão, e isso não é teoria: a primeira
-// execução desta sonda ficou presa por mais de quatro minutos porque um
-// candidato aceita a conexão e nunca responde. 20s por pedido — curto demais
-// transformaria lentidão de hora de pico em "não respondeu", que é a conclusão
-// errada.
-const LIMITE_MS = 20000;
+// Os três ativos que interessam agora. DI1 dá a curva em BRL; FRC e DDI dão o
+// cupom cambial, que é a curva em USD. O prefixo basta: o código do contrato
+// é ativo + letra do mês + ano (DI1F27 = janeiro de 2027).
+const ALVOS = ["DI1", "FRC", "DDI"];
 
 function diasUteisAtras(n) {
   let d = new Date(Date.now() - MS_DIA);
@@ -64,145 +73,124 @@ function diasUteisAtras(n) {
   return d.toISOString().slice(0, 10);
 }
 
-// Duas datas, de propósito. Se a mais recente vier vazia e a anterior vier
-// cheia, o arquivo do dia só não foi processado ainda — e isso é rotina, não
-// defeito. Sem a segunda data as duas situações seriam indistinguíveis.
-const DATAS = [diasUteisAtras(1), diasUteisAtras(2)];
+const DATA = diasUteisAtras(1);
 
-// Os nomes são palpite informado: o único documentado por terceiros é o
-// TradeInformationConsolidated. Os outros seguem a nomenclatura da B3 para
-// arquivos públicos, e descobrir quais existem é metade do trabalho desta
-// rodada.
-const ARQUIVOS = [
-  "TradeInformationConsolidatedFile",
-  "TradeInformationConsolidated",
-  "SettlementPrices",
-  "PriceReport",
-  "InstrumentsConsolidatedFile",
-  "EconomicIndicatorPrice",
-];
+async function baixar(nomeArquivo) {
+  const r1 = await fetch(`${BASE}/requestname?fileName=${encodeURIComponent(nomeArquivo)}&date=${DATA}&recaptchaToken=`, {
+    headers: { Accept: "application/json", "User-Agent": "tesouro-tracker (sonda de reconhecimento)" },
+    signal: AbortSignal.timeout(LIMITE_MS),
+  });
+  if (!r1.ok) throw new Error(`passo 1 devolveu HTTP ${r1.status}`);
+  const { token } = await r1.json();
+  if (!token) throw new Error("passo 1 não trouxe token");
 
-const amostraTexto = (t) => t.slice(0, 500).replace(/\s+/g, " ").trim();
-
-// Detecta o formato pelos primeiros bytes em vez de confiar no content-type:
-// a B3 serve ZIP como application/octet-stream, e um parser escrito para o
-// tipo declarado leria lixo.
-function formato(bytes) {
-  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b) return "ZIP";
-  if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) return "GZIP";
-  const inicio = new TextDecoder("utf-8", { fatal: false }).decode(bytes.slice(0, 200));
-  if (/^\s*[[{]/.test(inicio)) return "JSON";
-  if (/^\s*</.test(inicio)) return "HTML/XML";
-  return "texto";
+  const r2 = await fetch(`${BASE}/?token=${encodeURIComponent(token)}`, {
+    headers: { "User-Agent": "tesouro-tracker (sonda de reconhecimento)" },
+    signal: AbortSignal.timeout(LIMITE_MS),
+  });
+  if (!r2.ok) throw new Error(`passo 2 devolveu HTTP ${r2.status}`);
+  return new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(await r2.arrayBuffer()));
 }
 
-// Nomes das entradas de um ZIP, lidos dos cabeçalhos locais. Não descompacta:
-// aqui só interessa SABER o que tem dentro, e um inflate completo seria código
-// para jogar fora quando o parser de verdade existir.
-function entradasDoZip(bytes) {
-  const nomes = [];
-  for (let i = 0; i + 30 < bytes.length && nomes.length < 12; i++) {
-    if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 0x03 && bytes[i + 3] === 0x04) {
-      const tamNome = bytes[i + 26] | (bytes[i + 27] << 8);
-      if (tamNome > 0 && tamNome < 300 && i + 30 + tamNome <= bytes.length) {
-        nomes.push(new TextDecoder("utf-8").decode(bytes.slice(i + 30, i + 30 + tamNome)));
-      }
-    }
+// O cabeçalho NÃO é a primeira linha: o arquivo abre com "Status do Arquivo".
+// Procura a linha que tem RptDt em vez de contar linhas — contar quebraria no
+// dia em que a B3 acrescentar outra linha de aviso.
+function abrirCsv(texto) {
+  const linhas = texto.split(/\r?\n/);
+  const iCab = linhas.findIndex((l) => /(^|;)RptDt(;|$)/.test(l));
+  if (iCab < 0) throw new Error("não achei a linha de cabeçalho (RptDt)");
+  const colunas = linhas[iCab].split(";");
+  const idx = (nome) => colunas.indexOf(nome);
+  return { colunas, idx, corpo: linhas.slice(iCab + 1) };
+}
+
+const ativoDe = (ticker) => (ticker.match(/^([A-Z0-9]{3})[FGHJKMNQUVXZ]\d{2}$/) || [])[1] || null;
+
+console.log(`sonda B3 rodada 3 — DI1, FRC e DDI em ${DATA}\n`);
+
+// ---------- negócios e ajustes ----------
+console.log("=== TradeInformationConsolidated ===");
+let negocios;
+try {
+  negocios = abrirCsv(await baixar("TradeInformationConsolidatedFile"));
+  console.log(`  ${negocios.corpo.length} linhas, ${negocios.colunas.length} colunas`);
+} catch (e) {
+  console.log(`  falhou: ${e.message}`);
+  process.exit(0);
+}
+
+const iTicker = negocios.idx("TckrSymb");
+const iSegm = negocios.idx("SgmtNm");
+const iAjuste = negocios.idx("AdjstdQt");
+const iTaxa = negocios.idx("AdjstdQtTax");
+const iQtd = negocios.idx("TradQty");
+
+const porAlvo = new Map(ALVOS.map((a) => [a, []]));
+const segmentos = new Map();
+
+for (const linha of negocios.corpo) {
+  if (!linha) continue;
+  const c = linha.split(";");
+  const ticker = c[iTicker];
+  if (!ticker) continue;
+
+  // Inventário dos segmentos: guardado de passagem, porque o download é a
+  // parte cara e refazê-lo depois só para contar seria desperdício.
+  const seg = c[iSegm] || "(sem segmento)";
+  segmentos.set(seg, (segmentos.get(seg) || 0) + 1);
+
+  const ativo = ativoDe(ticker);
+  if (ativo && porAlvo.has(ativo)) porAlvo.get(ativo).push(c);
+}
+
+for (const alvo of ALVOS) {
+  const linhas = porAlvo.get(alvo);
+  console.log(`\n  --- ${alvo}: ${linhas.length} contratos ---`);
+  if (!linhas.length) {
+    console.log("    nenhum. Ou o prefixo não é esse, ou o ativo não está neste arquivo.");
+    continue;
   }
-  return nomes;
-}
-
-async function pedir(url, rotulo) {
-  try {
-    const r = await fetch(url, {
-      headers: { Accept: "application/json,text/plain,*/*", "User-Agent": "tesouro-tracker (sonda de reconhecimento)" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(LIMITE_MS),
-    });
-    const bytes = new Uint8Array(await r.arrayBuffer());
-    return { ok: r.ok, status: r.status, tipo: r.headers.get("content-type") || "—", bytes, url: r.url };
-  } catch (e) {
-    const estourou = /abort|timeout/i.test(String(e?.name || e?.message || e));
-    console.log(`  ${rotulo}: ${estourou ? `sem resposta em ${LIMITE_MS / 1000}s` : `sem resposta (${e?.cause?.code || e.message})`}`);
-    return null;
-  }
-}
-
-console.log(`sonda B3 rodada 2 — UP2DATA, datas ${DATAS.join(" e ")}\n`);
-
-let baixouAlgo = false;
-
-for (const data of DATAS) {
-  for (const arquivo of ARQUIVOS) {
-    const url = `${BASE}/requestname?fileName=${encodeURIComponent(arquivo)}&date=${data}&recaptchaToken=`;
-    console.log(`=== ${arquivo} · ${data} ===`);
-
-    const passo1 = await pedir(url, "passo 1");
-    if (!passo1) {
-      console.log("");
-      continue;
-    }
-
-    const texto = new TextDecoder("utf-8", { fatal: false }).decode(passo1.bytes);
-    console.log(`  passo 1: HTTP ${passo1.status} · ${passo1.tipo} · ${passo1.bytes.length} bytes`);
-
-    if (!passo1.ok || !passo1.bytes.length) {
-      console.log(`  corpo: ${amostraTexto(texto) || "(vazio)"}`);
-      console.log("");
-      continue;
-    }
-    console.log(`  corpo: ${amostraTexto(texto)}`);
-
-    // O token pode vir com nomes diferentes conforme a versão da API; procura
-    // os plausíveis em vez de fixar um e concluir "não tem token" por engano.
-    let token = null;
-    try {
-      const j = JSON.parse(texto);
-      token = j.token || j.redirectUrl || j.file?.token || j.data?.token || null;
-    } catch {
-      const m = texto.match(/[?&]token=([^"&\s]+)/);
-      token = m ? m[1] : null;
-    }
-
-    if (!token) {
-      console.log("  sem token no corpo — o passo 2 não tem como ser tentado");
-      console.log("");
-      continue;
-    }
-    console.log(`  token: ${String(token).slice(0, 60)}…`);
-
-    const passo2 = await pedir(`${BASE}/?token=${encodeURIComponent(token)}`, "passo 2");
-    if (!passo2) {
-      console.log("");
-      continue;
-    }
-
-    const fmt = formato(passo2.bytes);
-    console.log(`  passo 2: HTTP ${passo2.status} · ${passo2.tipo} · ${passo2.bytes.length} bytes · formato ${fmt}`);
-
-    if (passo2.ok && passo2.bytes.length > 0) {
-      baixouAlgo = true;
-      if (fmt === "ZIP") {
-        const entradas = entradasDoZip(passo2.bytes);
-        console.log(`  dentro do ZIP: ${entradas.length ? entradas.join(", ") : "(não consegui ler os nomes)"}`);
-      } else {
-        const t = new TextDecoder("utf-8", { fatal: false }).decode(passo2.bytes.slice(0, 1200));
-        console.log("  primeiras linhas:");
-        for (const linha of t.split(/\r?\n/).slice(0, 6)) console.log(`    ${linha.slice(0, 160)}`);
-      }
-    }
-    console.log("");
+  const comTaxa = linhas.filter((c) => c[iTaxa]).length;
+  const comAjuste = linhas.filter((c) => c[iAjuste]).length;
+  console.log(`    com AdjstdQt (preço de ajuste): ${comAjuste} · com AdjstdQtTax (taxa): ${comTaxa}`);
+  console.log(`    ticker | segmento | ajuste | taxa | negócios`);
+  for (const c of linhas.slice(0, 8)) {
+    console.log(`      ${c[iTicker]} | ${c[iSegm]} | ${c[iAjuste] || "—"} | ${c[iTaxa] || "—"} | ${c[iQtd] || "0"}`);
   }
 }
 
-console.log("=== veredito ===");
-if (baixouAlgo) {
-  console.log("  pelo menos um arquivo veio com bytes. O próximo passo é o parser, contra a amostra acima.");
-} else {
-  console.log("  nenhum arquivo veio com bytes.");
-  console.log("  → ou os nomes estão errados, ou o endereço pede algo que a sonda não manda");
-  console.log("    (recaptcha de verdade, cookie de sessão, cabeçalho de origem).");
-  console.log("  Reconhecimento, não defeito: esta sonda não reprova por isso.");
+// ---------- cadastro: o vencimento de cada contrato ----------
+console.log("\n=== InstrumentsConsolidated (vencimentos) ===");
+try {
+  const cad = abrirCsv(await baixar("InstrumentsConsolidatedFile"));
+  const jTicker = cad.idx("TckrSymb");
+  const jVenc = cad.idx("XprtnDt");
+  const jCateg = cad.idx("SctyCtgyNm");
+  console.log(`  ${cad.corpo.length} linhas`);
+
+  for (const alvo of ALVOS) {
+    const achados = [];
+    for (const linha of cad.corpo) {
+      if (!linha) continue;
+      const c = linha.split(";");
+      if (ativoDe(c[jTicker]) === alvo) achados.push(c);
+    }
+    console.log(`\n  --- ${alvo}: ${achados.length} no cadastro ---`);
+    for (const c of achados.slice(0, 8)) {
+      console.log(`      ${c[jTicker]} | vence ${c[jVenc] || "—"} | ${c[jCateg] || "—"}`);
+    }
+  }
+} catch (e) {
+  console.log(`  falhou: ${e.message}`);
+}
+
+// ---------- inventário, para depois ----------
+// O usuário pediu para olhar os outros ativos MAIS TARDE. Fica tabulado aqui
+// porque os 5 MB já foram baixados: contar agora é de graça, baixar de novo
+// não é.
+console.log("\n=== inventário dos segmentos (guardado para depois) ===");
+for (const [seg, n] of [...segmentos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
+  console.log(`  ${String(n).padStart(7)}  ${seg}`);
 }
 
 process.exit(0);
