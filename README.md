@@ -241,8 +241,8 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   Páscoa), então não cobre feriado estadual ou municipal — que também não entram
   no calendário da ANBIMA. Até 10/2026 a conta era em dias corridos/365: ficava
   dentro de 0,12 p.p. na duration, mas inflava o valor final em até 1,08% no
-  vencimento mais longo. `npm run verificar` confere a régua reconstruindo o PU
-  oficial das LTN a partir da taxa publicada.
+  vencimento mais longo. `npm run verificar` confere a convenção reconstruindo
+  o PU oficial das LTN a partir da taxa publicada.
 - **Sensibilidade é aproximação.** Duration + convexidade é uma expansão de
   segunda ordem, não uma reprecificação exata.
 - **"Compra" e "venda" são do ponto de vista do Tesouro.** *Venda* é o Tesouro

@@ -503,15 +503,15 @@ Macaulay/(1+y); −1 p.p. gains more than +1 p.p. loses (convexity); a par bond
 prices near 100; and missing rate → `null`, never 0.
 
 **Convention: business days/252**, which is how the Treasury and ANBIMA price
-all three families. `anosUteisEntre()` is the one ruler — cashflow discounting,
-duration, the curve's term axis and the term shown on screen. It is named for
-its convention on purpose: this was calendar days/365 until 10/2026 and nothing
-on screen said so.
+all three families. `anosUteisEntre()` is the one count — cashflow
+discounting, duration, the curve's term axis and the term shown on screen. It
+is named for its convention on purpose: this was calendar days/365 until
+10/2026 and nothing on screen said so.
 
-Keeping one ruler is a decision, not an oversight. Discounting in business days
-while displaying a calendar term would leave Detalhe saying "duration de 7,2 a
-contra um prazo de 8,5 a" with the two measured differently — 0.8% apart in the
-one sentence that exists to compare them.
+Keeping one convention is a decision, not an oversight. Discounting in
+business days while displaying a calendar term would leave Detalhe saying
+"duration de 7,2 a contra um prazo de 8,5 a" with the two measured
+differently — 0.8% apart in the one sentence that exists to compare them.
 
 `server/feriados.js` holds the calendar: eight fixed national holidays plus the
 four that derive from Easter (carnival Monday and Tuesday, Good Friday, Corpus
@@ -525,18 +525,19 @@ leaves a constant +0.048% error, which is exactly `(1+i)^(1/252)`.
 **Why 365 lasted so long, and the check that now prevents it.** Every other
 assertion in `verificar.mjs` is an internal identity — zero-coupon duration
 equals the term, modified = Macaulay/(1+y) — and those stay green under *any*
-convention, because both sides use the same ruler. Nothing compared the maths
+convention, because both sides count the same way. Nothing compared the maths
 to reality. The LTN is the clean test: no coupon, face of exactly R$ 1,000, so
 the published PU must come back out of the published rate. Two measurements,
 because they separate two faults: the calendar alone (`diasUteis`), then the
 app's own `precoPor100`. Both open → a wrong holiday. Only the second → the
-app's ruler. Tolerance 0.01%; measured 0.0009% on 252 against 0.5044% on 365.
+app's convention. Tolerance 0.01%; measured 0.0009% on 252 against 0.5044%
+on 365.
 
 The old approximation was honest about duration (≤ 0.12 p.p. in the worst live
 case) and silent about where it actually cost: the Calculadora's terminal value
 ran up to **1.08% high** on the IPCA+ 2050, always upward. If you touch the
-ruler, update this section, the README caveat and the `convencao` strings in
-`ponte.js` — external consumers read those.
+convention, update this section, the README caveat and the `convencao`
+strings in `ponte.js` — external consumers read those.
 
 ### The download retries; the parse does not
 
@@ -1056,9 +1057,9 @@ duration+convexity is a second-order approximation, not a repricing;
 "compra"/"venda" are from the Treasury's point of view; everything is gross of
 tax and custody fees; terminal values are in today's purchasing power. Every
 screen carries the footer disclaimer: public sources, delayed, informational
-only — **not investment advice**. If you add a
-feature with a similar caveat, state it in the UI and the README instead of
-implying more precision than free data supports.
+only — **not investment advice**. If you add a feature with a similar caveat,
+state it in the UI and the README instead of implying more precision than free
+data supports.
 
 ## Deployment notes
 

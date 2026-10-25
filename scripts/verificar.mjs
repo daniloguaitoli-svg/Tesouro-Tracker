@@ -176,7 +176,7 @@ conferir(util.temDuration("ipca") && util.temDuration("prefixado-juros") && !uti
 //
 // Todas as outras acima são identidades internas — duration de zero-cupom
 // igual ao prazo, modificada = Macaulay/(1+y) — e continuam verdes sob
-// QUALQUER convenção de contagem, porque os dois lados usam a mesma régua.
+// QUALQUER convenção de contagem, porque os dois lados contam igual.
 // Foi exatamente por isso que o repositório descontou fluxo em dias
 // corridos/365 por meses, com o CI verde, enquanto o mercado precifica em
 // dias úteis/252.
@@ -207,8 +207,8 @@ console.log("\nconvenção de contagem (PU oficial reconstruído da taxa)");
   } else {
     // Duas medidas, porque elas separam dois defeitos diferentes. A primeira
     // usa só o calendário; a segunda usa a precificação do app. Se as duas
-    // abrem, o feriado está errado; se só a segunda abre, a régua do app é
-    // que está.
+    // abrem, o feriado está errado; se só a segunda abre, a convenção do app
+    // é que está.
     const pior = (f) =>
       ltns.reduce(
         (p, t) => {
