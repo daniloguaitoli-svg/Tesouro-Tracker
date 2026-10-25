@@ -36,6 +36,10 @@ concurrency:
 jobs:
   sondar:
     runs-on: ubuntu-latest
+    # Cinto além do suspensório do AbortSignal no script: se um candidato novo
+    # entrar sem limite, o teto do job corta. O padrão do GitHub é SEIS HORAS,
+    # e a primeira execução desta sonda já provou que host da B3 pendura.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

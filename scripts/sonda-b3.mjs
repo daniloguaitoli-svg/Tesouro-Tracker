@@ -95,8 +95,20 @@ function amostrar(texto) {
 
 const ehRede = (e) => {
   const txt = String(e?.cause?.code || e?.cause?.message || e?.message || e);
-  return /fetch failed|ENOTFOUND|ECONNRESET|ECONNREFUSED|EAI_AGAIN|UND_ERR|timeout|socket hang up/i.test(txt);
+  return /fetch failed|ENOTFOUND|ECONNRESET|ECONNREFUSED|EAI_AGAIN|UND_ERR|timeout|abort|socket hang up/i.test(txt);
 };
+
+// O fetch do Node NÃO tem timeout padrão, e isso não é teoria: a primeira
+// execução desta sonda ficou presa no mesmo passo por mais de quatro minutos,
+// porque um dos candidatos aceita a conexão e nunca responde. Sem o sinal
+// abaixo o runner ficaria pendurado até o limite de seis horas do GitHub,
+// gastando minuto de graça — e uma sonda de reconhecimento que não termina não
+// reconhece nada.
+//
+// 20s por candidato: a B3 é lenta em hora de pico, então um limite curto
+// demais transformaria lentidão em "não respondeu", que é justamente a
+// conclusão errada. Nove candidatos dão 3 minutos no pior caso.
+const LIMITE_MS = 20000;
 
 let responderam = 0;
 const comTabela = [];
@@ -112,6 +124,7 @@ for (const [rotulo, url] of CANDIDATOS) {
         "User-Agent": "tesouro-tracker (sonda de reconhecimento)",
       },
       redirect: "follow",
+      signal: AbortSignal.timeout(LIMITE_MS),
     });
     const bytes = new Uint8Array(await r.arrayBuffer());
     const { texto, codificacao } = decodificar(bytes);
@@ -131,7 +144,14 @@ for (const [rotulo, url] of CANDIDATOS) {
     }
   } catch (e) {
     const motivo = e?.cause?.code || e?.message || String(e);
-    console.log(ehRede(e) ? `  sem resposta (${motivo})` : `  erro: ${motivo}`);
+    const estourou = /abort|timeout/i.test(String(e?.name || motivo));
+    console.log(
+      estourou
+        ? `  sem resposta em ${LIMITE_MS / 1000}s — aceitou a conexão e não respondeu`
+        : ehRede(e)
+          ? `  sem resposta (${motivo})`
+          : `  erro: ${motivo}`
+    );
   }
   console.log("");
 }
