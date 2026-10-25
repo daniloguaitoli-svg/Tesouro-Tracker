@@ -197,7 +197,7 @@ export function Curva({ marcados }) {
       <div className="note">
         {eixo === "duration" ? (
           <>
-            <strong>Duration é quanto risco de juros o título carrega</strong> — a régua que
+            <strong>Duration é quanto risco de juros o título carrega</strong> — a escala que
             permite comparar um com cupom e um sem. Repare que toda a NTN-B com juros
             semestrais cabe numa faixa estreita, por mais longo que seja o vencimento:
             comprar prazo não é comprar risco na mesma proporção. Dias úteis/252, e
@@ -227,7 +227,7 @@ export function Curva({ marcados }) {
             a mais.
             <br />
             Mesmo prazo não é mesmo risco — um título com cupom devolve parte do dinheiro
-            antes. Veja <strong>por duration</strong> para pôr os dois na mesma régua.
+            antes. Veja <strong>por duration</strong> para pôr os dois na mesma escala.
           </>
         )}{" "}
         {dados.aviso}

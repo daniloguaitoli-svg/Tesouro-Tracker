@@ -13,7 +13,7 @@
 //     bem menor que o prazo — e é por isso que ela precisa ser calculada, não
 //     lida do prazo.
 //
-// A duration é a régua de sensibilidade a juros: quanto o preço se mexe quando
+// A duration é a escala de sensibilidade a juros: quanto o preço se mexe quando
 // a taxa real se mexe. Para um horizonte longo (e para comparar posições), ela
 // diz mais do que a taxa sozinha.
 
@@ -349,7 +349,7 @@ export const arred = (v, casas) =>
 //
 // Tesouro RendA+ e Educa+ ficam DE FORA de propósito: são séries com
 // amortização mensal, cuja matemática (e leitura) não é a destes títulos.
-// Melhor ausentes do que mostrados com régua errada.
+// Melhor ausentes do que mostrados na escala errada.
 export function classificarTitulo(nome) {
   const n = normalizar(nome);
   if (/renda\+|educa\+/.test(n)) return null;

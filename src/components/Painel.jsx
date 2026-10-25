@@ -18,7 +18,7 @@ import { Chip } from "./Chip.jsx";
 import { useTelaLarga } from "../telaLarga.js";
 
 // Um vencimento acompanhado, em três faixas de leitura: identidade à esquerda
-// e taxa à direita, as variações como chips, e a duration numa régua.
+// e taxa à direita, as variações como chips, e a duration numa escala.
 //
 // A taxa à direita existe para a COMPARAÇÃO: empilhados, os números grandes
 // caem todos na mesma coluna e a diferença entre dois vencimentos se lê de
@@ -82,7 +82,7 @@ function CartaoTitulo({ t, onOpen }) {
         </span>
       ) : (
         // A LFT não tem duration por construção (ver CLAUDE.md, semântica das
-        // famílias). Antes a régua aparecia vazia, o que lia como dado
+        // famílias). Antes a escala aparecia vazia, o que lia como dado
         // faltando em vez de grandeza que não existe.
         <span className="ct-dur ct-dur-nota">Pós-fixado: acompanha a Selic, quase sem risco de juros.</span>
       )}
@@ -188,7 +188,7 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva })
           )}
         </div>
       ) : (
-        // Uma coluna, não duas: o cartão compacto tem chips e régua, e em 390px
+        // Uma coluna, não duas: o cartão compacto tem chips e escala, e em 390px
         // dois por linha espremem as três faixas até nenhuma se ler.
         <div className="lista-cartoes">
           {destaques.map((t) => (

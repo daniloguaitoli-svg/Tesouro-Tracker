@@ -8,7 +8,7 @@ PWA em React + Vite, instalável no celular, usável em qualquer navegador.
 (LFT) — com taxa, preço unitário e **duration** por vencimento, as curvas de
 juros (real e nominal), as decisões de política monetária do Copom, do Fed e do
 BCE, câmbio PTAX, CDI × Selic e manchetes de mercado por região.
-(Tesouro RendA+ e Educa+ ficam fora: amortização mensal pede outra régua.)
+(Tesouro RendA+ e Educa+ ficam fora: amortização mensal pede outra escala.)
 
 Irmão do ETF Tracker, do Cana & Etanol Tracker, do Soja Tracker e do Café
 Tracker — mesma arquitetura, mesma disciplina de fontes.
@@ -152,7 +152,7 @@ Já o ⭐ do arquivo `dados/ntnb.json` continua vindo do catálogo — aquele ar
 ## Duration: por que ela está aqui
 
 Duas NTN-B com a mesma taxa não são o mesmo investimento. A **duration** é o
-prazo médio ponderado dos fluxos — e a régua de sensibilidade a juros:
+prazo médio ponderado dos fluxos — e a escala de sensibilidade a juros:
 
 - **Tesouro IPCA+** (sem cupom) — pagamento único no vencimento, então a
   duration **é igual ao prazo**. É o formato mais sensível a juros.
@@ -224,8 +224,8 @@ os arquivos-ponte crescem por irmãos. Se um dia entrar outra família:
    arquivo que alguém já consome.
 
 RendA+ e Educa+ continuam fora **de propósito**: são títulos com amortização
-mensal, e mostrá-los na régua de duration destes seria régua errada com cara de
-análise.
+mensal, e mostrá-los na escala de duration destes seria a escala errada com
+cara de análise.
 
 ## Ressalvas honestas
 
