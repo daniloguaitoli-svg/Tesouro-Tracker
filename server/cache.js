@@ -6,6 +6,7 @@
 //
 //   dados/historico.json  série diária por vencimento (o app)
 //   dados/ntnb.json       retrato do dia dos vencimentos em destaque (a ponte)
+//   dados/futuros.json    curva de DI1 e cupom cambial, acumulada dia a dia
 //
 // Como eles vivem no repositório, o histórico SOBREVIVE a cold start — ao
 // contrário do /tmp efêmero da Vercel. E, como o repositório é público, a ponte
@@ -57,8 +58,21 @@ try {
   GLOBAL = { atualizadoEm: null, fed: null, bce: null };
 }
 
+// Futuros da B3 (DI1, DDI e FRC), acumulados pelo coletor. Mesmo require
+// literal pelo mesmo motivo de sempre.
+let FUTUROS;
+try {
+  FUTUROS = require("../dados/futuros.json");
+} catch {
+  FUTUROS = { atualizadoEm: null, contratos: {} };
+}
+
 export function historico() {
   return HISTORICO;
+}
+
+export function futuros() {
+  return FUTUROS;
 }
 
 export function ponte() {

@@ -248,6 +248,167 @@ console.log("\nconvenção de contagem (PU oficial reconstruído da taxa)");
 // A janela de 12 meses é o numero em DESTAQUE do cartao do Ibovespa: se ela
 // comparar com o ponto errado (ou com o mais antigo que existir, fingindo ser
 // um ano), a tela mente com cara de certeza.
+// ---------------------------------------------------------------
+// As curvas de futuros da B3. Os números da amostra NÃO são inventados: são
+// os do arquivo real de 23/10/2026, copiados da sonda. Isso faz a conferência
+// medir a conta contra a realidade, e não contra si mesma — a mesma lição que
+// a convenção de dias úteis custou.
+console.log("\ncurvas de futuros da B3 (DI1 e cupom cambial)");
+{
+  const b3 = await import("../server/providers/b3.js");
+  const REF = "2026-10-23";
+
+  // Duas linhas de aviso antes do cabeçalho, de propósito: o arquivo da B3
+  // abre com "Status do Arquivo", e quem tomar a linha 0 como cabeçalho lê
+  // tudo deslocado sem erro nenhum.
+  const negocios = [
+    "Status do Arquivo: Final",
+    "RptDt;TckrSymb;ISIN;SgmtNm;MinPric;MaxPric;TradAvrgPric;LastPric;OscnPctg;AdjstdQt;AdjstdQtTax;RefPric;TradQty;FinInstrmQty;NtlFinVol",
+    "2026-10-23;DI1F27;;FINANCIAL;;;;;;97.671,01;13,468;;10718;;",
+    "2026-10-23;DI1F28;;FINANCIAL;;;;;;86.671,01;12,859;;40021;;",
+    "2026-10-23;DDIX26;;FINANCIAL;;;;;;;29,032;;0;;",
+    "2026-10-23;DDIZ26;;FINANCIAL;;;;;;;12,085;;0;;",
+    "2026-10-23;DDIF27;;FINANCIAL;;;;;;98.165,48;9,216;;0;;",
+    "2026-10-23;FRCZ26;;FINANCIAL;;;;;;;5,38;;12;;",
+    "2026-10-23;FRCF27;;FINANCIAL;;;;;;;5,65;;37;;",
+    "2026-10-23;PETR4;;CASH;;;;;;;;;999;;",
+  ].join("\n");
+
+  const cadastro = [
+    "Status do Arquivo: Final",
+    "RptDt;TckrSymb;Asst;AsstDesc;SgmtNm;MktNm;SctyCtgyNm;XprtnDt",
+    "2026-10-23;DI1F27;DI1;DI1;FINANCIAL;;;2027-01-04",
+    "2026-10-23;DI1F28;DI1;DI1;FINANCIAL;;;2028-01-03",
+    "2026-10-23;DDIX26;DDI;DDI;FINANCIAL;;;2026-11-03",
+    "2026-10-23;DDIZ26;DDI;DDI;FINANCIAL;;;2026-12-01",
+    "2026-10-23;DDIF27;DDI;DDI;FINANCIAL;;;2027-01-04",
+    "2026-10-23;FRCZ26;FRC;FRC;FINANCIAL;;FORWARD RATE AGREEMENT;2026-12-01",
+    "2026-10-23;FRCF27;FRC;FRC;FINANCIAL;;FORWARD RATE AGREEMENT;2027-01-04",
+  ].join("\n");
+
+  conferir(b3.numeroB3("97.671,01") === 97671.01, "número pt-BR da B3: 97.671,01 vira 97671.01");
+  conferir(b3.numeroB3("") === null && b3.numeroB3("—") === null, "campo vazio da B3 é null, nunca 0");
+  conferir(b3.partesDoTicker("DI1F27")?.letra === "F", "ticker se abre em ativo + letra do mês + ano");
+  conferir(b3.partesDoTicker("PETR4") === null, "código que não é de futuro não vira contrato");
+
+  const { contratos, incoerentes, dataRef } = b3.extrairContratos(negocios, cadastro);
+  conferir(dataRef === REF, `a data de referência sai do arquivo (${dataRef})`);
+  conferir(contratos.length === 7, `${contratos.length} contratos extraídos, a ação de fora`);
+  conferir(incoerentes.length === 0, "letra do mês bate com o mês do vencimento em todos");
+
+  // O defeito que a conferência de coerência existe para pegar: cadastro
+  // casado com o contrato errado. Não levanta erro — só move a curva.
+  const cadTorto = cadastro.replace("DI1F27;DI1;DI1;FINANCIAL;;;2027-01-04", "DI1F27;DI1;DI1;FINANCIAL;;;2027-07-01");
+  conferir(b3.extrairContratos(negocios, cadTorto).incoerentes.length === 1, "junção torta entre os dois arquivos é detectada");
+
+  // Cabeçalho ausente tem de ESTOURAR com o que recebeu, não devolver vazio.
+  let gritou = false;
+  try {
+    b3.lerCsvB3("qualquer coisa;sem;cabecalho\n1;2;3");
+  } catch {
+    gritou = true;
+  }
+  conferir(gritou, "arquivo sem a coluna RptDt falha alto, não devolve lista vazia");
+
+  // A CONFERÊNCIA QUE VALE: o PU recalculado na convenção de dias úteis/252
+  // tem de reproduzir o ajuste publicado pela B3.
+  const di = b3.curvaDI(contratos, REF);
+  const f27 = di.find((p) => p.ticker === "DI1F27");
+  conferir(f27?.diasUteis === 47, `DI1F27 tem ${f27?.diasUteis} dias úteis até 04/01/2027`);
+  const erroPU = Math.abs(f27.puRecalculado / f27.pu - 1);
+  conferir(erroPU <= 1e-4, `DI1 em du/252 reproduz o ajuste da B3 — erro ${(erroPU * 100).toFixed(4)}%`);
+
+  // Cupom: o vértice curto é o próximo DDI em aberto, e ele NÃO é ponto de
+  // curva. 29% ao lado de 5,4% é a PTAX de ontem, não o mercado.
+  const cupom = b3.curvaCupom(contratos, REF);
+  conferir(cupom.vertice?.ticker === "DDIX26", `vértice curto é o próximo DDI em aberto (${cupom.vertice?.ticker})`);
+  conferir(cupom.vertice?.dias === 11, `vértice curto a ${cupom.vertice?.dias} dias corridos`);
+  conferir(
+    cupom.pontos.every((p) => p.ticker.startsWith("FRC")),
+    "a curva em USD é só de FRC — nenhum DDI sujo entre os pontos"
+  );
+  conferir(
+    cupom.pontos.every((p) => p.diasDoVertice > 0 && p.diasDoVertice < p.dias),
+    "o prazo do FRC é contado a partir do vértice curto, não de hoje"
+  );
+
+  // E a identidade que define o FRC, com os números reais: se ela abrir, ou a
+  // convenção linear/360 mudou, ou o vértice curto não é o que pensamos.
+  const { pior, comparados } = b3.erroDoBootstrap(contratos, REF);
+  conferir(comparados >= 2, `${comparados} vencimentos comparados no bootstrap`);
+  conferir(pior <= 1e-5, `DDI curto + FRC reproduz o DDI longo — pior erro ${(pior * 100).toFixed(5)}%`);
+}
+
+// ---------------------------------------------------------------
+// A ACUMULAÇÃO dos futuros. O arquivo público da B3 só serve os últimos
+// meses, então o histórico nasce daqui — e erro de fusão não grita, só perde
+// dia em silêncio.
+console.log("\nacumulação de dados/futuros.json");
+{
+  const { montarFuturos } = await import("../server/ponte.js");
+  const leitura = (data) => ({
+    data,
+    di: [{ ticker: "DI1F27", vencimento: "2027-01-04", taxa: 13.468, pu: 97671.01 }],
+    cupom: {
+      pontos: [{ ticker: "FRCF27", vencimento: "2027-01-04", taxa: 5.65 }],
+      vertice: { ticker: "DDIX26", vencimento: "2026-11-03", dias: 11, taxaSuja: 29.032 },
+    },
+  });
+
+  const dia1 = montarFuturos({ anterior: { contratos: {} }, leitura: leitura("2026-10-23"), agora: "A" });
+  conferir(Object.keys(dia1.contratos).length === 3, "primeira coleta grava DI1, FRC e o vértice curto");
+  conferir(dia1.desde === "2026-10-23" && dia1.ultimaColeta === "2026-10-23", "primeira coleta define desde e ultimaColeta");
+  conferir(dia1.contratos.FRCF27.serie["2026-10-23"][1] === null, "FRC entra com PU null — ele não tem preço de ajuste");
+  conferir(dia1.contratos.DI1F27.serie["2026-10-23"][1] === 97671.01, "DI1 entra com o PU de ajuste");
+  conferir(dia1.contratos.DDIX26.cupomSujo === true, "o vértice curto fica MARCADO como cupom sujo");
+
+  const dia2 = montarFuturos({ anterior: dia1, leitura: leitura("2026-10-26"), agora: "B" });
+  conferir(Object.keys(dia2.contratos.DI1F27.serie).length === 2, "segunda coleta ACRESCENTA o dia, não substitui a série");
+  conferir(dia2.desde === "2026-10-23", "desde continua apontando para a primeira coleta");
+  conferir(dia2.ultimaColeta === "2026-10-26", "ultimaColeta anda com a coleta nova");
+
+  // Repetir o mesmo dia tem de ser idempotente: o job roda cinco vezes por dia.
+  const repetido = montarFuturos({ anterior: dia2, leitura: leitura("2026-10-26"), agora: "C" });
+  conferir(Object.keys(repetido.contratos.DI1F27.serie).length === 2, "coletar o mesmo dia de novo não duplica ponto");
+
+  // Contrato que saiu da leitura (venceu) não pode sumir do arquivo: a série
+  // dele é história, como os títulos vencidos em historico.json.
+  const semFrc = { data: "2026-10-27", di: leitura("x").di, cupom: { pontos: [], vertice: null } };
+  const dia3 = montarFuturos({ anterior: dia2, leitura: semFrc, agora: "D" });
+  conferir(dia3.contratos.FRCF27 != null, "contrato ausente da leitura do dia NÃO é apagado do histórico");
+  conferir(Object.keys(dia3.contratos.FRCF27.serie).length === 2, "e a série dele fica intacta, sem ponto novo");
+
+  const datas = Object.keys(dia2.contratos.DI1F27.serie);
+  conferir(datas.join() === [...datas].sort().join(), "a série sai ordenada por data");
+
+  const cache = await import("../server/cache.js");
+  conferir(typeof cache.futuros === "function", "cache.js expõe futuros()");
+
+  // A gravação é condicional de propósito: identidade do bootstrap aberta
+  // significa convenção mudada na B3, e aí gravar por cima do bom é pior do
+  // que não gravar.
+  // A gravação tem de acontecer DEPOIS da conferência do bootstrap, e em um
+  // lugar só. Conferido por POSIÇÃO no arquivo, e não por uma linha literal:
+  // a primeira versão desta conferência citava a linha exata, e quebrou na
+  // primeira vez que o bloco mudou de lugar — exigindo que o código fique
+  // escrito de um jeito específico, em vez de exigir a propriedade.
+  const coletor = await ler(".github/scripts/coletar-tesouro.mjs");
+  const gravacoes = [...coletor.matchAll(/writeFile\(ARQ_FUTUROS/g)];
+  const guarda = coletor.indexOf("pior > LIMITE_BOOTSTRAP");
+  conferir(gravacoes.length === 1, `futuros.json é gravado em um lugar só (${gravacoes.length})`);
+  conferir(guarda >= 0 && gravacoes[0]?.index > guarda, "a gravação de futuros.json vem DEPOIS da conferência do bootstrap");
+
+  // E antes da saída antecipada do Tesouro: fontes independentes, falhas
+  // independentes. Se esta ordem inverter, uma queda do Tesouro passa a
+  // custar um dia de histórico da B3 sem ninguém perceber.
+  const leituraB3 = coletor.indexOf("await lerFuturos(");
+  const leituraTesouro = coletor.indexOf("await varrerSerie(");
+  conferir(
+    leituraB3 >= 0 && leituraTesouro >= 0 && leituraB3 < leituraTesouro,
+    "a B3 é lida e gravada ANTES do Tesouro, para a queda de um não custar o dia do outro"
+  );
+}
+
 console.log("\njanelas de variação (12 meses / 1 semana)");
 const serieUtil = [];
 {

@@ -1,0 +1,51 @@
+# Reconhecimento das fontes da B3 — DI futuro (curva em BRL) e FRC (curva do
+# cupom cambial, em USD).
+#
+# POR QUE EXISTE: medido em 25/10/2026, os quatro endereços da B3 recusam
+# conexão do ambiente de desenvolvimento (código 000, sem resposta). Este
+# runner é o único lugar com rede aberta para eles, e sem ver o corpo de
+# verdade não dá para escrever parser nenhum.
+#
+# SEM AGENDAMENTO. As outras duas sondas rodam sozinhas porque vigiam fonte que
+# o app já usa e que pode quebrar calada. Esta ainda não vigia nada — ela
+# desenha o mapa. Agendar seria produzir log diário que ninguém lê. Quando as
+# curvas estiverem no ar, a vigilância delas ganha cron.
+#
+# RODA TAMBÉM NO PUSH do branch de trabalho, e isso não é conveniência: o
+# workflow_dispatch do GitHub só enxerga arquivo que já está no branch padrão,
+# então sem este gatilho a sonda só poderia rodar DEPOIS de entrar no main — e
+# ela existe justamente para decidir o que entra. É o mesmo arranjo que o
+# coletor já usa para a sonda-tesouro em branch de trabalho.
+#
+# Não grava nada e não faz commit.
+name: Sonda da B3 (reconhecimento)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "futuros/**"
+    paths:
+      - "scripts/sonda-b3.mjs"
+      - ".github/workflows/sonda-b3.yml"
+
+concurrency:
+  group: sonda-b3
+  cancel-in-progress: false
+
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    # Cinto além do suspensório do AbortSignal no script: se um candidato novo
+    # entrar sem limite, o teto do job corta. O padrão do GitHub é SEIS HORAS,
+    # e a primeira execução desta sonda já provou que host da B3 pendura.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Uma passagem só. Quem disparou está olhando o log, que é o produto.
+      - name: Sondar a B3
+        run: node scripts/sonda-b3.mjs
