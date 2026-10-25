@@ -114,7 +114,7 @@ conferir(
 );
 
 const zero = util.calcularDuration({ vencimentoISO: "2035-05-15", comCupom: false, taxaReal: 0.07, hojeISO: HOJE });
-const prazoZero = util.anosEntre(HOJE, "2035-05-15");
+const prazoZero = util.anosUteisEntre(HOJE, "2035-05-15");
 conferir(perto(zero.macaulay, prazoZero, 1e-9), "zero-cupom: duration de Macaulay = prazo até o vencimento");
 conferir(perto(zero.modificada, zero.macaulay / 1.07, 1e-9), "duration modificada = Macaulay / (1 + y)");
 

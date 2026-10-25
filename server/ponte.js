@@ -9,7 +9,7 @@
 // crase solta dentro do template do markdown apareceu: ele quebrava o arquivo
 // inteiro e só dava as caras na hora de gravar.
 
-import {calcularDuration, anosEntre, brDeISO, temDuration, arred } from "./util.js";
+import {calcularDuration, anosUteisEntre, brDeISO, temDuration, arred } from "./util.js";
 import { porSlug, rotuloGenerico } from "./catalogo.js";
 
 // `arred` mora em util.js (usado também pelo datalayer). Re-exportado aqui
@@ -53,7 +53,7 @@ export function montarTitulos({ ordenados, secPorSlug = {}, hoje }) {
       comCupom: dados.comCupom,
       destaque: doCatalogo?.destaque === true,
       data: u?.data ?? null,
-      anosAteVencer: arred(anosEntre(hoje, dados.vencimento), 3),
+      anosAteVencer: arred(anosUteisEntre(hoje, dados.vencimento), 3),
       // Nomes preservados como no arquivo de origem: "venda" = Tesouro vendendo
       // ao investidor; "compra" = recompra antecipada.
       taxa: arred(taxa, 4),
@@ -99,8 +99,8 @@ export function montarPonte({ titulos, agora, urlCsv, urlAnbima = null, nota = n
     geradoPor: "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
     fontes: { tesouro: urlCsv, anbima: urlAnbima },
     convencao:
-      "Taxas em % ao ano sobre o IPCA (taxa real). PU em reais. Duration em anos, calculada em dias corridos/365 " +
-      "(a convenção oficial da ANBIMA é dias úteis/252; a diferença é desprezível para duration). " +
+      "Taxas em % ao ano sobre o IPCA (taxa real). PU em reais. Prazo e duration em anos de DIAS ÚTEIS/252, " +
+      "a convenção do Tesouro e da ANBIMA (até 10/2026 este campo saía em dias corridos/365). " +
       "variacaoPrecoMais1pp = variação % estimada do preço se a taxa real subir 1 ponto percentual, já com convexidade.",
     aviso: "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
     titulos,
@@ -181,8 +181,8 @@ export function markdownDaPonte({ titulos, agora, comAnbima = false }) {
     "",
     "- Os dados têm defasagem de pelo menos um dia útil: o arquivo do Tesouro é de",
     "  fechamento e este retrato é gerado uma vez por dia.",
-    "- Duration e sensibilidade usam dias corridos/365. A convenção oficial da ANBIMA",
-    "  para NTN-B é dias úteis/252 — a diferença é desprezível para duration, mas existe.",
+    "- Prazo, duration e sensibilidade usam dias úteis/252, a convenção oficial do",
+    "  Tesouro e da ANBIMA. O calendário são os feriados nacionais.",
     "- A sensibilidade é uma aproximação de segunda ordem (duration + convexidade), não",
     "  uma reprecificação exata.",
     "- Uso informativo. Não é recomendação de investimento.",
@@ -241,7 +241,7 @@ export function montarPainel({ titulos, macro, agora, urlRepo }) {
       "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
     convencao:
       "Taxas em % ao ano; veja `taxaSignifica` em cada título, porque o mesmo número quer dizer coisas diferentes por família. " +
-      "Duration em anos (dias corridos/365, aproximação da convenção oficial de dias úteis/252). " +
+      "Prazo e duration em anos de dias úteis/252, a convenção oficial do Tesouro e da ANBIMA. " +
       "variacaoPrecoMais1pp = variação % estimada do preço se a taxa subir 1 ponto percentual, já com convexidade. " +
       "Variações de 12 meses e 1 semana comparam com o último pregão EM OU ANTES do alvo (mercado não abre em fim de semana); " +
       "`desde` diz de que data a comparação parte. Campo ausente ou null = dado indisponível, nunca estimado.",

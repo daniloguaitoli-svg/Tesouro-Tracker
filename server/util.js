@@ -17,6 +17,8 @@
 // a taxa real se mexe. Para um horizonte longo (e para comparar posições), ela
 // diz mais do que a taxa sozinha.
 
+import { diasUteis } from "./feriados.js";
+
 // ---------- Constantes do título ----------
 
 // Cupons dos títulos com juros semestrais. A parcela do semestre é a taxa
@@ -28,12 +30,15 @@ export const CUPOM_SEMESTRAL_NTNB = Math.pow(1 + CUPOM_ANUAL_NTNB, 1 / 2) - 1;
 export const CUPOM_ANUAL_NTNF = 0.10;
 export const CUPOM_SEMESTRAL_NTNF = Math.pow(1 + CUPOM_ANUAL_NTNF, 1 / 2) - 1;
 
-// Convenção de contagem de tempo. A ANBIMA precifica NTN-B em dias úteis/252;
-// aqui usamos dias corridos/365 porque não temos calendário de feriados no
-// repositório. A diferença é irrelevante para a duration (que é uma razão
-// ponderada de prazos, onde a convenção quase toda se cancela) e está
-// documentada no README como aproximação.
-export const DIAS_ANO = 365;
+// Convenção de contagem de tempo: DIAS ÚTEIS/252, que é como o Tesouro e a
+// ANBIMA precificam as três famílias — LTN/NTN-F, NTN-B e LFT. O repositório
+// usou dias corridos/365 até 10/2026, por não ter calendário de feriados, e
+// documentava a diferença como desprezível. Ela é desprezível para a duration
+// (razão ponderada, onde a convenção quase toda se cancela) e não é para o
+// preço: o PU reconstruído das LTN errava de −0,09% a −0,50%, crescendo com o
+// prazo, e o valor final da Calculadora no IPCA+ 2050 saía 1,08% alto.
+// scripts/verificar.mjs agora confere isso contra o PU oficial.
+export const DIAS_UTEIS_ANO = 252;
 const MS_DIA = 86400000;
 
 // Faixas de tolerância para considerar um preço "desatualizado", em dias úteis.
@@ -99,9 +104,16 @@ export function dataDeISO(iso) {
   return new Date(Date.UTC(a, m - 1, d));
 }
 
-export function anosEntre(isoInicio, isoFim) {
-  const ms = dataDeISO(isoFim) - dataDeISO(isoInicio);
-  return ms / (MS_DIA * DIAS_ANO);
+// Prazo em anos na régua do mercado. O nome diz "úteis" de propósito: a
+// convenção foi invisível uma vez e custou meses de preço torto, então quem
+// ler uma chamada destas vê qual régua está usando sem abrir este arquivo.
+//
+// Vale para TUDO — desconto de fluxo, duration, eixo da curva e o prazo
+// exibido. Uma régua só: o Detalhe compara "duration de 7,2 a contra um prazo
+// de 8,5 a", e medir os dois de jeitos diferentes tornaria a frase falsa em
+// 0,8% justamente onde ela existe para comparar.
+export function anosUteisEntre(isoInicio, isoFim) {
+  return diasUteis(isoInicio, isoFim) / DIAS_UTEIS_ANO;
 }
 
 // Dias úteis entre duas datas (seg–sex, sem calendário de feriados). Serve só
@@ -378,7 +390,7 @@ export function slugDe(tipo, vencimentoISO) {
 // vencimento — que é o que produz as datas reais da NTN-B (15/02 e 15/08 para
 // vencimentos de agosto; 15/05 e 15/11 para os de maio).
 export function fluxosNTNB({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_NTNB, hojeISO: hoje = hojeISO() }) {
-  const anosAteVencer = anosEntre(hoje, vencimentoISO);
+  const anosAteVencer = anosUteisEntre(hoje, vencimentoISO);
   if (!(anosAteVencer > 0)) return [];
 
   if (!comCupom) {
@@ -396,7 +408,7 @@ export function fluxosNTNB({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_N
     const ehVencimento = iso === String(vencimentoISO).slice(0, 10);
     fluxos.push({
       dataISO: iso,
-      anos: anosEntre(hoje, iso),
+      anos: anosUteisEntre(hoje, iso),
       valor: ehVencimento ? 100 + cupom : cupom,
     });
     d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 6, d.getUTCDate()));
