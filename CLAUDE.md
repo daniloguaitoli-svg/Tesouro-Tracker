@@ -1051,12 +1051,12 @@ icons.
 
 ## Honest-caveats rule
 
-The README lists real limitations: at least one business day of lag; days/365
-instead of the official days/252; duration+convexity is a second-order
-approximation, not a repricing; "compra"/"venda" are from the Treasury's point
-of view; everything is gross of tax and custody fees; terminal values are in
-today's purchasing power. Every screen carries the footer disclaimer: public
-sources, delayed, informational only — **not investment advice**. If you add a
+The README lists real limitations: at least one business day of lag;
+duration+convexity is a second-order approximation, not a repricing;
+"compra"/"venda" are from the Treasury's point of view; everything is gross of
+tax and custody fees; terminal values are in today's purchasing power. Every
+screen carries the footer disclaimer: public sources, delayed, informational
+only — **not investment advice**. If you add a
 feature with a similar caveat, state it in the UI and the README instead of
 implying more precision than free data supports.
 
