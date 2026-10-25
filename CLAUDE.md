@@ -990,6 +990,19 @@ existing bridge file.
   the invented verb: "faz commit" not "commita", "definir" not "setar", "lê"
   not "parseia", "versionado" not "commitado". This applies to comments, the
   README, this file, commit messages, workflow step names and any UI copy.
+- **Name a concept in Portuguese? Put the English in brackets once, where the
+  concept is introduced** — "a ponte (*bridge*)", "teste de fumaça (smoke
+  test)". Once, at the definition: the README section that explains it, or the
+  header of the module that owns it. **Not** on every first occurrence per
+  file — "fumaça" appears in five files and five brackets would be noise, not
+  help. The bracket exists so a reader learns the correspondence one time,
+  because the English is what they will meet in a GitHub button, a CLI flag or
+  a log line. Italics for the English in Markdown; plain brackets in code
+  comments, where italics do not render. This is the complement of the rule
+  above, not a contradiction of it: when the English noun **is** the name of
+  the thing (commit, branch, cache, parser, deploy, job, slug, payload,
+  endpoint), it stays bare — never invent a Portuguese translation just to
+  have something to put in brackets.
 - **Comments explain *why*.** Every module opens with a header comment stating
   its job and the reasoning behind non-obvious choices (why the collector
   exists, why `createRequire` and not `readFile`, why parsing is tolerant).

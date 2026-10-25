@@ -1,5 +1,5 @@
-// server/ponte.js — a construção dos arquivos-ponte (dados/ntnb.json e
-// dados/ntnb.md) a partir das séries lidas do Tesouro.
+// server/ponte.js — a construção dos arquivos-ponte (bridge files:
+// dados/ntnb.json e dados/ntnb.md) a partir das séries lidas do Tesouro.
 //
 // POR QUE ISTO É UM MÓDULO E NÃO CÓDIGO SOLTO NO COLETOR: o coletor é um script
 // que executa ao ser importado (top-level await), então nada consegue testá-lo
