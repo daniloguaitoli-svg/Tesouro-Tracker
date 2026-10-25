@@ -387,9 +387,26 @@ console.log("\nacumulação de dados/futuros.json");
   // A gravação é condicional de propósito: identidade do bootstrap aberta
   // significa convenção mudada na B3, e aí gravar por cima do bom é pior do
   // que não gravar.
+  // A gravação tem de acontecer DEPOIS da conferência do bootstrap, e em um
+  // lugar só. Conferido por POSIÇÃO no arquivo, e não por uma linha literal:
+  // a primeira versão desta conferência citava a linha exata, e quebrou na
+  // primeira vez que o bloco mudou de lugar — exigindo que o código fique
+  // escrito de um jeito específico, em vez de exigir a propriedade.
   const coletor = await ler(".github/scripts/coletar-tesouro.mjs");
-  conferir(/if \(futurosNovo\) await writeFile\(ARQ_FUTUROS/.test(coletor), "o coletor só grava futuros.json quando a leitura passou na conferência");
-  conferir(/LIMITE_BOOTSTRAP/.test(coletor), "o coletor tem limite declarado para o erro do bootstrap");
+  const gravacoes = [...coletor.matchAll(/writeFile\(ARQ_FUTUROS/g)];
+  const guarda = coletor.indexOf("pior > LIMITE_BOOTSTRAP");
+  conferir(gravacoes.length === 1, `futuros.json é gravado em um lugar só (${gravacoes.length})`);
+  conferir(guarda >= 0 && gravacoes[0]?.index > guarda, "a gravação de futuros.json vem DEPOIS da conferência do bootstrap");
+
+  // E antes da saída antecipada do Tesouro: fontes independentes, falhas
+  // independentes. Se esta ordem inverter, uma queda do Tesouro passa a
+  // custar um dia de histórico da B3 sem ninguém perceber.
+  const leituraB3 = coletor.indexOf("await lerFuturos(");
+  const leituraTesouro = coletor.indexOf("await varrerSerie(");
+  conferir(
+    leituraB3 >= 0 && leituraTesouro >= 0 && leituraB3 < leituraTesouro,
+    "a B3 é lida e gravada ANTES do Tesouro, para a queda de um não custar o dia do outro"
+  );
 }
 
 console.log("\njanelas de variação (12 meses / 1 semana)");
