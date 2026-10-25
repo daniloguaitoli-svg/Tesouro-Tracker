@@ -339,6 +339,59 @@ console.log("\ncurvas de futuros da B3 (DI1 e cupom cambial)");
   conferir(pior <= 1e-5, `DDI curto + FRC reproduz o DDI longo — pior erro ${(pior * 100).toFixed(5)}%`);
 }
 
+// ---------------------------------------------------------------
+// A ACUMULAÇÃO dos futuros. O arquivo público da B3 só serve os últimos
+// meses, então o histórico nasce daqui — e erro de fusão não grita, só perde
+// dia em silêncio.
+console.log("\nacumulação de dados/futuros.json");
+{
+  const { montarFuturos } = await import("../server/ponte.js");
+  const leitura = (data) => ({
+    data,
+    di: [{ ticker: "DI1F27", vencimento: "2027-01-04", taxa: 13.468, pu: 97671.01 }],
+    cupom: {
+      pontos: [{ ticker: "FRCF27", vencimento: "2027-01-04", taxa: 5.65 }],
+      vertice: { ticker: "DDIX26", vencimento: "2026-11-03", dias: 11, taxaSuja: 29.032 },
+    },
+  });
+
+  const dia1 = montarFuturos({ anterior: { contratos: {} }, leitura: leitura("2026-10-23"), agora: "A" });
+  conferir(Object.keys(dia1.contratos).length === 3, "primeira coleta grava DI1, FRC e o vértice curto");
+  conferir(dia1.desde === "2026-10-23" && dia1.ultimaColeta === "2026-10-23", "primeira coleta define desde e ultimaColeta");
+  conferir(dia1.contratos.FRCF27.serie["2026-10-23"][1] === null, "FRC entra com PU null — ele não tem preço de ajuste");
+  conferir(dia1.contratos.DI1F27.serie["2026-10-23"][1] === 97671.01, "DI1 entra com o PU de ajuste");
+  conferir(dia1.contratos.DDIX26.cupomSujo === true, "o vértice curto fica MARCADO como cupom sujo");
+
+  const dia2 = montarFuturos({ anterior: dia1, leitura: leitura("2026-10-26"), agora: "B" });
+  conferir(Object.keys(dia2.contratos.DI1F27.serie).length === 2, "segunda coleta ACRESCENTA o dia, não substitui a série");
+  conferir(dia2.desde === "2026-10-23", "desde continua apontando para a primeira coleta");
+  conferir(dia2.ultimaColeta === "2026-10-26", "ultimaColeta anda com a coleta nova");
+
+  // Repetir o mesmo dia tem de ser idempotente: o job roda cinco vezes por dia.
+  const repetido = montarFuturos({ anterior: dia2, leitura: leitura("2026-10-26"), agora: "C" });
+  conferir(Object.keys(repetido.contratos.DI1F27.serie).length === 2, "coletar o mesmo dia de novo não duplica ponto");
+
+  // Contrato que saiu da leitura (venceu) não pode sumir do arquivo: a série
+  // dele é história, como os títulos vencidos em historico.json.
+  const semFrc = { data: "2026-10-27", di: leitura("x").di, cupom: { pontos: [], vertice: null } };
+  const dia3 = montarFuturos({ anterior: dia2, leitura: semFrc, agora: "D" });
+  conferir(dia3.contratos.FRCF27 != null, "contrato ausente da leitura do dia NÃO é apagado do histórico");
+  conferir(Object.keys(dia3.contratos.FRCF27.serie).length === 2, "e a série dele fica intacta, sem ponto novo");
+
+  const datas = Object.keys(dia2.contratos.DI1F27.serie);
+  conferir(datas.join() === [...datas].sort().join(), "a série sai ordenada por data");
+
+  const cache = await import("../server/cache.js");
+  conferir(typeof cache.futuros === "function", "cache.js expõe futuros()");
+
+  // A gravação é condicional de propósito: identidade do bootstrap aberta
+  // significa convenção mudada na B3, e aí gravar por cima do bom é pior do
+  // que não gravar.
+  const coletor = await ler(".github/scripts/coletar-tesouro.mjs");
+  conferir(/if \(futurosNovo\) await writeFile\(ARQ_FUTUROS/.test(coletor), "o coletor só grava futuros.json quando a leitura passou na conferência");
+  conferir(/LIMITE_BOOTSTRAP/.test(coletor), "o coletor tem limite declarado para o erro do bootstrap");
+}
+
 console.log("\njanelas de variação (12 meses / 1 semana)");
 const serieUtil = [];
 {

@@ -46,9 +46,11 @@ import {
   montarPainel,
   markdownDoPainel,
   filtrarFamilias,
+  montarFuturos,
   arred,
 } from "../../server/ponte.js";
 import { lerGlobais } from "../../server/providers/globais.js";
+import { lerFuturos } from "../../server/providers/b3.js";
 import { REGIOES, manchetes } from "../../server/providers/noticias.js";
 import { ibovespa } from "../../server/providers/yahoo.js";
 import { getMacro } from "../../server/datalayer.js";
@@ -63,6 +65,75 @@ const DESDE = process.env.TESOURO_DESDE || "2019-01-01";
 const seco = process.argv.includes("--dry-run");
 
 console.log(`Coletando do Tesouro Transparente desde ${DESDE}${seco ? " (dry-run: nada será gravado)" : ""}`);
+
+// ---------- 0. Futuros da B3 (dados/futuros.json) ----------
+//
+// DI1 e cupom cambial, acumulados dia a dia. O arquivo público da B3 só serve
+// os últimos meses: o histórico profundo não existe para baixar de uma vez,
+// nasce daqui.
+//
+// VEM ANTES DO TESOURO, E ESSA ORDEM É A CORREÇÃO DE UM ACOPLAMENTO. Quando
+// o Tesouro não responde, o coletor sai cedo e com sucesso — tolerância certa
+// para a fonte dele. Mas com os futuros lá embaixo, uma queda do Tesouro
+// levava junto um dia de histórico da B3, que é fonte independente e estava
+// no ar. São duas fontes, dois destinos, duas falhas separadas: a B3 lê e
+// grava aqui, antes de qualquer saída antecipada.
+//
+// UMA FALHA DA B3 TAMBÉM NÃO DERRUBA A COLETA DO TESOURO. Os futuros são
+// acréscimo; os títulos são o produto. Se a B3 não responder, o arquivo
+// anterior fica como está e o job segue — mesma tolerância, mão inversa.
+//
+// MAS A IDENTIDADE DO BOOTSTRAP REPROVA A GRAVAÇÃO. Se (DDI curto + FRC) parar
+// de reproduzir o DDI longo, alguma convenção mudou do lado da B3, e aí o dado
+// chegou e NÃO foi entendido — gravar por cima do bom seria pior do que não
+// gravar. É a mesma fronteira que o coletor aplica ao CSV do Tesouro.
+const ARQ_FUTUROS = join(DIR, "futuros.json");
+const LIMITE_BOOTSTRAP = 1e-4; // medido 1e-6 em 23/10/2026; folga de 100x
+let futurosNovo = null;
+try {
+  const leitura = await lerFuturos();
+  const { pior, comparados } = leitura.bootstrap;
+  console.log(
+    `\nB3 ${leitura.data}: ${leitura.di.length} vértices de DI1, ${leitura.cupom.pontos.length} de FRC` +
+      (leitura.cupom.vertice ? `, vértice curto ${leitura.cupom.vertice.ticker} (cupom sujo ${leitura.cupom.vertice.taxaSuja}%)` : "")
+  );
+  if (leitura.incoerentes.length) {
+    console.warn(`B3 ATENÇÃO: ${leitura.incoerentes.length} contratos com letra do mês fora do vencimento: ${leitura.incoerentes.slice(0, 5).join(", ")}`);
+  }
+  if (pior == null || comparados < 2) {
+    console.warn("B3 ATENÇÃO: não deu para conferir o bootstrap — nada gravado em futuros.json");
+  } else if (pior > LIMITE_BOOTSTRAP) {
+    console.warn(
+      `B3 ATENÇÃO: bootstrap abriu ${(pior * 100).toFixed(4)}% em ${comparados} vencimentos (limite ${(LIMITE_BOOTSTRAP * 100).toFixed(4)}%). ` +
+        "Alguma convenção mudou na B3 — nada gravado, o arquivo anterior fica."
+    );
+  } else {
+    let futurosAnterior = { contratos: {} };
+    try {
+      futurosAnterior = JSON.parse(await readFile(ARQ_FUTUROS, "utf-8"));
+    } catch {
+      /* primeira execução */
+    }
+    futurosNovo = montarFuturos({ anterior: futurosAnterior, leitura, agora: new Date().toISOString() });
+    const dias = new Set();
+    for (const c of Object.values(futurosNovo.contratos)) for (const d of Object.keys(c.serie)) dias.add(d);
+    console.log(
+      `B3: bootstrap fecha em ${(pior * 100).toFixed(5)}% · ${Object.keys(futurosNovo.contratos).length} contratos, ${dias.size} dia(s) acumulado(s)`
+    );
+    // Grava aqui, e não no bloco de gravação lá embaixo: lá já é tarde, o
+    // coletor pode ter saído antes por causa do Tesouro.
+    if (seco) {
+      console.log(`--dry-run: futuros.json teria ${Object.keys(futurosNovo.contratos).length} contratos`);
+    } else {
+      await mkdir(DIR, { recursive: true });
+      await writeFile(ARQ_FUTUROS, JSON.stringify(futurosNovo, null, 1) + "\n", "utf-8");
+      console.log("gravado dados/futuros.json");
+    }
+  }
+} catch (e) {
+  console.warn(`B3 FALHA: ${e.message} — futuros.json mantido como estava`);
+}
+
 console.log(URL_CSV);
 
 // ---------- 1. Varredura do CSV ----------
@@ -346,5 +417,5 @@ if (seco) {
   await writeFile(join(DIR, "ntnb.md"), md, "utf-8");
   await writeFile(join(DIR, "painel.json"), JSON.stringify(painel, null, 1) + "\n", "utf-8");
   await writeFile(join(DIR, "painel.md"), painelMd, "utf-8");
-  console.log(`\ngravados dados/: historico, ntnb(.json/.md), prefixado, selic, global e painel(.json/.md)`);
+  console.log(`\ngravados dados/: historico, ntnb(.json/.md), prefixado, selic, global, painel(.json/.md)`);
 }

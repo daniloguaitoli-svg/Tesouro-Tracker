@@ -129,6 +129,81 @@ export function montarHistorico({ ordenados, agora, urlCsv, desde }) {
   };
 }
 
+// Acumula a leitura do dia da B3 no arquivo-ponte dos futuros.
+//
+// POR QUE ACUMULAR: o arquivo público da B3 só serve os últimos meses, e a
+// curva só vira informação quando dá para comparar a de hoje com a de um mês
+// atrás. O histórico profundo não existe para baixar de uma vez — ele nasce
+// da primeira coleta em diante, e é por isso que ele vive versionado aqui e
+// não é recalculado a cada request.
+//
+// É PURA e recebe o arquivo anterior em vez de lê-lo: assim o verificar
+// consegue exercitar a fusão (contrato novo, dia repetido, contrato que
+// venceu) sem disco nem rede.
+//
+// CONTRATO QUE VENCEU NÃO É APAGADO. Ele sai da curva de hoje sozinho, porque
+// a curva filtra por vencimento futuro, mas a série dele continua valendo
+// como história — exatamente como os títulos vencidos seguem em
+// historico.json.
+export function montarFuturos({ anterior, leitura, agora }) {
+  const contratos = { ...(anterior?.contratos || {}) };
+
+  const guardar = (lista, ativo, campoPu) => {
+    for (const p of lista) {
+      const atual = contratos[p.ticker] || { ativo, vencimento: p.vencimento, serie: {} };
+      atual.vencimento = p.vencimento;
+      atual.serie = { ...atual.serie, [leitura.data]: [p.taxa, campoPu ? (p[campoPu] ?? null) : null] };
+      contratos[p.ticker] = atual;
+    }
+  };
+
+  guardar(leitura.di, "DI1", "pu");
+  guardar(leitura.cupom.pontos, "FRC", null);
+  // O vértice curto entra com a taxa SUJA e marcado como tal. Ele não é ponto
+  // de curva, mas sem ele a tela não tem como dizer onde a curva começa — nem
+  // o verificar como refazer a identidade do bootstrap.
+  if (leitura.cupom.vertice) {
+    const v = leitura.cupom.vertice;
+    const atual = contratos[v.ticker] || { ativo: "DDI", vencimento: v.vencimento, serie: {}, cupomSujo: true };
+    atual.cupomSujo = true;
+    atual.vencimento = v.vencimento;
+    atual.serie = { ...atual.serie, [leitura.data]: [v.taxaSuja, null] };
+    contratos[v.ticker] = atual;
+  }
+
+  const ordenados = Object.keys(contratos).sort();
+  const datas = new Set();
+  for (const k of ordenados) for (const d of Object.keys(contratos[k].serie)) datas.add(d);
+
+  return {
+    atualizadoEm: agora,
+    fonte: "B3 — arquivo público UP2DATA (TradeInformationConsolidated + InstrumentsConsolidated)",
+    desde: [...datas].sort()[0] || leitura.data,
+    ultimaColeta: leitura.data,
+    convencao:
+      "DI1: taxa % a.a. em DIAS ÚTEIS/252, exponencial; PU por 100.000 de nocional. " +
+      "DDI e FRC: taxa % a.a. em DIAS CORRIDOS/360, LINEAR. As duas convenções não são intercambiáveis. " +
+      "`serie` mapeia data ISO -> [taxa, PU] e o PU é null onde o contrato não tem preço de ajuste (é o caso do FRC).",
+    nota:
+      "A curva em USD é montada do FRC, que é a taxa a termo a partir do primeiro DDI em aberto — o cupom limpo. " +
+      "Ela começa nesse vértice, não em D0: ancorar em hoje exigiria a taxa spot (spot = DOL − casado), e o casado " +
+      "não está em fonte pública gratuita. O contrato marcado com `cupomSujo` é esse vértice curto, e a taxa dele " +
+      "carrega a variação cambial desde a PTAX do dia anterior — não é ponto de curva.",
+    aviso: "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
+    contratos: Object.fromEntries(
+      ordenados.map((k) => [
+        k,
+        {
+          ativo: contratos[k].ativo,
+          vencimento: contratos[k].vencimento,
+          ...(contratos[k].cupomSujo ? { cupomSujo: true } : {}),
+          serie: Object.fromEntries(Object.keys(contratos[k].serie).sort().map((d) => [d, contratos[k].serie[d]])),
+        },
+      ])
+    ),
+  };
+}
+
 export function tabelaMD(titulos) {
   const linhas = [
     "| Vencimento | Título | Taxa real | PU (R$) | Duration | Dur. mod. | +1 p.p. | −1 p.p. | Data |",

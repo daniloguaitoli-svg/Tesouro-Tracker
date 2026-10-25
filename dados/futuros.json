@@ -1,0 +1,8 @@
+{
+ "atualizadoEm": null,
+ "fonte": "B3 — arquivo público UP2DATA (TradeInformationConsolidated + InstrumentsConsolidated)",
+ "desde": null,
+ "ultimaColeta": null,
+ "nota": "Semente: o arquivo nasce vazio e cresce a partir da primeira coleta. O histórico de futuros não existe para baixar de uma vez — ele é acumulado.",
+ "contratos": {}
+}
