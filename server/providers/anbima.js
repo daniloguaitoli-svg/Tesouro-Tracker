@@ -23,7 +23,7 @@
 // NÃO SE CHUTOU UMA URL NOVA no lugar. Inventar um caminho que "parece certo" é
 // como se erra em dado financeiro. Em vez disso: a URL é configurável por
 // ANBIMA_MS_URL (com o marcador {ddmmyy}), então, no dia em que o endereço
-// correto for conhecido, basta setar a variável no workflow — sem tocar em
+// correto for conhecido, basta definir a variável no workflow — sem tocar em
 // código. Enquanto isso o provider falha limpo e o app segue inteiro: esta
 // fonte é ENRIQUECIMENTO, nunca requisito.
 //

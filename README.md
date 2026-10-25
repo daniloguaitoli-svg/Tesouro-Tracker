@@ -197,7 +197,8 @@ dois em todo pull request.
    O minuto quebrado é de propósito — o GitHub descarta execuções agendadas na
    virada da hora quando está sob carga, e foi o que aconteceu aqui.
 2. O coletor lê o CSV do Tesouro em streaming, destila e grava `dados/`.
-3. O bot commita as mudanças — e esse commit dispara um deploy novo na Vercel.
+3. O bot faz o commit das mudanças — e esse commit dispara um deploy novo na
+   Vercel.
 
 Espere commits frequentes de `github-actions[bot]` com a mensagem
 "Dados: coleta automatica das NTN-B". Não edite `dados/` à mão.
@@ -205,8 +206,8 @@ Espere commits frequentes de `github-actions[bot]` com a mensagem
 > O GitHub **suspende workflows agendados após 60 dias sem atividade** no
 > repositório. Se a coleta parar sozinha, reative na aba Actions.
 
-Numa branch `claude/**`, o mesmo workflow roda em **dry-run**: baixa, parseia e
-relata, sem gravar nem commitar. É como se confere que os parsers ainda batem
+Numa branch `claude/**`, o mesmo workflow roda em **dry-run**: baixa, lê e
+relata, sem gravar nem fazer commit. É como se confere que os parsers ainda batem
 com o formato real das fontes antes de o código chegar ao `main`.
 
 ---

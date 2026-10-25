@@ -38,7 +38,7 @@ on:
     # lote que sai na sexta à noite em vez de esperar até segunda.
     #
     # O custo disso é ~zero: o repositório é público (minutos de Actions
-    # gratuitos e ilimitados), o job leva ~40s e só COMMITA quando algum número
+    # gratuitos e ilimitados), o job leva ~40s e só FAZ COMMIT quando algum número
     # mudou — então não gera deploy nem ruído à toa.
     - cron: "23 11,14,17,20,23 * * *"
 
@@ -47,11 +47,11 @@ on:
   workflow_dispatch:
     inputs:
       somente_sonda:
-        description: "Só sondar a fonte (não coleta, não grava, não commita)"
+        description: "Só sondar a fonte (não coleta, não grava, não faz commit)"
         type: boolean
         default: false
   # Numa branch de trabalho que NÃO seja a padrão, o job roda em DRY-RUN: baixa,
-  # parseia e relata, sem gravar nem commitar. É como se confere que os parsers
+  # lê e relata, sem gravar nem fazer commit. É como se confere que os parsers
   # ainda batem com o formato real das fontes antes de o código virar oficial.
   push:
     branches: ["claude/**"]
@@ -105,7 +105,7 @@ jobs:
         if: github.event_name == 'push' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
         run: node .github/scripts/coletar-tesouro.mjs --dry-run
 
-      - name: Commitar os dados atualizados
+      - name: Fazer commit dos dados atualizados
         if: inputs.somente_sonda != true && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
         run: |
           git config user.name "github-actions[bot]"
