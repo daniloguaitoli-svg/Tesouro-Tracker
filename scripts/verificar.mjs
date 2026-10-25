@@ -923,6 +923,28 @@ for (const arq of [".gitignore", ".vercelignore"]) {
   conferir(!ignora, `${arq} não ignora dados/`);
 }
 
+// E VERSIONADO NÃO BASTA: o arquivo precisa ENTRAR NO COMMIT. O coletor grava
+// em dados/ no runner, e o que não estiver no `git add` do workflow morre com a
+// máquina — coleta verde, log dizendo "gravado", e nada chega à produção. Foi
+// exatamente o que aconteceu com futuros.json na primeira execução real: as 44
+// taxas de DI1 e as 43 de FRC foram lidas, conferidas e jogadas fora.
+// A lista é derivada do coletor, não escrita à mão, senão o próximo arquivo
+// novo repete o mesmo silêncio.
+const gravados = new Set();
+const constantes = new Map(
+  [...coletor.matchAll(/const (ARQ_\w+) = join\(DIR, "([^"]+)"\)/g)].map((m) => [m[1], m[2]])
+);
+for (const m of coletor.matchAll(/writeFile\(\s*(?:join\(DIR, "([^"]+)"\)|(ARQ_\w+))/g)) {
+  const nome = m[1] || constantes.get(m[2]);
+  if (nome) gravados.add(`dados/${nome}`);
+}
+conferir(gravados.size >= 8, `o coletor grava ${gravados.size} arquivos em dados/`);
+const linhaAdd = wf.match(/^\s*git add (.+)$/m)?.[1] || "";
+const adicionados = new Set(linhaAdd.split(/\s+/).filter(Boolean));
+for (const arq of [...gravados].sort()) {
+  conferir(adicionados.has(arq), `${arq} entra no git add do workflow`);
+}
+
 console.log("\ncurva: ponta curta e inflação implícita");
 const curva = await datalayer.getCurva();
 for (const c of curva.curvas) {
