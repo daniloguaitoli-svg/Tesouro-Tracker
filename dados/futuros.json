@@ -1,8 +1,892 @@
 {
- "atualizadoEm": null,
+ "atualizadoEm": "2026-10-26T06:54:30.242Z",
  "fonte": "B3 — arquivo público UP2DATA (TradeInformationConsolidated + InstrumentsConsolidated)",
- "desde": null,
- "ultimaColeta": null,
- "nota": "Semente: o arquivo nasce vazio e cresce a partir da primeira coleta. O histórico de futuros não existe para baixar de uma vez — ele é acumulado.",
- "contratos": {}
+ "desde": "2026-10-23",
+ "ultimaColeta": "2026-10-23",
+ "convencao": "DI1: taxa % a.a. em DIAS ÚTEIS/252, exponencial; PU por 100.000 de nocional. DDI e FRC: taxa % a.a. em DIAS CORRIDOS/360, LINEAR. As duas convenções não são intercambiáveis. `serie` mapeia data ISO -> [taxa, PU] e o PU é null onde o contrato não tem preço de ajuste (é o caso do FRC).",
+ "nota": "A curva em USD é montada do FRC, que é a taxa a termo a partir do primeiro DDI em aberto — o cupom limpo. Ela começa nesse vértice, não em D0: ancorar em hoje exigiria a taxa spot (spot = DOL − casado), e o casado não está em fonte pública gratuita. O contrato marcado com `cupomSujo` é esse vértice curto, e a taxa dele carrega a variação cambial desde a PTAX do dia anterior — não é ponto de curva.",
+ "aviso": "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
+ "contratos": {
+  "DDIX26": {
+   "ativo": "DDI",
+   "vencimento": "2026-11-03",
+   "cupomSujo": true,
+   "serie": {
+    "2026-10-23": [
+     29.032,
+     null
+    ]
+   }
+  },
+  "DI1F27": {
+   "ativo": "DI1",
+   "vencimento": "2027-01-04",
+   "serie": {
+    "2026-10-23": [
+     13.468,
+     97671.01
+    ]
+   }
+  },
+  "DI1F28": {
+   "ativo": "DI1",
+   "vencimento": "2028-01-03",
+   "serie": {
+    "2026-10-23": [
+     12.859,
+     86671.01
+    ]
+   }
+  },
+  "DI1F29": {
+   "ativo": "DI1",
+   "vencimento": "2029-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.642,
+     77264.96
+    ]
+   }
+  },
+  "DI1F30": {
+   "ativo": "DI1",
+   "vencimento": "2030-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.645,
+     68684.89
+    ]
+   }
+  },
+  "DI1F31": {
+   "ativo": "DI1",
+   "vencimento": "2031-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.642,
+     60981.39
+    ]
+   }
+  },
+  "DI1F32": {
+   "ativo": "DI1",
+   "vencimento": "2032-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.695,
+     54006.23
+    ]
+   }
+  },
+  "DI1F33": {
+   "ativo": "DI1",
+   "vencimento": "2033-01-03",
+   "serie": {
+    "2026-10-23": [
+     12.738,
+     47810.09
+    ]
+   }
+  },
+  "DI1F34": {
+   "ativo": "DI1",
+   "vencimento": "2034-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.749,
+     42398.73
+    ]
+   }
+  },
+  "DI1F35": {
+   "ativo": "DI1",
+   "vencimento": "2035-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.745,
+     37687.1
+    ]
+   }
+  },
+  "DI1F36": {
+   "ativo": "DI1",
+   "vencimento": "2036-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.723,
+     33534.26
+    ]
+   }
+  },
+  "DI1F37": {
+   "ativo": "DI1",
+   "vencimento": "2037-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.743,
+     29681.76
+    ]
+   }
+  },
+  "DI1F38": {
+   "ativo": "DI1",
+   "vencimento": "2038-01-04",
+   "serie": {
+    "2026-10-23": [
+     12.74,
+     26372.33
+    ]
+   }
+  },
+  "DI1F39": {
+   "ativo": "DI1",
+   "vencimento": "2039-01-03",
+   "serie": {
+    "2026-10-23": [
+     12.71,
+     23478.86
+    ]
+   }
+  },
+  "DI1F40": {
+   "ativo": "DI1",
+   "vencimento": "2040-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.696,
+     20875.07
+    ]
+   }
+  },
+  "DI1F41": {
+   "ativo": "DI1",
+   "vencimento": "2041-01-02",
+   "serie": {
+    "2026-10-23": [
+     12.687,
+     18561.81
+    ]
+   }
+  },
+  "DI1G27": {
+   "ativo": "DI1",
+   "vencimento": "2027-02-01",
+   "serie": {
+    "2026-10-23": [
+     13.422,
+     96706.9
+    ]
+   }
+  },
+  "DI1H27": {
+   "ativo": "DI1",
+   "vencimento": "2027-03-01",
+   "serie": {
+    "2026-10-23": [
+     13.373,
+     95854.79
+    ]
+   }
+  },
+  "DI1J27": {
+   "ativo": "DI1",
+   "vencimento": "2027-04-01",
+   "serie": {
+    "2026-10-23": [
+     13.318,
+     94829.73
+    ]
+   }
+  },
+  "DI1J28": {
+   "ativo": "DI1",
+   "vencimento": "2028-04-03",
+   "serie": {
+    "2026-10-23": [
+     12.768,
+     84186.35
+    ]
+   }
+  },
+  "DI1J29": {
+   "ativo": "DI1",
+   "vencimento": "2029-04-02",
+   "serie": {
+    "2026-10-23": [
+     12.654,
+     75050.98
+    ]
+   }
+  },
+  "DI1J30": {
+   "ativo": "DI1",
+   "vencimento": "2030-04-01",
+   "serie": {
+    "2026-10-23": [
+     12.636,
+     66751.57
+    ]
+   }
+  },
+  "DI1J31": {
+   "ativo": "DI1",
+   "vencimento": "2031-04-01",
+   "serie": {
+    "2026-10-23": [
+     12.643,
+     59246.9
+    ]
+   }
+  },
+  "DI1K27": {
+   "ativo": "DI1",
+   "vencimento": "2027-05-03",
+   "serie": {
+    "2026-10-23": [
+     13.272,
+     93866.19
+    ]
+   }
+  },
+  "DI1M27": {
+   "ativo": "DI1",
+   "vencimento": "2027-06-01",
+   "serie": {
+    "2026-10-23": [
+     13.228,
+     92963.58
+    ]
+   }
+  },
+  "DI1N27": {
+   "ativo": "DI1",
+   "vencimento": "2027-07-01",
+   "serie": {
+    "2026-10-23": [
+     13.189,
+     91982.14
+    ]
+   }
+  },
+  "DI1N28": {
+   "ativo": "DI1",
+   "vencimento": "2028-07-03",
+   "serie": {
+    "2026-10-23": [
+     12.705,
+     81849.45
+    ]
+   }
+  },
+  "DI1N29": {
+   "ativo": "DI1",
+   "vencimento": "2029-07-02",
+   "serie": {
+    "2026-10-23": [
+     12.66,
+     72838.03
+    ]
+   }
+  },
+  "DI1N30": {
+   "ativo": "DI1",
+   "vencimento": "2030-07-01",
+   "serie": {
+    "2026-10-23": [
+     12.637,
+     64823.61
+    ]
+   }
+  },
+  "DI1N31": {
+   "ativo": "DI1",
+   "vencimento": "2031-07-01",
+   "serie": {
+    "2026-10-23": [
+     12.652,
+     57542.53
+    ]
+   }
+  },
+  "DI1Q27": {
+   "ativo": "DI1",
+   "vencimento": "2027-08-02",
+   "serie": {
+    "2026-10-23": [
+     13.126,
+     91031.25
+    ]
+   }
+  },
+  "DI1U27": {
+   "ativo": "DI1",
+   "vencimento": "2027-09-01",
+   "serie": {
+    "2026-10-23": [
+     13.062,
+     90099.66
+    ]
+   }
+  },
+  "DI1V27": {
+   "ativo": "DI1",
+   "vencimento": "2027-10-01",
+   "serie": {
+    "2026-10-23": [
+     13.012,
+     89219.39
+    ]
+   }
+  },
+  "DI1V28": {
+   "ativo": "DI1",
+   "vencimento": "2028-10-02",
+   "serie": {
+    "2026-10-23": [
+     12.673,
+     79444.11
+    ]
+   }
+  },
+  "DI1V29": {
+   "ativo": "DI1",
+   "vencimento": "2029-10-01",
+   "serie": {
+    "2026-10-23": [
+     12.657,
+     70671.45
+    ]
+   }
+  },
+  "DI1V30": {
+   "ativo": "DI1",
+   "vencimento": "2030-10-01",
+   "serie": {
+    "2026-10-23": [
+     12.639,
+     62830.08
+    ]
+   }
+  },
+  "DI1V31": {
+   "ativo": "DI1",
+   "vencimento": "2031-10-01",
+   "serie": {
+    "2026-10-23": [
+     12.669,
+     55733.6
+    ]
+   }
+  },
+  "DI1X26": {
+   "ativo": "DI1",
+   "vencimento": "2026-11-03",
+   "serie": {
+    "2026-10-23": [
+     13.651,
+     99695.79
+    ]
+   }
+  },
+  "DI1X27": {
+   "ativo": "DI1",
+   "vencimento": "2027-11-01",
+   "serie": {
+    "2026-10-23": [
+     12.957,
+     88400.95
+    ]
+   }
+  },
+  "DI1X28": {
+   "ativo": "DI1",
+   "vencimento": "2028-11-01",
+   "serie": {
+    "2026-10-23": [
+     12.665,
+     78669.32
+    ]
+   }
+  },
+  "DI1X29": {
+   "ativo": "DI1",
+   "vencimento": "2029-11-01",
+   "serie": {
+    "2026-10-23": [
+     12.653,
+     69947.42
+    ]
+   }
+  },
+  "DI1Z26": {
+   "ativo": "DI1",
+   "vencimento": "2026-12-01",
+   "serie": {
+    "2026-10-23": [
+     13.53,
+     98748.99
+    ]
+   }
+  },
+  "DI1Z27": {
+   "ativo": "DI1",
+   "vencimento": "2027-12-01",
+   "serie": {
+    "2026-10-23": [
+     12.899,
+     87599.35
+    ]
+   }
+  },
+  "DI1Z28": {
+   "ativo": "DI1",
+   "vencimento": "2028-12-01",
+   "serie": {
+    "2026-10-23": [
+     12.655,
+     77979.63
+    ]
+   }
+  },
+  "DI1Z29": {
+   "ativo": "DI1",
+   "vencimento": "2029-12-03",
+   "serie": {
+    "2026-10-23": [
+     12.649,
+     69329.47
+    ]
+   }
+  },
+  "FRCF27": {
+   "ativo": "FRC",
+   "vencimento": "2027-01-04",
+   "serie": {
+    "2026-10-23": [
+     5.65,
+     null
+    ]
+   }
+  },
+  "FRCF28": {
+   "ativo": "FRC",
+   "vencimento": "2028-01-03",
+   "serie": {
+    "2026-10-23": [
+     5.89,
+     null
+    ]
+   }
+  },
+  "FRCF29": {
+   "ativo": "FRC",
+   "vencimento": "2029-01-02",
+   "serie": {
+    "2026-10-23": [
+     6.18,
+     null
+    ]
+   }
+  },
+  "FRCF30": {
+   "ativo": "FRC",
+   "vencimento": "2030-01-02",
+   "serie": {
+    "2026-10-23": [
+     6.46,
+     null
+    ]
+   }
+  },
+  "FRCF31": {
+   "ativo": "FRC",
+   "vencimento": "2031-01-02",
+   "serie": {
+    "2026-10-23": [
+     6.68,
+     null
+    ]
+   }
+  },
+  "FRCF32": {
+   "ativo": "FRC",
+   "vencimento": "2032-01-02",
+   "serie": {
+    "2026-10-23": [
+     6.96,
+     null
+    ]
+   }
+  },
+  "FRCF33": {
+   "ativo": "FRC",
+   "vencimento": "2033-01-03",
+   "serie": {
+    "2026-10-23": [
+     7.25,
+     null
+    ]
+   }
+  },
+  "FRCF34": {
+   "ativo": "FRC",
+   "vencimento": "2034-01-02",
+   "serie": {
+    "2026-10-23": [
+     7.56,
+     null
+    ]
+   }
+  },
+  "FRCF35": {
+   "ativo": "FRC",
+   "vencimento": "2035-01-02",
+   "serie": {
+    "2026-10-23": [
+     7.87,
+     null
+    ]
+   }
+  },
+  "FRCF36": {
+   "ativo": "FRC",
+   "vencimento": "2036-01-02",
+   "serie": {
+    "2026-10-23": [
+     8.18,
+     null
+    ]
+   }
+  },
+  "FRCF37": {
+   "ativo": "FRC",
+   "vencimento": "2037-01-02",
+   "serie": {
+    "2026-10-23": [
+     8.51,
+     null
+    ]
+   }
+  },
+  "FRCF38": {
+   "ativo": "FRC",
+   "vencimento": "2038-01-04",
+   "serie": {
+    "2026-10-23": [
+     8.82,
+     null
+    ]
+   }
+  },
+  "FRCF39": {
+   "ativo": "FRC",
+   "vencimento": "2039-01-03",
+   "serie": {
+    "2026-10-23": [
+     9.15,
+     null
+    ]
+   }
+  },
+  "FRCF40": {
+   "ativo": "FRC",
+   "vencimento": "2040-01-02",
+   "serie": {
+    "2026-10-23": [
+     9.46,
+     null
+    ]
+   }
+  },
+  "FRCF41": {
+   "ativo": "FRC",
+   "vencimento": "2041-01-02",
+   "serie": {
+    "2026-10-23": [
+     9.78,
+     null
+    ]
+   }
+  },
+  "FRCG27": {
+   "ativo": "FRC",
+   "vencimento": "2027-02-01",
+   "serie": {
+    "2026-10-23": [
+     5.55,
+     null
+    ]
+   }
+  },
+  "FRCH27": {
+   "ativo": "FRC",
+   "vencimento": "2027-03-01",
+   "serie": {
+    "2026-10-23": [
+     5.54,
+     null
+    ]
+   }
+  },
+  "FRCJ27": {
+   "ativo": "FRC",
+   "vencimento": "2027-04-01",
+   "serie": {
+    "2026-10-23": [
+     5.54,
+     null
+    ]
+   }
+  },
+  "FRCJ28": {
+   "ativo": "FRC",
+   "vencimento": "2028-04-03",
+   "serie": {
+    "2026-10-23": [
+     5.94,
+     null
+    ]
+   }
+  },
+  "FRCJ29": {
+   "ativo": "FRC",
+   "vencimento": "2029-04-02",
+   "serie": {
+    "2026-10-23": [
+     6.23,
+     null
+    ]
+   }
+  },
+  "FRCJ30": {
+   "ativo": "FRC",
+   "vencimento": "2030-04-01",
+   "serie": {
+    "2026-10-23": [
+     6.56,
+     null
+    ]
+   }
+  },
+  "FRCJ31": {
+   "ativo": "FRC",
+   "vencimento": "2031-04-01",
+   "serie": {
+    "2026-10-23": [
+     6.74,
+     null
+    ]
+   }
+  },
+  "FRCK27": {
+   "ativo": "FRC",
+   "vencimento": "2027-05-03",
+   "serie": {
+    "2026-10-23": [
+     5.59,
+     null
+    ]
+   }
+  },
+  "FRCM27": {
+   "ativo": "FRC",
+   "vencimento": "2027-06-01",
+   "serie": {
+    "2026-10-23": [
+     5.62,
+     null
+    ]
+   }
+  },
+  "FRCN27": {
+   "ativo": "FRC",
+   "vencimento": "2027-07-01",
+   "serie": {
+    "2026-10-23": [
+     5.64,
+     null
+    ]
+   }
+  },
+  "FRCN28": {
+   "ativo": "FRC",
+   "vencimento": "2028-07-03",
+   "serie": {
+    "2026-10-23": [
+     6.01,
+     null
+    ]
+   }
+  },
+  "FRCN29": {
+   "ativo": "FRC",
+   "vencimento": "2029-07-02",
+   "serie": {
+    "2026-10-23": [
+     6.31,
+     null
+    ]
+   }
+  },
+  "FRCN30": {
+   "ativo": "FRC",
+   "vencimento": "2030-07-01",
+   "serie": {
+    "2026-10-23": [
+     6.59,
+     null
+    ]
+   }
+  },
+  "FRCN31": {
+   "ativo": "FRC",
+   "vencimento": "2031-07-01",
+   "serie": {
+    "2026-10-23": [
+     6.79,
+     null
+    ]
+   }
+  },
+  "FRCQ27": {
+   "ativo": "FRC",
+   "vencimento": "2027-08-02",
+   "serie": {
+    "2026-10-23": [
+     5.72,
+     null
+    ]
+   }
+  },
+  "FRCU27": {
+   "ativo": "FRC",
+   "vencimento": "2027-09-01",
+   "serie": {
+    "2026-10-23": [
+     5.75,
+     null
+    ]
+   }
+  },
+  "FRCV27": {
+   "ativo": "FRC",
+   "vencimento": "2027-10-01",
+   "serie": {
+    "2026-10-23": [
+     5.8,
+     null
+    ]
+   }
+  },
+  "FRCV28": {
+   "ativo": "FRC",
+   "vencimento": "2028-10-02",
+   "serie": {
+    "2026-10-23": [
+     6.08,
+     null
+    ]
+   }
+  },
+  "FRCV29": {
+   "ativo": "FRC",
+   "vencimento": "2029-10-01",
+   "serie": {
+    "2026-10-23": [
+     6.36,
+     null
+    ]
+   }
+  },
+  "FRCV30": {
+   "ativo": "FRC",
+   "vencimento": "2030-10-01",
+   "serie": {
+    "2026-10-23": [
+     6.63,
+     null
+    ]
+   }
+  },
+  "FRCV31": {
+   "ativo": "FRC",
+   "vencimento": "2031-10-01",
+   "serie": {
+    "2026-10-23": [
+     6.88,
+     null
+    ]
+   }
+  },
+  "FRCX27": {
+   "ativo": "FRC",
+   "vencimento": "2027-11-01",
+   "serie": {
+    "2026-10-23": [
+     5.82,
+     null
+    ]
+   }
+  },
+  "FRCX28": {
+   "ativo": "FRC",
+   "vencimento": "2028-11-01",
+   "serie": {
+    "2026-10-23": [
+     6.12,
+     null
+    ]
+   }
+  },
+  "FRCX29": {
+   "ativo": "FRC",
+   "vencimento": "2029-11-01",
+   "serie": {
+    "2026-10-23": [
+     6.42,
+     null
+    ]
+   }
+  },
+  "FRCZ26": {
+   "ativo": "FRC",
+   "vencimento": "2026-12-01",
+   "serie": {
+    "2026-10-23": [
+     5.38,
+     null
+    ]
+   }
+  },
+  "FRCZ27": {
+   "ativo": "FRC",
+   "vencimento": "2027-12-01",
+   "serie": {
+    "2026-10-23": [
+     5.82,
+     null
+    ]
+   }
+  },
+  "FRCZ28": {
+   "ativo": "FRC",
+   "vencimento": "2028-12-01",
+   "serie": {
+    "2026-10-23": [
+     6.16,
+     null
+    ]
+   }
+  },
+  "FRCZ29": {
+   "ativo": "FRC",
+   "vencimento": "2029-12-03",
+   "serie": {
+    "2026-10-23": [
+     6.43,
+     null
+    ]
+   }
+  }
+ }
 }
