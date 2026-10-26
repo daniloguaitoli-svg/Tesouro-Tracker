@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-10-26T17:26:59.931Z",
+ "atualizadoEm": "2026-10-26T23:57:11.550Z",
  "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -31,7 +31,14 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 1425
+   "pontosNaSerie": 1425,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 0.017,
+    "taxaCompra": 0.0207,
+    "taxaVenda": 0.0066,
+    "pu": 20158.91409
+   }
   },
   {
    "slug": "selic-2028-03-01",
@@ -55,7 +62,14 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 431
+   "pontosNaSerie": 431,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 0.0198,
+    "taxaCompra": 0.0208,
+    "taxaVenda": 0.0148,
+    "pu": 20154.720797
+   }
   },
   {
    "slug": "selic-2029-03-01",
@@ -79,7 +93,14 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 947
+   "pontosNaSerie": 947,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 0.0489,
+    "taxaCompra": 0.0585,
+    "taxaVenda": 0.0393,
+    "pu": 20137.181542
+   }
   },
   {
    "slug": "selic-2031-03-01",
@@ -103,7 +124,14 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 431
+   "pontosNaSerie": 431,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 0.1,
+    "taxaCompra": 0.112,
+    "taxaVenda": 0.089,
+    "pu": 20073.395102
+   }
   }
  ]
 }

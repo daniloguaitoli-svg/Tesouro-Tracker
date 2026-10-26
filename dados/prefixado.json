@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-10-26T17:26:59.931Z",
+ "atualizadoEm": "2026-10-26T23:57:11.550Z",
  "nota": "Taxas NOMINAIS (a.a., sem correção pela inflação) — não compare diretamente com as taxas reais do ntnb.json.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -55,7 +55,14 @@
     "variacaoPrecoMais1pp": -0.16,
     "variacaoPrecoMenos1pp": 0.16
    },
-   "pontosNaSerie": 1948
+   "pontosNaSerie": 1948,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 13.4654,
+    "taxaCompra": 13.4855,
+    "taxaVenda": 13.3772,
+    "pu": 1024.900221
+   }
   },
   {
    "slug": "prefixado-2028-01-01",
@@ -79,7 +86,14 @@
     "variacaoPrecoMais1pp": -1.03,
     "variacaoPrecoMenos1pp": 1.05
    },
-   "pontosNaSerie": 431
+   "pontosNaSerie": 431,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 14.8028,
+    "taxaCompra": 14.825,
+    "taxaVenda": 14.7579,
+    "pu": 849.848905
+   }
   },
   {
    "slug": "prefixado-2029-01-01",
@@ -103,7 +117,14 @@
     "variacaoPrecoMais1pp": -1.89,
     "variacaoPrecoMenos1pp": 1.94
    },
-   "pontosNaSerie": 1167
+   "pontosNaSerie": 1167,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 15.3009,
+    "taxaCompra": 15.3186,
+    "taxaVenda": 15.2896,
+    "pu": 734.978311
+   }
   },
   {
    "slug": "prefixado-juros-2029-01-01",
@@ -127,7 +148,14 @@
     "variacaoPrecoMais1pp": -1.69,
     "variacaoPrecoMenos1pp": 1.74
    },
-   "pontosNaSerie": 1948
+   "pontosNaSerie": 1948,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 15.125,
+    "taxaCompra": 15.1593,
+    "taxaVenda": 15.0908,
+    "pu": 945.299094
+   }
   },
   {
    "slug": "prefixado-2031-01-01",
@@ -175,7 +203,14 @@
     "variacaoPrecoMais1pp": -2.91,
     "variacaoPrecoMenos1pp": 3.04
    },
-   "pontosNaSerie": 1671
+   "pontosNaSerie": 1671,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 15.3888,
+    "taxaCompra": 15.3939,
+    "taxaVenda": 15.3799,
+    "pu": 879.813865
+   }
   },
   {
    "slug": "prefixado-2032-01-01",
@@ -199,7 +234,14 @@
     "variacaoPrecoMais1pp": -4.43,
     "variacaoPrecoMenos1pp": 4.68
    },
-   "pontosNaSerie": 431
+   "pontosNaSerie": 431,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 15.4227,
+    "taxaCompra": 15.4297,
+    "taxaVenda": 15.416,
+    "pu": 477.69504
+   }
   },
   {
    "slug": "prefixado-juros-2033-01-01",
@@ -223,7 +265,14 @@
     "variacaoPrecoMais1pp": -3.87,
     "variacaoPrecoMenos1pp": 4.1
    },
-   "pontosNaSerie": 1167
+   "pontosNaSerie": 1167,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 15.4133,
+    "taxaCompra": 15.4377,
+    "taxaVenda": 15.3962,
+    "pu": 832.100247
+   }
   },
   {
    "slug": "prefixado-juros-2035-01-01",
@@ -247,7 +296,14 @@
     "variacaoPrecoMais1pp": -4.6,
     "variacaoPrecoMenos1pp": 4.94
    },
-   "pontosNaSerie": 678
+   "pontosNaSerie": 678,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 15.3262,
+    "taxaCompra": 15.3537,
+    "taxaVenda": 15.2902,
+    "pu": 800.812881
+   }
   },
   {
    "slug": "prefixado-juros-2037-01-01",
@@ -271,7 +327,14 @@
     "variacaoPrecoMais1pp": -5.17,
     "variacaoPrecoMenos1pp": 5.61
    },
-   "pontosNaSerie": 182
+   "pontosNaSerie": 182,
+   "secundario": {
+    "fonte": "ANBIMA — mercado secundário",
+    "taxaIndicativa": 15.164,
+    "taxaCompra": 15.1734,
+    "taxaVenda": 15.1343,
+    "pu": 781.105386
+   }
   }
  ]
 }
