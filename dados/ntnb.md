@@ -1,6 +1,6 @@
 # NTN-B — Tesouro IPCA+
 
-Retrato gerado automaticamente em 2026-10-27T16:44:00.711Z.
+Retrato gerado automaticamente em 2026-10-27T21:23:15.399Z.
 Fonte: Tesouro Nacional (Tesouro Transparente) + ANBIMA (mercado secundário).
 
 | Vencimento | Título | Taxa real | PU (R$) | Duration | Dur. mod. | +1 p.p. | −1 p.p. | Data |
