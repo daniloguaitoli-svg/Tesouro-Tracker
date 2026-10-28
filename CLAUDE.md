@@ -526,6 +526,25 @@ before the bonds. A holiday created by new law (20/11 became national only in
 for ANBIMA too. The counting boundary is `(início, fim]`: counting from D+1
 leaves a constant +0.048% error, which is exactly `(1+i)^(1/252)`.
 
+**`diasUteis` counts cumulatively, not day by day, and that is a performance
+decision with a measured reason.** Walking the interval looks cheap until you
+see who calls it: a coupon bond's duration counts **once per cash flow**, and an
+NTN-B 2060 has 68 of them, each walking up to ~12,000 days. Measured 26/10/2026:
+329 ms for that one bond's duration, 1.1 s for a pass over the live bonds, and
+`getCurva` does that pass for 4 families × 3 dates — **7.6 s of CPU to return
+17 KB**, on the endpoint the wide-screen Painel requests on open. Now each year
+is counted once and the count to any date is (business days of prior years) +
+(1 January to that date); the difference of two such counts is exactly
+`(início, fim]`, the same boundary. The calendar is immutable, so the caches
+live for the whole process and never invalidate. Result: `getCurva` 7.982 ms →
+72 ms warm, `getTitulos` 2.563 ms → 36 ms, `npm run verificar` 39 s → 5 s.
+
+The day-by-day walk is still the **definition** of what is being counted, so
+`verificar.mjs` keeps it and compares the two over 600 seeded-random intervals
+between 2002 and 2065 plus six hand-picked edges (year boundary, leap day,
+carnival, and 20/11 on both sides of the year it became national). The seed is
+fixed so a red CI reproduces.
+
 **Why 365 lasted so long, and the check that now prevents it.** Every other
 assertion in `verificar.mjs` is an internal identity — zero-coupon duration
 equals the term, modified = Macaulay/(1+y) — and those stay green under *any*
