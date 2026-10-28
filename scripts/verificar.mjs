@@ -192,7 +192,7 @@ conferir(util.temDuration("ipca") && util.temDuration("prefixado-juros") && !uti
 // cinco vezes a tolerância.
 console.log("\nconvenção de contagem (PU oficial reconstruído da taxa)");
 {
-  const { diasUteis } = await import("../server/feriados.js");
+  const { diasUteis, ehDiaUtil } = await import("../server/feriados.js");
   const { createRequire } = await import("node:module");
   const prefixado = createRequire(join(RAIZ, "package.json"))("./dados/prefixado.json");
   // Sem cupom e com PU: a face é 1.000 e o desconto é de um fluxo só.
@@ -241,6 +241,59 @@ console.log("\nconvenção de contagem (PU oficial reconstruído da taxa)");
     conferir(
       app.erro <= 1e-4,
       `precoPor100 do app reproduz o PU oficial — pior erro ${(app.erro * 100).toFixed(4)}% ${app.rotulo}`
+    );
+  }
+
+  // A CONTAGEM ACUMULADA TEM DE DAR O MESMO QUE A CAMINHADA DIA A DIA.
+  //
+  // diasUteis deixou de andar um dia por vez em 10/2026 — caminhar custava
+  // 7,6 s em getCurva, porque a duration de um título com cupom conta uma vez
+  // por fluxo. A caminhada continua sendo a DEFINIÇÃO do que se quer contar, e
+  // é contra ela que a versão rápida é conferida aqui, em datas sorteadas por
+  // todo o intervalo que o app alcança.
+  //
+  // Sorteio com semente fixa: a checagem tem de dar o mesmo resultado em toda
+  // execução, senão um CI vermelho não se reproduz.
+  {
+    const MS_DIA = 86400000;
+    const caminhando = (a, b) => {
+      const fim = new Date(Date.parse(`${b}T00:00:00Z`));
+      let d = new Date(Date.parse(`${a}T00:00:00Z`));
+      let n = 0;
+      while (d < fim) {
+        d = new Date(d.getTime() + MS_DIA);
+        if (ehDiaUtil(d)) n++;
+      }
+      return n;
+    };
+    let semente = 20261026;
+    const sorteio = () => ((semente = (semente * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const de = Date.parse("2002-01-01T00:00:00Z");
+    const ate = Date.parse("2065-12-31T00:00:00Z");
+    const data = (t) => new Date(t).toISOString().slice(0, 10);
+
+    // As bordas que um contador acumulado erra primeiro: virada de ano, ano
+    // bissexto, feriado móvel (carnaval 2024) e o 20/11 que só é nacional
+    // desde 2024 — nos dois lados da mudança.
+    const bordas = [
+      ["2019-12-31", "2020-01-02"],
+      ["2020-02-27", "2020-03-02"],
+      ["2024-02-09", "2024-02-15"],
+      ["2023-11-17", "2023-11-21"],
+      ["2024-11-18", "2024-11-21"],
+      ["2026-10-26", "2060-08-15"],
+    ];
+    let divergentes = 0;
+    for (const [a, b] of bordas) if (diasUteis(a, b) !== caminhando(a, b)) divergentes++;
+    for (let i = 0; i < 600; i++) {
+      let x = de + Math.floor(sorteio() * (ate - de));
+      let y = de + Math.floor(sorteio() * (ate - de));
+      if (x > y) [x, y] = [y, x];
+      if (diasUteis(data(x), data(y)) !== caminhando(data(x), data(y))) divergentes++;
+    }
+    conferir(
+      divergentes === 0,
+      `contagem acumulada = caminhada dia a dia em ${600 + bordas.length} intervalos (bordas de ano, bissexto, carnaval e 20/11)`
     );
   }
 }

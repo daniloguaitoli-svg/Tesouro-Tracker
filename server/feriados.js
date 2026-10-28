@@ -91,10 +91,89 @@ export function ehDiaUtil(data) {
 // fronteira que fez o PU reconstruído bater com o oficial no centavo; contar
 // de D+1 deixava um erro constante de +0,048%, que é exatamente (1+i)^(1/252).
 export function diasUteis(inicioISO, fimISO) {
-  const fim = new Date(Date.parse(`${String(fimISO).slice(0, 10)}T00:00:00Z`));
-  let d = new Date(Date.parse(`${String(inicioISO).slice(0, 10)}T00:00:00Z`));
-  if (!(d < fim)) return 0;
+  const inicio = String(inicioISO).slice(0, 10);
+  const fim = String(fimISO).slice(0, 10);
+  if (!(inicio < fim)) return 0;
+  if (Number(inicio.slice(0, 4)) < ANO_BASE) return caminhando(inicio, fim);
+  return acumuladoAte(fim) - acumuladoAte(inicio);
+}
 
+// A CONTAGEM É ACUMULADA, não caminhada — e essa é a diferença entre o app
+// abrir em um segundo ou em oito.
+//
+// Caminhar dia a dia parece barato e não é, porque quem chama não chama uma
+// vez: a duration de um título com cupom conta UMA VEZ POR FLUXO, e uma NTN-B
+// 2060 tem 68 semestres, cada um contando até ~12 mil dias. Medido em
+// 26/10/2026: 329 ms só na duration da 2060, 1,1 s numa passada pelos títulos
+// vivos, e getCurva faz essa passada para 4 famílias em 3 datas — 7,6 s de CPU
+// para devolver 17 KB. O Painel pede a curva ao abrir, então era isso que o
+// telefone esperava.
+//
+// Agora cada ano é contado uma vez, e a contagem até uma data qualquer é
+// (dias úteis dos anos anteriores) + (do 1º de janeiro até a data). A
+// diferença entre duas dessas contagens é exatamente o intervalo (início, fim]
+// — a mesma fronteira de antes, pela mesma razão: as duas pontas incluem o
+// próprio dia, então a de partida se cancela e a de chegada fica.
+//
+// O calendário é IMUTÁVEL — feriado de 2031 não muda — então os três caches
+// vivem o processo inteiro e nunca invalidam. O custo total é limitado pelo
+// ano mais distante em tela (2060), não pelo número de chamadas.
+const ANO_BASE = 1990; // antes de qualquer série que este app conte (o Tesouro começa em 2002)
+
+const uteisNoAno = new Map(); // ano -> dias úteis do ano inteiro
+const uteisAntesDoAno = new Map(); // ano -> dias úteis de ANO_BASE até 31/dez do ano anterior
+const uteisAteAData = new Map(); // "AAAA-MM-DD" -> dias úteis de ANO_BASE até a data, inclusive
+
+function uteisDoAno(ano) {
+  const guardado = uteisNoAno.get(ano);
+  if (guardado !== undefined) return guardado;
+  let n = 0;
+  const d = dataUTC(ano, 1, 1);
+  while (d.getUTCFullYear() === ano) {
+    if (ehDiaUtil(d)) n++;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  uteisNoAno.set(ano, n);
+  return n;
+}
+
+function antesDoAno(ano) {
+  const guardado = uteisAntesDoAno.get(ano);
+  if (guardado !== undefined) return guardado;
+  // Iterativo, não recursivo: de 1990 a 2060 são 70 quadros de pilha, e esta
+  // função é chamada de dentro do laço mais quente do app.
+  let acumulado = 0;
+  let a = ANO_BASE;
+  for (; a <= ano; a++) {
+    const jaTenho = uteisAntesDoAno.get(a);
+    if (jaTenho !== undefined) acumulado = jaTenho;
+    else uteisAntesDoAno.set(a, acumulado);
+    if (a < ano) acumulado += uteisDoAno(a);
+  }
+  return acumulado;
+}
+
+function acumuladoAte(iso) {
+  const guardado = uteisAteAData.get(iso);
+  if (guardado !== undefined) return guardado;
+  const ano = Number(iso.slice(0, 4));
+  const fim = Date.parse(`${iso}T00:00:00Z`);
+  let n = antesDoAno(ano);
+  const d = dataUTC(ano, 1, 1);
+  while (d.getTime() <= fim) {
+    if (ehDiaUtil(d)) n++;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  uteisAteAData.set(iso, n);
+  return n;
+}
+
+// A caminhada original, preservada para datas anteriores a ANO_BASE. Não
+// acontece com dado real — é aqui para a função continuar total em vez de
+// devolver número errado calado se alguém passar uma data de 1970.
+function caminhando(inicioISO, fimISO) {
+  const fim = new Date(Date.parse(`${fimISO}T00:00:00Z`));
+  let d = new Date(Date.parse(`${inicioISO}T00:00:00Z`));
   let n = 0;
   while (d < fim) {
     d = new Date(d.getTime() + MS_DIA);
