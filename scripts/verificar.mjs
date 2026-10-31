@@ -392,6 +392,76 @@ console.log("\ncurvas de futuros da B3 (DI1 e cupom cambial)");
   conferir(pior <= 1e-5, `DDI curto + FRC reproduz o DDI longo — pior erro ${(pior * 100).toFixed(5)}%`);
 }
 
+// A DAP tem BLOCO PRÓPRIO porque tem DATA própria: estes números são do
+// arquivo real de 30/10/2026, e os de cima são de 23/10. Misturar as duas
+// datas num fixture só faria os dias úteis saírem errados e a conferência
+// reprovar código correto — exatamente o erro de comparação que o CLAUDE.md
+// registra na seção de comparar futuro com Tesouro.
+console.log("\ncurva de juro real da B3 (DAP)");
+{
+  const b3 = await import("../server/providers/b3.js");
+  const REF = "2026-10-30";
+
+  const negocios = [
+    "Status do Arquivo: Final",
+    "RptDt;TckrSymb;ISIN;SgmtNm;MinPric;MaxPric;TradAvrgPric;LastPric;OscnPctg;AdjstdQt;AdjstdQtTax;RefPric;TradQty;FinInstrmQty;NtlFinVol",
+    "2026-10-30;DAPX26;;FINANCIAL;;;;;;99.685,66;8,257;;0;;",
+    "2026-10-30;DAPK27;;FINANCIAL;;;;;;97.506,86;4,900;;112;;",
+    "2026-10-30;DAPK29;;FINANCIAL;;;;;;82.763,84;7,835;;124;;",
+    "2026-10-30;DAPQ32;;FINANCIAL;;;;;;64.204,44;8,005;;117;;",
+    "2026-10-30;DAPQ60;;FINANCIAL;;;;;;9.111,45;7,394;;0;;",
+  ].join("\n");
+  const cadastro = [
+    "Status do Arquivo: Final",
+    "RptDt;TckrSymb;Asst;AsstDesc;SgmtNm;MktNm;SctyCtgyNm;XprtnDt",
+    "2026-10-30;DAPX26;DAP;Cupom de IPCA;FINANCIAL;;;2026-11-16",
+    "2026-10-30;DAPK27;DAP;Cupom de IPCA;FINANCIAL;;;2027-05-17",
+    "2026-10-30;DAPK29;DAP;Cupom de IPCA;FINANCIAL;;;2029-05-15",
+    "2026-10-30;DAPQ32;DAP;Cupom de IPCA;FINANCIAL;;;2032-08-16",
+    "2026-10-30;DAPQ60;DAP;Cupom de IPCA;FINANCIAL;;;2060-08-16",
+  ].join("\n");
+
+  const { contratos } = b3.extrairContratos(negocios, cadastro);
+  const dap = b3.curvaDAP(contratos, REF);
+  conferir(dap.length === 5, `${dap.length} vencimentos de DAP extraídos`);
+
+  // A CONFERÊNCIA CONTRA A REALIDADE, igual à do DI1: o ajuste publicado tem
+  // de sair da taxa publicada, em dias úteis/252 exponencial. Se abrir, a
+  // convenção da DAP não é a que medimos.
+  let pior = 0, ondePior = "";
+  for (const p of dap) {
+    const e = Math.abs(p.puRecalculado / p.pu - 1);
+    if (e > pior) { pior = e; ondePior = p.ticker; }
+  }
+  conferir(pior <= 1e-4, `DAP em du/252 reproduz o ajuste da B3 em 5 vencimentos — pior erro ${(pior * 100).toFixed(4)}% (${ondePior})`);
+
+  // O vencimento mais longo da DAP é o primeiro dia útil depois do da NTN-B
+  // 2060 (15/08/2060, um domingo). É a evidência de que a DAP é moldada na
+  // NTN-B, e é barata de conferir.
+  const longo = dap[dap.length - 1];
+  conferir(longo.vencimento === "2060-08-16", `a ponta longa da DAP acompanha a NTN-B 2060 (${longo.vencimento})`);
+
+  // A FACE IMPLÍCITA, que é o portão de gravação. Constante = convenção
+  // entendida.
+  const face = b3.erroDaFace(dap);
+  conferir(face.comparados === 5, `${face.comparados} vencimentos na conferência da face`);
+  conferir(face.dispersao <= 1e-4, `face implícita constante — dispersão ${(face.dispersao * 100).toFixed(4)}%`);
+  conferir(Math.abs(face.face - 100000) < 10, `e vale ${Math.round(face.face).toLocaleString("pt-BR")}, a face do contrato`);
+
+  // CONTROLE NEGATIVO: sem ele, "a dispersão fechou" só diria que a conta
+  // concorda consigo mesma. Preços montados na convenção ERRADA (corridos/365)
+  // têm de abrir a face muito além do limite.
+  const errados = dap.map((p) => {
+    const corridos = Math.round((Date.parse(p.vencimento) - Date.parse(REF)) / 86400000);
+    return { ...p, pu: 100000 / Math.pow(1 + p.taxa / 100, corridos / 365) };
+  });
+  const faceErrada = b3.erroDaFace(errados);
+  conferir(
+    faceErrada.dispersao > 1e-3,
+    `preço montado em corridos/365 abre a face em ${(faceErrada.dispersao * 100).toFixed(2)}% — o portão pega convenção trocada`
+  );
+}
+
 // ---------------------------------------------------------------
 // A ACUMULAÇÃO dos futuros. O arquivo público da B3 só serve os últimos
 // meses, então o histórico nasce daqui — e erro de fusão não grita, só perde
@@ -416,6 +486,11 @@ console.log("\ncurvas de futuros: montagem do payload");
       FRCF29: { ativo: "FRC", vencimento: "2029-01-02", serie: { [mes]: [6.18, null], [hoje]: [6.2, null] } },
       DDIZ26: { ativo: "DDI", cupomSujo: true, vencimento: "2026-12-01", serie: { [hoje]: [21.4, null] } },
       DDIF27: { ativo: "DDI", vencimento: "2027-01-04", serie: { [hoje]: [9.2, 98165.48] } },
+      // Dois de DAP acima do piso e um abaixo: é o que permite conferir que o
+      // corte da ponta curta acontece e que o cortado não some.
+      DAPK29: { ativo: "DAP", vencimento: "2029-05-15", serie: { [mes]: [7.8, 82763.84], [hoje]: [7.835, 82700] } },
+      DAPQ32: { ativo: "DAP", vencimento: "2032-08-16", serie: { [mes]: [8.0, 64204.44], [hoje]: [8.005, 64100] } },
+      DAPK27: { ativo: "DAP", vencimento: "2027-05-17", serie: { [hoje]: [4.9, 97506.86] } },
     },
   };
 
@@ -455,6 +530,20 @@ console.log("\ncurvas de futuros: montagem do payload");
   // O vértice curto é o DDI mais curto vivo, e vem com a taxa SUJA marcada.
   conferir(cupom.vertice?.slug === "DDIZ26", `vértice curto é o DDI mais curto (${cupom.vertice?.slug})`);
   conferir(cupom.vertice?.taxaSuja === 21.4, "o vértice traz a taxa suja, não uma taxa limpa qualquer");
+
+  // A TERCEIRA CURVA, e o piso da ponta curta. O DAPK27 está a ~0,5 ano: tem
+  // de ficar FORA do gráfico e DENTRO de `curtos`, porque a tela precisa dizer
+  // o que cortou. Sumir calado seria o mesmo defeito que o vértice sujo do DDI
+  // teria se não viajasse no payload.
+  const ipca = r.curvas.find((c) => c.id === "cupom-ipca");
+  conferir(!!ipca, "a curva de cupom de IPCA existe no payload");
+  conferir(ipca.agora.length === 2, `o piso de ${1.5} ano deixa ${ipca.agora.length} vértices no gráfico`);
+  conferir(ipca.agora.every((p) => p.anos >= 1.5), "nenhum ponto abaixo do piso entra na curva");
+  conferir(ipca.curtos?.some((p) => p.slug === "DAPK27"), "o vértice curto cortado viaja em `curtos`, não some");
+  conferir(ipca.curtos.every((p) => p.anos < 1.5), "e `curtos` só tem o que ficou abaixo do piso");
+  conferir(ipca.agora.every((p) => p.slug.startsWith("DAP")), "nenhum DI1 vaza para a curva de juro real");
+  conferir(!di.agora.some((p) => p.slug.startsWith("DAP")), "nem a DAP vaza para a curva pré");
+  conferir(ipca.convencao.includes("úteis"), `a DAP é declarada em dias úteis (${ipca.convencao})`);
 
   conferir(r.historicoNota != null, "com poucos dias coletados a tela avisa que o histórico ainda cresce");
 

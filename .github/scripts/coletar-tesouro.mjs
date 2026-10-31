@@ -89,12 +89,19 @@ console.log(`Coletando do Tesouro Transparente desde ${DESDE}${seco ? " (dry-run
 // gravar. É a mesma fronteira que o coletor aplica ao CSV do Tesouro.
 const ARQ_FUTUROS = join(DIR, "futuros.json");
 const LIMITE_BOOTSTRAP = 1e-4; // medido 1e-6 em 23/10/2026; folga de 100x
+// O portão equivalente para a DAP. A identidade do bootstrap prova que o FRC
+// foi entendido; a face implícita constante prova o mesmo da DAP. Medido
+// 1e-6 em 30/10/2026 (dispersão 0,0001% em 21 vencimentos), mesma folga de
+// 100x e mesmo número, porque manter os dois iguais vale mais que afinar cada
+// um.
+const LIMITE_FACE = 1e-4;
 let futurosNovo = null;
 try {
   const leitura = await lerFuturos();
   const { pior, comparados } = leitura.bootstrap;
+  const face = leitura.face || { dispersao: null, comparados: 0 };
   console.log(
-    `\nB3 ${leitura.data}: ${leitura.di.length} vértices de DI1, ${leitura.cupom.pontos.length} de FRC` +
+    `\nB3 ${leitura.data}: ${leitura.di.length} vértices de DI1, ${leitura.cupom.pontos.length} de FRC, ${(leitura.dap || []).length} de DAP` +
       (leitura.cupom.vertice ? `, vértice curto ${leitura.cupom.vertice.ticker} (cupom sujo ${leitura.cupom.vertice.taxaSuja}%)` : "")
   );
   if (leitura.incoerentes.length) {
@@ -107,6 +114,15 @@ try {
       `B3 ATENÇÃO: bootstrap abriu ${(pior * 100).toFixed(4)}% em ${comparados} vencimentos (limite ${(LIMITE_BOOTSTRAP * 100).toFixed(4)}%). ` +
         "Alguma convenção mudou na B3 — nada gravado, o arquivo anterior fica."
     );
+  } else if (face.dispersao != null && face.dispersao > LIMITE_FACE) {
+    // O MESMO rigor do bootstrap, e pela mesma razão: o arquivo chegou e não
+    // foi entendido. Gravar por cima de dado bom é pior que não gravar, e uma
+    // face que abriu significa que a convenção da DAP mudou -- exatamente o
+    // tipo de mudança que produz número plausível e falso na tela.
+    console.warn(
+      `B3 ATENÇÃO: face implícita da DAP abriu ${(face.dispersao * 100).toFixed(4)}% em ${face.comparados} vencimentos ` +
+        `(limite ${(LIMITE_FACE * 100).toFixed(4)}%). Convenção da DAP mudou — nada gravado, o arquivo anterior fica.`
+    );
   } else {
     let futurosAnterior = { contratos: {} };
     try {
@@ -118,7 +134,9 @@ try {
     const dias = new Set();
     for (const c of Object.values(futurosNovo.contratos)) for (const d of Object.keys(c.serie)) dias.add(d);
     console.log(
-      `B3: bootstrap fecha em ${(pior * 100).toFixed(5)}% · ${Object.keys(futurosNovo.contratos).length} contratos, ${dias.size} dia(s) acumulado(s)`
+      `B3: bootstrap fecha em ${(pior * 100).toFixed(5)}%` +
+        (face.dispersao != null ? ` · face da DAP em ${(face.dispersao * 100).toFixed(5)}% (${Math.round(face.face).toLocaleString("pt-BR")})` : " · DAP sem face conferível") +
+        ` · ${Object.keys(futurosNovo.contratos).length} contratos, ${dias.size} dia(s) acumulado(s)`
     );
     // Grava aqui, e não no bloco de gravação lá embaixo: lá já é tarde, o
     // coletor pode ter saído antes por causa do Tesouro.

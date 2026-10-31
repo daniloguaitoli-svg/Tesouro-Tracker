@@ -159,6 +159,11 @@ export function montarFuturos({ anterior, leitura, agora }) {
 
   guardar(leitura.di, "DI1", "pu");
   guardar(leitura.cupom.pontos, "FRC", null);
+  // A DAP guarda TODOS os vencimentos, inclusive os curtos distorcidos. O
+  // descarte da ponta curta é de apresentação e acontece no datalayer: jogar
+  // dado fora na coleta é irreversível, e a fronteira da distorção ainda não
+  // está medida.
+  guardar(leitura.dap || [], "DAP", "pu");
   // O vértice curto entra com a taxa SUJA e marcado como tal. Ele não é ponto
   // de curva, mas sem ele a tela não tem como dizer onde a curva começa — nem
   // o verificar como refazer a identidade do bootstrap.
