@@ -385,6 +385,28 @@ console.log("\ncurvas de futuros da B3 (DI1 e cupom cambial)");
     "o prazo do FRC é contado a partir do vértice curto, não de hoje"
   );
 
+  // O ROLL DO FRC, que é a regra publicada da B3: a partir do penúltimo dia
+  // de negociação do primeiro vencimento de DDI, a ponta curta passa para o
+  // segundo. Sem isto, a âncora fica no vértice que está morrendo, a
+  // identidade abre e o coletor para de gravar — foi o que congelou o
+  // histórico de futuros entre 29 e 31/10/2026.
+  //
+  // O DDIX26 vence em 03/11/2026 e 02/11 é feriado, então o último dia de
+  // negociação é 30/10 e o penúltimo é 29/10. A virada tem de cair EXATAMENTE
+  // aí: um dia antes ou um dia depois reproduz o defeito, em dias diferentes.
+  {
+    const diasDaVirada = [
+      ["2026-10-23", "DDIX26", "seis dias úteis antes: ainda o primeiro"],
+      ["2026-10-28", "DDIX26", "três dias úteis antes: ainda o primeiro"],
+      ["2026-10-29", "DDIZ26", "PENÚLTIMO dia de negociação: rola para o segundo"],
+      ["2026-10-30", "DDIZ26", "último dia de negociação: já rolado"],
+    ];
+    for (const [data, esperada, porque] of diasDaVirada) {
+      const a = b3.ancoraDoCupom(contratos, data);
+      conferir(a?.ticker === esperada, `âncora em ${data} é ${a?.ticker} — ${porque}`);
+    }
+  }
+
   // E a identidade que define o FRC, com os números reais: se ela abrir, ou a
   // convenção linear/360 mudou, ou o vértice curto não é o que pensamos.
   const { pior, comparados } = b3.erroDoBootstrap(contratos, REF);

@@ -109,28 +109,44 @@ try {
   }
   if (pior == null || comparados < 2) {
     console.warn("B3 ATENÇÃO: não deu para conferir o bootstrap — nada gravado em futuros.json");
-  } else if (pior > LIMITE_BOOTSTRAP) {
-    console.warn(
-      `B3 ATENÇÃO: bootstrap abriu ${(pior * 100).toFixed(4)}% em ${comparados} vencimentos (limite ${(LIMITE_BOOTSTRAP * 100).toFixed(4)}%). ` +
-        "Alguma convenção mudou na B3 — nada gravado, o arquivo anterior fica."
-    );
-  } else if (face.dispersao != null && face.dispersao > LIMITE_FACE) {
-    // O MESMO rigor do bootstrap, e pela mesma razão: o arquivo chegou e não
-    // foi entendido. Gravar por cima de dado bom é pior que não gravar, e uma
-    // face que abriu significa que a convenção da DAP mudou -- exatamente o
-    // tipo de mudança que produz número plausível e falso na tela.
-    console.warn(
-      `B3 ATENÇÃO: face implícita da DAP abriu ${(face.dispersao * 100).toFixed(4)}% em ${face.comparados} vencimentos ` +
-        `(limite ${(LIMITE_FACE * 100).toFixed(4)}%). Convenção da DAP mudou — nada gravado, o arquivo anterior fica.`
-    );
   } else {
+    // UM PORTÃO POR CURVA, e não um portão para o arquivo inteiro.
+    //
+    // A identidade do bootstrap valida o CUPOM CAMBIAL e nada mais; a face
+    // implícita valida a DAP e nada mais; o DI1 não depende de nenhuma das
+    // duas. Reprovar o arquivo inteiro porque uma delas abriu joga fora 44
+    // vértices de DI1 e 21 de DAP que estão perfeitos -- a queda de uma fonte
+    // custando o dado das outras, que é o mesmo defeito que a ordem "B3 antes
+    // do Tesouro" já corrigiu num outro lugar.
+    //
+    // Entre 29 e 31/10/2026 isso congelou o histórico inteiro por três dias,
+    // enquanto o DI1 e a DAP chegavam intactos todo dia.
+    const cupomOk = !(pior > LIMITE_BOOTSTRAP);
+    const dapOk = !(face.dispersao != null && face.dispersao > LIMITE_FACE);
+    if (!cupomOk) {
+      console.warn(
+        `B3 ATENÇÃO: bootstrap abriu ${(pior * 100).toFixed(4)}% em ${comparados} vencimentos (limite ${(LIMITE_BOOTSTRAP * 100).toFixed(4)}%). ` +
+          "O cupom cambial deste dia NÃO entra; DI1 e DAP entram normalmente."
+      );
+    }
+    if (!dapOk) {
+      console.warn(
+        `B3 ATENÇÃO: face implícita da DAP abriu ${(face.dispersao * 100).toFixed(4)}% em ${face.comparados} vencimentos ` +
+          `(limite ${(LIMITE_FACE * 100).toFixed(4)}%). A DAP deste dia NÃO entra; DI1 e cupom entram normalmente.`
+      );
+    }
+    const leituraAprovada = {
+      ...leitura,
+      cupom: cupomOk ? leitura.cupom : { pontos: [], vertice: null },
+      dap: dapOk ? leitura.dap : [],
+    };
     let futurosAnterior = { contratos: {} };
     try {
       futurosAnterior = JSON.parse(await readFile(ARQ_FUTUROS, "utf-8"));
     } catch {
       /* primeira execução */
     }
-    futurosNovo = montarFuturos({ anterior: futurosAnterior, leitura, agora: new Date().toISOString() });
+    futurosNovo = montarFuturos({ anterior: futurosAnterior, leitura: leituraAprovada, agora: new Date().toISOString() });
     const dias = new Set();
     for (const c of Object.values(futurosNovo.contratos)) for (const d of Object.keys(c.serie)) dias.add(d);
     console.log(
@@ -150,6 +166,32 @@ try {
   }
 } catch (e) {
   console.warn(`B3 FALHA: ${e.message} — futuros.json mantido como estava`);
+}
+
+// UM HISTÓRICO CONGELADO NÃO PODE FICAR VERDE PARA SEMPRE.
+//
+// Todos os desfechos acima avisam e saem bem: um dia sem gravar é tempo, não
+// defeito, e falhar por isso seria o alarme que grita lobo. Mas o silêncio tem
+// prazo. Entre 29 e 31/10/2026 o portão recusou a gravação três dias seguidos
+// por causa da âncora errada, o job ficou verde as três vezes, e o defeito só
+// apareceu porque alguém foi olhar o arquivo à mão.
+//
+// Mesmo limite e mesma lógica da tolerância do Tesouro logo abaixo — manter os
+// dois iguais vale mais que afinar cada um. A diferença é que este só é
+// cobrado no FIM do processo: cobrar aqui abortaria a coleta do Tesouro, que
+// é justamente o erro de uma fonte derrubar a outra.
+let futurosParado = null;
+try {
+  const arq = JSON.parse(await readFile(ARQ_FUTUROS, "utf-8"));
+  const datas = new Set();
+  for (const c of Object.values(arq.contratos || {})) for (const d of Object.keys(c.serie || {})) datas.add(d);
+  const ultima = [...datas].sort().pop();
+  if (ultima) {
+    const dias = (Date.now() - Date.parse(`${ultima}T00:00:00Z`)) / 86400000;
+    if (dias > LIMITE_DIAS_FONTE_FORA) futurosParado = { ultima, dias };
+  }
+} catch {
+  /* antes da primeira coleta não há o que estar parado */
 }
 
 console.log(URL_CSV);
@@ -436,4 +478,15 @@ if (seco) {
   await writeFile(join(DIR, "painel.json"), JSON.stringify(painel, null, 1) + "\n", "utf-8");
   await writeFile(join(DIR, "painel.md"), painelMd, "utf-8");
   console.log(`\ngravados dados/: historico, ntnb(.json/.md), prefixado, selic, global, painel(.json/.md)`);
+}
+
+// A cobrança da bandeira acima, depois de tudo gravado. Sai 1 e manda e-mail:
+// a esta altura já não é tempo, é defeito.
+if (futurosParado && !seco) {
+  console.error(
+    `\nFUTUROS PARADOS: a última data em dados/futuros.json é ${futurosParado.ultima}, ` +
+      `${futurosParado.dias.toFixed(1)} dia(s) atrás (limite ${LIMITE_DIAS_FONTE_FORA}). ` +
+      "A coleta do Tesouro acima seguiu normalmente — isto é só a metade da B3."
+  );
+  process.exit(1);
 }
