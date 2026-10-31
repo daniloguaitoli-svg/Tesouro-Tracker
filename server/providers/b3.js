@@ -188,6 +188,54 @@ export function curvaDI(contratos, dataRefISO) {
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
 }
 
+// A ÂNCORA DO CUPOM LIMPO: a REGRA DA B3, não um palpite de liquidez.
+//
+// O FRC rola de vértice todo mês. A metodologia publicada da B3 (Manual de
+// Apreçamento de Futuros, seção do FRC) diz: "a partir do PENÚLTIMO DIA DE
+// NEGOCIAÇÃO do primeiro vencimento de DDI, a primeira operação (ponta curta)
+// será gerada no SEGUNDO vencimento de DDI".
+//
+// Como o DDI vence no primeiro dia útil do mês e negocia até o dia útil
+// anterior, o penúltimo dia de negociação é o 2º dia útil antes do
+// vencimento. Daí a conta abaixo: faltando 2 dias úteis ou menos, a âncora já
+// é o segundo vértice.
+//
+// CONFERIDO contra o arquivo real, com o DDIX26 vencendo em 03/11/2026:
+//
+//   data    du até o venc.  âncora pela regra   identidade fecha em
+//   23/10         6         DDIX26 (1º)         0,0025%
+//   30/10         1         DDIZ26 (2º)         0,0029%
+//
+// e com a âncora errada em 30/10 ela abre 0,7215%. Foi isso que congelou o
+// histórico de futuros entre 29 e 31/10/2026: 29/10 era o penúltimo dia de
+// negociação, o código continuou no primeiro vértice, o portão recusou a
+// gravação e o job ficou verde.
+//
+// POR QUE NÃO PELA LIQUIDEZ. A sonda mediu que "primeiro DDI que negociou"
+// acerta nas duas datas, e é tentador porque dispensa calendário. Mas é um
+// PROXY: num pregão fraco um vértice vivo aparece com zero negócios e a
+// âncora pula sem que o contrato tenha rolado. A regra publicada é
+// determinística e não depende de volume.
+//
+// E UMA TAXA EXTREMA NO VÉRTICE CURTO É NORMAL, não defeito. O DDI é cupom
+// SUJO: o PU é denominado contra a PTAX do dia útil anterior, então toda a
+// variação cambial do dia cai sobre o prazo que resta. Com prazo curto e
+// câmbio mexendo forte, a taxa explode — em 30/10/2026 o DDIX26 marcou
+// -73,164% com o dólar saindo de 5,04 para 5,42 em poucos dias. Nada aqui
+// deve tratar isso como erro.
+const DIAS_UTEIS_DO_ROLL = 2;
+
+export function ancoraDoCupom(contratos, dataRefISO) {
+  const ddi = contratos
+    .filter((c) => c.ativo === "DDI" && c.taxa != null && c.vencimento > dataRefISO)
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+  if (!ddi.length) return null;
+  const rolou = diasUteis(dataRefISO, ddi[0].vencimento) <= DIAS_UTEIS_DO_ROLL;
+  // O recuo para o primeiro existe para o arquivo que traz um vértice só:
+  // melhor uma âncora imperfeita que curva nenhuma.
+  return rolou ? ddi[1] || ddi[0] : ddi[0];
+}
+
 // Curva de juro REAL em BRL, a partir da DAP (cupom de IPCA).
 //
 // MESMA CONVENÇÃO DO DI1, não a do FRC — e isso foi medido, não presumido:
@@ -252,11 +300,7 @@ export function erroDaFace(pontos) {
 // pontos (é cupom sujo) mas volta no resultado como `vertice`, porque é o que
 // a tela precisa dizer para explicar onde a curva começa.
 export function curvaCupom(contratos, dataRefISO) {
-  const ddi = contratos
-    .filter((c) => c.ativo === "DDI" && c.taxa != null && c.vencimento > dataRefISO)
-    .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
-
-  const curto = ddi[0] || null;
+  const curto = ancoraDoCupom(contratos, dataRefISO);
 
   const dias = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / MS_DIA);
 
@@ -305,8 +349,12 @@ export function erroDoBootstrap(contratos, dataRefISO) {
   }
 
   const vencs = [...porVenc.keys()].filter((v) => v > dataRefISO).sort();
-  const curtoVenc = vencs.find((v) => porVenc.get(v).DDI != null);
-  if (!curtoVenc) return { pior: null, comparados: 0 };
+  // A MESMA âncora que curvaCupom usa, pela mesma função. Derivar uma âncora
+  // própria aqui faria a conferência validar uma curva diferente da desenhada
+  // — e uma identidade que confere outra coisa é pior que identidade nenhuma.
+  const ancora = ancoraDoCupom(contratos, dataRefISO);
+  const curtoVenc = ancora?.vencimento;
+  if (!curtoVenc || porVenc.get(curtoVenc)?.DDI == null) return { pior: null, comparados: 0 };
 
   const cCurto = porVenc.get(curtoVenc).DDI;
   const nCurto = dias(dataRefISO, curtoVenc);

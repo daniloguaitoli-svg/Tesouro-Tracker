@@ -607,6 +607,50 @@ the same reason — 29% next to 5.4% is yesterday's PTAX, not the market — but
 travels on the payload marked `cupomSujo`, because the screen needs it to
 explain where the curve begins.
 
+**The FRC rolls every month, and the anchor is a calendar rule, not a guess.**
+B3's published methodology (Manual de Apreçamento de Futuros, FRC section):
+*from the penultimate trading day of the first DDI maturity, the short leg is
+generated on the second DDI maturity.* The DDI matures on the first business
+day of the month and trades until the previous business day, so the penultimate
+trading day is the second business day before maturity — which is the
+`diasUteis(ref, venc) <= 2` in `ancoraDoCupom`, the one place both `curvaCupom`
+and `erroDoBootstrap` get the anchor from.
+
+Measured, with DDIX26 maturing 2026-11-03 (02/11 being Finados):
+
+| date | business days to maturity | anchor | identity closes at |
+|---|---|---|---|
+| 23/10 | 6 | DDIX26 (first) | 0.0025% |
+| 30/10 | 1 | DDIZ26 (second) | 0.0029% |
+
+With the wrong anchor on 30/10 it opens **0.7215%**. That is what froze the
+futures history between 29 and 31/10/2026: 29/10 was the penultimate trading
+day, the code stayed on the dying vertex, the write gate refused, and the job
+went green three days running.
+
+A liquidity proxy ("the first DDI that actually traded") reproduces both dates
+and was measured to do so — but it is a proxy: on a thin session a live vertex
+shows zero trades and the anchor jumps without the contract having rolled. The
+published rule is deterministic and does not depend on volume.
+
+**An extreme rate on the short DDI is normal, not a defect.** It is the *dirty*
+coupon: the PU is denominated against the previous business day's PTAX, so the
+whole day's FX move lands on whatever term remains. Short term plus a big FX
+move makes the rate explode — DDIX26 printed **−73.164%** on 30/10/2026 with
+the dollar going from 5.04 to 5.42 in days. Nothing in this repo may treat that
+as an error; the vertex is excluded from the plotted curve because it is dirty,
+not because the number looks wrong.
+
+**One gate per curve, never one for the file.** The bootstrap identity validates
+the FX coupon and nothing else; the implied face validates DAP and nothing else;
+DI1 depends on neither. The collector therefore drops only the curve that failed
+and writes the rest — refusing the whole file threw away 44 good DI1 vertices
+and 21 good DAP ones for three days. And a futures history that stops moving
+stops being silent: when the newest date in `dados/futuros.json` falls more than
+`LIMITE_DIAS_FONTE_FORA` behind, the collector exits 1 **at the very end**,
+after the Treasury half has been written — charging it earlier would be one
+source knocking out the other, the exact defect being fixed.
+
 **The legacy portal is dead; do not go back to it.** `TxRef1.asp` returns 404,
 `lum-ajustes-do-pregao` redirects or returns an empty body, and
 `SistemaPregao_excel1.asp` either hangs or lands on `Erro.asp`. The live path is
