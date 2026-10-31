@@ -27,6 +27,7 @@ on:
       - "futuros/**"
     paths:
       - "scripts/sonda-b3.mjs"
+      - "scripts/sonda-b3-inventario.mjs"
       - ".github/workflows/sonda-b3.yml"
 
 concurrency:
@@ -49,3 +50,12 @@ jobs:
       # Uma passagem só. Quem disparou está olhando o log, que é o produto.
       - name: Sondar a B3
         run: node scripts/sonda-b3.mjs
+
+      # Rodada 5, separada da anterior de propósito: aquela pergunta "o DI1 e o
+      # FRC estão aqui e fecham?", esta pergunta "o que MAIS está aqui?". São
+      # perguntas de vidas diferentes — a primeira virou produto e a segunda é
+      # reconhecimento novo — e misturá-las num script só faria o log das duas
+      # ficar ilegível. O download é rápido no runner (as rodadas 3 e 4
+      # inteiras levaram ~15 s), então baixar de novo custa pouco.
+      - name: Inventário dos outros ativos
+        run: node scripts/sonda-b3-inventario.mjs
