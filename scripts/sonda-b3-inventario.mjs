@@ -28,6 +28,12 @@ const LIMITE_MS = 60000;
 // fim. A lista é de PERGUNTAS, não de respostas: cada uma é reportada como
 // presente ou ausente com o número ao lado, e o que a B3 chama de cada uma
 // sai do cadastro. Nenhuma entra no app a partir daqui.
+// Liquidez: onde a rodada 5 parou. Contrato com ajuste e sem negócio tem
+// preço ARBITRADO pela bolsa, não preço de mercado -- e uma curva montada
+// com esses vértices herda a arbitragem calada, parecendo dado. Estes são os
+// focos cuja liquidez decide se vale seguir para a convenção.
+const FOCOS = ["DAP", "DI1", "FRC", "DDI", "OC1"];
+
 const PERGUNTAS = [
   ["DAP", "cupom de IPCA — seria a curva de juro REAL, a comparável com a NTN-B"],
   ["DI1", "já no ar: curva pré em BRL"],
@@ -142,6 +148,7 @@ for (const linha of negocios.corpo) {
   if (num(c[iTaxa]) != null) r.comTaxa++;
   r.volume += num(iNeg >= 0 ? c[iNeg] : c[iQtd]) || 0;
   if (r.tickers.length < 3) r.tickers.push(ticker);
+  if (FOCOS.includes(raiz)) (r.linhas ||= []).push(c);
 }
 
 // ---------- cadastro: o nome que a B3 dá a cada ativo ----------
@@ -166,6 +173,12 @@ if (cadastro) {
 
   const iT = cadastro.idx("TckrSymb");
   const iV = cadastro.idx("XprtnDt");
+  // Posição em aberto. O cabeçalho do cadastro traz OpngFutrPosDay, que é a
+  // posição em aberto na abertura do dia -- o número que diz se o contrato
+  // tem gente dentro, e não só uma cotação publicada.
+  const iAberto = cadastro.idx("OpngFutrPosDay");
+  console.log(`  posição em aberto: ${iAberto >= 0 ? "OpngFutrPosDay" : "NÃO ENCONTRADA no cadastro"}`);
+  globalThis.__aberto = new Map();
   const iDesc = achadas.map((n) => cadastro.idx(n));
 
   for (const linha of cadastro.corpo) {
@@ -177,6 +190,10 @@ if (cadastro) {
     if (!r.descricao) {
       const partes = iDesc.map((i) => (c[i] || "").trim()).filter((x) => x && x !== c[iT]);
       if (partes.length) r.descricao = [...new Set(partes)].join(" · ");
+    }
+    if (iAberto >= 0) {
+      const a = num(c[iAberto]);
+      if (a != null) globalThis.__aberto.set(c[iT], a);
     }
     const venc = (c[iV] || "").slice(0, 10);
     if (/^\d{4}-\d{2}-\d{2}$/.test(venc)) {
@@ -216,6 +233,47 @@ for (const [raiz, porque] of PERGUNTAS) {
   );
   console.log(`        ${r.descricao || "(sem descrição)"} — ${porque}`);
   console.log(`        exemplos: ${r.tickers.join(", ")}`);
+}
+
+// ---------- liquidez, vértice a vértice ----------
+// A pergunta que decide se a DAP vira curva neste app. Comparada contra o
+// DI1 de propósito: "20 contratos negociados" não quer dizer nada sozinho,
+// quer dizer tudo ao lado do que o contrato líquido do mesmo arquivo fez no
+// mesmo dia.
+console.log("\n=== liquidez: negociado no dia e posição em aberto ===");
+console.log(`  colunas do arquivo de negócios: ${negocios.colunas.join(" ")}\n`);
+const aberto = globalThis.__aberto || new Map();
+for (const raiz of FOCOS) {
+  const r = porRaiz.get(raiz);
+  if (!r?.linhas) {
+    console.log(`  ${raiz}: ausente`);
+    continue;
+  }
+  const porTicker = r.linhas
+    .map((c) => ({
+      ticker: c[iTicker],
+      qtd: num(iQtd >= 0 ? c[iQtd] : null) || 0,
+      fin: num(iNeg >= 0 ? c[iNeg] : null) || 0,
+      taxa: num(c[iTaxa]),
+      emAberto: aberto.get(c[iTicker]) ?? null,
+    }))
+    .sort((a, b) => b.qtd - a.qtd);
+  const negociaram = porTicker.filter((x) => x.qtd > 0).length;
+  const comAberto = porTicker.filter((x) => (x.emAberto || 0) > 0).length;
+  const totalQtd = porTicker.reduce((s, x) => s + x.qtd, 0);
+  const totalAberto = porTicker.reduce((s, x) => s + (x.emAberto || 0), 0);
+  console.log(
+    `  ${raiz}: ${negociaram}/${porTicker.length} vértices negociaram · ${totalQtd.toLocaleString("pt-BR")} contratos no dia · ` +
+      `${comAberto}/${porTicker.length} com posição em aberto · ${totalAberto.toLocaleString("pt-BR")} em aberto`
+  );
+  console.log("        ticker        negociado       em aberto      taxa");
+  for (const x of porTicker.slice(0, 8)) {
+    console.log(
+      `        ${x.ticker.padEnd(10)} ${String(x.qtd).padStart(12)} ${String(x.emAberto ?? "—").padStart(15)} ${String(x.taxa ?? "—").padStart(9)}`
+    );
+  }
+  const zerados = porTicker.filter((x) => x.qtd === 0).map((x) => x.ticker);
+  if (zerados.length) console.log(`        sem negócio no dia (${zerados.length}): ${zerados.slice(0, 12).join(" ")}${zerados.length > 12 ? " ..." : ""}`);
 }
 
 console.log("\n=== segmentos (o arquivo inteiro, futuros e não-futuros) ===");
