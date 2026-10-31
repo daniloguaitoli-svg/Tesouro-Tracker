@@ -412,6 +412,53 @@ chart has no families — its points are derived from both sides and carry no
 `comCupom` — so `separarFamilias` returns it untouched and the legend drops the
 shape entries.
 
+### The Curva tab folds its tables
+
+The tab grew by accretion — four Treasury curves, implied inflation, then three
+B3 futures curves — and reached **5,868px of scroll, seven iPhone screens**,
+with three near-identical charts, nine chips and three tables, one of them 44
+rows. Two changes took it to **2,198px**:
+
+- **Each table sits directly under its own chart.** "Pontos da curva" used to
+  render *after* the implied-inflation section, which has a chart and a table of
+  its own — so the reader met a table 800px below a chart that was not its own.
+  The aviso stays last, after the implícita, because it covers everything that
+  came from the Treasury file and not the B3 block below it.
+- **The tables are `<details class="dobra">`, closed by default.** The chart is
+  the reading; the table is the check. The summary **replaces** the section
+  title rather than sitting beside it — a heading that does not click next to
+  one that does teaches the wrong thing — and carries the row count, so the
+  reader knows the size of what they are opening. Native `details`, like the
+  Detalhe screen's "Fontes e método": keyboard-accessible, no JS. The marker is
+  drawn in CSS because the native one is shaped differently per browser and sits
+  misaligned against a small-caps line in Safari.
+
+Two more followed, and one of them uncovered a defect well beyond the tab:
+
+- **The axis selector is not a chip.** The chips pick *which curve*; the axis
+  picks *with which ruler*, and as an identical chip it left two buttons lit at
+  once in what looked like one block. It is now a joined two-position segment
+  with a label, **inside the chart card**, because it is a property of that
+  drawing and not of the section.
+- **Duration only exists as a distinct quantity when there is a coupon.** In a
+  zero-coupon frame duration *is* the term, so the table printed `2,5 a | 2,5 a`
+  on every row and "Por duration" drew the same chart as "Por prazo". Both the
+  column and the axis selector now appear only where they say something: with
+  coupons the same row reads `3,8 a | 3,4 a`. The chosen axis is kept in state
+  but a `eixoEfetivo` decides what is drawn, so switching from a coupon family
+  to a zero-coupon one cannot strand the reader on an axis they can no longer
+  change.
+
+**`.chip` was two classes wearing one name, and the collision was silent.** The
+selection *button* (`.chip`, line ~170) and the Painel's variation *pill*
+(`Chip.jsx`, line ~236) both claimed it, and the pill's rule — coming later —
+overrode the button's radius, padding and height. Measured on the Curva tab:
+`border-radius` 6px instead of 999px, and a **25px touch target against the 44px
+minimum**, on the main controls of the screen. Only the lit state survived,
+because `[aria-pressed="true"]` outranks a bare `.chip`. The pill is now
+`.pilula`; it is a `span` that informs, never a control anyone taps, so the two
+were never the same thing. Measured after: 44px and 999px.
+
 ### The legend draws the real line
 
 `CurvaLegenda` (in `CurvaChart.jsx`) renders **from the same `series` array the

@@ -43,7 +43,11 @@ function Implicita({ implicita }) {
         <CurvaLegenda series={series} />
       </div>
 
-      <div className="rolagem">
+      <details className="dobra">
+        <summary>
+          Prazo a prazo <span className="quantos">· {agora.length}</span>
+        </summary>
+        <div className="rolagem">
         <table className="tbl">
           <thead>
             <tr>
@@ -64,7 +68,8 @@ function Implicita({ implicita }) {
             ))}
           </tbody>
         </table>
-      </div>
+        </div>
+      </details>
 
       <div className="note">
         Conta pela relação de Fisher — (1+nominal)/(1+real) − 1 — e não pela subtração, que
@@ -119,6 +124,17 @@ export function Curva({ marcados }) {
   const misturada =
     curva.agora.some((p) => p.comCupom === true) && curva.agora.some((p) => p.comCupom === false);
 
+  // DURATION SÓ EXISTE COMO COISA DISTINTA SE HOUVER CUPOM. Num quadro
+  // zero-cupom a duration É o prazo, por construção — a tabela mostrava
+  // "2,5 a | 2,5 a" em toda linha, e o eixo "Por duration" desenhava o mesmo
+  // gráfico que "Por prazo". Uma coluna que repete a vizinha e um botão que
+  // não muda nada: os dois somem quando não têm o que dizer.
+  const temCupom = curva.agora.some((p) => p.comCupom === true);
+  // Quem escolheu "duration" num quadro com cupom e trocou para um sem ficaria
+  // preso num eixo que já não pode mudar. O estado é preservado; o que vale
+  // para desenhar é o efetivo.
+  const eixoEfetivo = temCupom ? eixo : "anos";
+
   const series = [
     { id: "1a", rotulo: "há um ano", pontos: curva.umAnoAtras, cor: "var(--muted)", tracejado: true },
     { id: "1m", rotulo: "há um mês", pontos: curva.umMesAtras, cor: "var(--accent-2)" },
@@ -143,42 +159,60 @@ export function Curva({ marcados }) {
         </div>
       )}
 
-      <div className="chips" style={{ marginBottom: 8 }}>
-        {[
-          ["anos", "Por prazo"],
-          ["duration", "Por duration"],
-        ].map(([id, rot]) => (
-          <button key={id} className="chip" aria-pressed={eixo === id} onClick={() => setEixo(id)}>
-            {rot}
-          </button>
-        ))}
-      </div>
-
       <div className="card">
+        {/* O SELETOR DE EIXO MORA NO CARTÃO DO GRÁFICO, não na fileira de
+            chips. Ele não escolhe qual curva — escolhe com que régua medi-la —
+            e como chip idêntico aos de família deixava dois botões acesos ao
+            mesmo tempo no que parecia um bloco só. Dentro do cartão, a peça
+            diz de quem é a propriedade que ela muda. */}
+        {temCupom && (
+          <div className="eixo">
+            <span className="eixo-rotulo" id="rot-eixo">Eixo</span>
+            <div className="eixo-seg" role="group" aria-labelledby="rot-eixo">
+              {[
+                ["anos", "Prazo"],
+                ["duration", "Duration"],
+              ].map(([id, rot]) => (
+                <button key={id} type="button" aria-pressed={eixo === id} onClick={() => setEixo(id)}>
+                  {rot}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <CurvaChart
           series={series}
-          campoX={eixo}
-          rotulo={eixo === "duration" ? "Curva de juros por duration" : "Curva de juros por prazo"}
+          campoX={eixoEfetivo}
+          rotulo={eixoEfetivo === "duration" ? "Curva de juros por duration" : "Curva de juros por prazo"}
         />
-        <CurvaLegenda series={series} campoX={eixo} />
+        <CurvaLegenda series={series} campoX={eixoEfetivo} />
       </div>
 
-      <Implicita implicita={dados.implicita} />
-
-      <div className="section-title">Pontos da curva</div>
-      <div className="rolagem">
+      {/* A TABELA FICA COLADA NO SEU GRÁFICO, e dobrada.
+          Antes ela vinha DEPOIS da seção de inflação implícita — que tem
+          gráfico e tabela próprios — então o leitor encontrava uma tabela
+          800px abaixo de um gráfico que não era o dela. E dobrada porque o
+          gráfico é a leitura e a tabela é a conferência: as três tabelas
+          desta aba somavam ~3.000px dos 5.868px de rolagem.
+          O resumo SUBSTITUI o título da seção; um título que não clica ao
+          lado de um que clica ensina a coisa errada. */}
+      <details className="dobra">
+        <summary>
+          Pontos da curva <span className="quantos">· {curva.agora.length} vencimentos</span>
+        </summary>
+        <div className="rolagem">
         <table className="tbl">
           <thead>
             <tr>
               <th>Vencimento</th>
               <th className="rt">Prazo</th>
-              <th className="rt">Duration</th>
+              {temCupom && <th className="rt">Duration</th>}
               <th className="rt">Taxa ({curva.sufixo})</th>
             </tr>
           </thead>
           <tbody>
             {[...curva.agora]
-              .sort((a, b) => (a[eixo] ?? 0) - (b[eixo] ?? 0))
+              .sort((a, b) => (a[eixoEfetivo] ?? 0) - (b[eixoEfetivo] ?? 0))
               .map((p) => (
               <tr key={p.slug}>
                 <td>
@@ -186,17 +220,18 @@ export function Curva({ marcados }) {
                   <br />
                   <span className="muted" style={{ fontSize: 11 }}>{dataBR(p.vencimento)}</span>
                 </td>
-                <td className="rt mono">{anos(p.anos)}</td>
-                <td className="rt mono">{anos(p.duration)}</td>
+                <td className="rt mono inteiro">{anos(p.anos)}</td>
+                {temCupom && <td className="rt mono inteiro">{anos(p.duration)}</td>}
                 <td className="rt mono">{taxa(p.taxa)}</td>
               </tr>
               ))}
           </tbody>
         </table>
       </div>
+      </details>
 
       <div className="note">
-        {eixo === "duration" ? (
+        {eixoEfetivo === "duration" ? (
           <>
             <strong>Duration é quanto risco de juros o título carrega</strong> — a escala que
             permite comparar um com cupom e um sem. Repare que toda a NTN-B com juros
@@ -230,9 +265,14 @@ export function Curva({ marcados }) {
             Mesmo prazo não é mesmo risco — um título com cupom devolve parte do dinheiro
             antes. Veja <strong>por duration</strong> para pôr os dois na mesma escala.
           </>
-        )}{" "}
-        {dados.aviso}
+        )}
       </div>
+
+      <Implicita implicita={dados.implicita} />
+
+      {/* O aviso fecha a seção dos títulos, depois da implícita: ele cobre
+          tudo que veio do arquivo do Tesouro, e não o bloco da B3 abaixo. */}
+      <div className="note">{dados.aviso}</div>
 
       {/* O mercado futuro entra DEPOIS do aviso das curvas de título, e não
           antes: é bloco de outra fonte, com ressalva própria, e empurrá-lo

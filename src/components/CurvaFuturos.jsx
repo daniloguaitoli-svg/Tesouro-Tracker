@@ -118,7 +118,14 @@ export function CurvaFuturos() {
 
       {dados.historicoNota && <p className="section-sub">{dados.historicoNota}</p>}
 
-      <div className="rolagem">
+      {/* Dobrada pela mesma razão das outras duas, e aqui mais ainda: a
+          curva de DI tem 44 vencimentos, uns 2.500px — sozinha, quase
+          metade da rolagem da aba inteira. */}
+      <details className="dobra">
+        <summary>
+          Vértice a vértice <span className="quantos">· {curva.agora.length}</span>
+        </summary>
+        <div className="rolagem">
         <table className="tbl">
           <thead>
             <tr>
@@ -143,7 +150,8 @@ export function CurvaFuturos() {
             ))}
           </tbody>
         </table>
-      </div>
+        </div>
+      </details>
 
       <p className="section-sub">
         Preços de ajuste de {dataBR(dados.data)}

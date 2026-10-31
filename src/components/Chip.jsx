@@ -8,9 +8,14 @@
 export function Chip({ rotulo, valor, dir }) {
   // A cor vai só no NÚMERO, nunca no chip inteiro: pintar o rótulo junto faria
   // "preço" parecer ser o que subiu ou caiu.
-  const tom = dir === "up" || dir === "down" ? ` chip-${dir}` : "";
+  // A classe é `pilula`, não `chip`: `chip` é o BOTÃO de seleção (famílias,
+  // timeframe, eixo), e as duas regras conviviam no styles.css com a desta
+  // aqui vindo depois — sobrescrevendo raio, padding e altura dos botões em
+  // silêncio. Os seletores da aba Curva saíam com 25px de alvo, contra os 44
+  // mínimos de toque, e só o estado aceso sobrevivia, por especificidade.
+  const tom = dir === "up" || dir === "down" ? ` pilula-${dir}` : "";
   return (
-    <span className={`chip${tom}`}>
+    <span className={`pilula${tom}`}>
       {rotulo} <b className={`mono ${dir || ""}`}>{valor}</b>
     </span>
   );
