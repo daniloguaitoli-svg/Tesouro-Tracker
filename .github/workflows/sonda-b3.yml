@@ -29,6 +29,7 @@ on:
       - "scripts/sonda-b3.mjs"
       - "scripts/sonda-b3-inventario.mjs"
       - "scripts/sonda-b3-dap.mjs"
+      - "scripts/sonda-b3-ancora.mjs"
       - ".github/workflows/sonda-b3.yml"
 
 concurrency:
@@ -66,3 +67,9 @@ jobs:
       # controle no DI1, e misturá-la no inventário esconderia os dois.
       - name: Convenção da DAP
         run: node scripts/sonda-b3-dap.mjs
+
+      # Rodada 7: por que o portão do bootstrap fechou em 30/10. Não conserta
+      # nada — mede qual âncora o FRC usa perto do vencimento, que é o que
+      # decide qual conserto é o certo.
+      - name: Âncora do cupom cambial
+        run: node scripts/sonda-b3-ancora.mjs
