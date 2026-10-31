@@ -117,7 +117,13 @@ const iTicker = negocios.idx("TckrSymb");
 const iSegm = negocios.idx("SgmtNm");
 const iAjuste = negocios.idx("AdjstdQt");
 const iTaxa = negocios.idx("AdjstdQtTax");
-const iQtd = negocios.idx("TradQty");
+// TRÊS MEDIDAS DIFERENTES, e confundi-las foi o defeito da primeira
+// passagem desta seção: TradQty é o número de NEGÓCIOS fechados,
+// FinInstrmQty é a quantidade de CONTRATOS, NtlFinVol é o financeiro. Um
+// negócio pode carregar mil contratos. "975 negociados" lido na coluna
+// errada é um número plausível e falso -- o modo de falha de sempre.
+const iNegocios = negocios.idx("TradQty");
+const iQtd = negocios.idx("FinInstrmQty");
 const iNeg = negocios.idx("NtlFinVol");
 
 const porRaiz = new Map();
@@ -177,8 +183,8 @@ if (cadastro) {
   // posição em aberto na abertura do dia -- o número que diz se o contrato
   // tem gente dentro, e não só uma cotação publicada.
   const iAberto = cadastro.idx("OpngFutrPosDay");
-  console.log(`  posição em aberto: ${iAberto >= 0 ? "OpngFutrPosDay" : "NÃO ENCONTRADA no cadastro"}`);
   globalThis.__aberto = new Map();
+  globalThis.__abertoPreenchidas = 0;
   const iDesc = achadas.map((n) => cadastro.idx(n));
 
   for (const linha of cadastro.corpo) {
@@ -192,7 +198,9 @@ if (cadastro) {
       if (partes.length) r.descricao = [...new Set(partes)].join(" · ");
     }
     if (iAberto >= 0) {
-      const a = num(c[iAberto]);
+      const bruto = (c[iAberto] || "").trim();
+      if (bruto !== "") globalThis.__abertoPreenchidas++;
+      const a = num(bruto);
       if (a != null) globalThis.__aberto.set(c[iT], a);
     }
     const venc = (c[iV] || "").slice(0, 10);
@@ -240,7 +248,49 @@ for (const [raiz, porque] of PERGUNTAS) {
 // DI1 de propósito: "20 contratos negociados" não quer dizer nada sozinho,
 // quer dizer tudo ao lado do que o contrato líquido do mesmo arquivo fez no
 // mesmo dia.
-console.log("\n=== liquidez: negociado no dia e posição em aberto ===");
+// A COLUNA EXISTE MAS ESTÁ VAZIA, OU EU LI ERRADO? São diagnósticos
+// opostos e um zero não distingue os dois. A primeira passagem desta seção
+// devolveu zero em aberto para o DI1, que negociou centenas de milhares de
+// contratos no dia -- impossível, logo defeito de medição, não dado. Contar
+// quantas linhas do cadastro trazem a coluna PREENCHIDA fecha a pergunta.
+console.log("\n=== liquidez: contratos negociados no dia e posição em aberto ===");
+{
+  const n = globalThis.__abertoPreenchidas ?? null;
+  console.log(
+    n === null
+      ? "  posição em aberto: coluna OpngFutrPosDay não procurada (cadastro não veio)"
+      : `  OpngFutrPosDay preenchida em ${n} das ${cadastro?.corpo.length ?? 0} linhas do cadastro` +
+        (n === 0 ? " — A COLUNA VEM VAZIA: a posição em aberto NÃO está neste arquivo" : "")
+  );
+}
+
+// E SE NÃO ESTÁ AQUI, ONDE ESTÁ? Nomes de arquivo candidatos no UP2DATA,
+// tentados um a um. Adivinhar caminho já custou a rodada 1 inteira, mas
+// aqui adivinhar é o método: um 404 fecha o candidato, e o que responder
+// 200 é a resposta. O custo é um passo 1 por nome, sem baixar conteúdo.
+console.log("\n  --- procurando a posição em aberto em outro arquivo ---");
+for (const nome of [
+  "OpenInterestFile",
+  "OpenPositionFile",
+  "OpenContractsFile",
+  "DerivativesOpenPositionFile",
+  "FuturesOpenPositionFile",
+  "OpenInterestConsolidatedFile",
+  "PositionLimitsFile",
+]) {
+  try {
+    const r = await fetch(`${BASE}/requestname?fileName=${encodeURIComponent(nome)}&date=${DATA}&recaptchaToken=`, {
+      headers: { Accept: "application/json", "User-Agent": "tesouro-tracker (sonda de reconhecimento)" },
+      signal: AbortSignal.timeout(LIMITE_MS),
+    });
+    const corpo = r.ok ? await r.text() : "";
+    const temToken = /"token"\s*:\s*"[^"]+"/.test(corpo);
+    console.log(`    ${nome.padEnd(30)} HTTP ${r.status}${temToken ? "  <-- TEM TOKEN, existe" : ""}`);
+  } catch (e) {
+    console.log(`    ${nome.padEnd(30)} não respondeu: ${e?.cause?.code || e.message}`);
+  }
+}
+console.log("");
 console.log(`  colunas do arquivo de negócios: ${negocios.colunas.join(" ")}\n`);
 const aberto = globalThis.__aberto || new Map();
 for (const raiz of FOCOS) {
@@ -253,6 +303,7 @@ for (const raiz of FOCOS) {
     .map((c) => ({
       ticker: c[iTicker],
       qtd: num(iQtd >= 0 ? c[iQtd] : null) || 0,
+      negocios: num(iNegocios >= 0 ? c[iNegocios] : null) || 0,
       fin: num(iNeg >= 0 ? c[iNeg] : null) || 0,
       taxa: num(c[iTaxa]),
       emAberto: aberto.get(c[iTicker]) ?? null,
@@ -263,13 +314,16 @@ for (const raiz of FOCOS) {
   const totalQtd = porTicker.reduce((s, x) => s + x.qtd, 0);
   const totalAberto = porTicker.reduce((s, x) => s + (x.emAberto || 0), 0);
   console.log(
-    `  ${raiz}: ${negociaram}/${porTicker.length} vértices negociaram · ${totalQtd.toLocaleString("pt-BR")} contratos no dia · ` +
-      `${comAberto}/${porTicker.length} com posição em aberto · ${totalAberto.toLocaleString("pt-BR")} em aberto`
+    `  ${raiz}: ${negociaram}/${porTicker.length} vértices negociaram · ${totalQtd.toLocaleString("pt-BR")} contratos · ` +
+      `${comAberto}/${porTicker.length} com posição em aberto (${totalAberto.toLocaleString("pt-BR")})`
   );
-  console.log("        ticker        negociado       em aberto      taxa");
+  const totalFin = porTicker.reduce((s, x) => s + x.fin, 0);
+  console.log(`        financeiro do dia: R$ ${Math.round(totalFin).toLocaleString("pt-BR")}`);
+  console.log("        ticker       contratos      negócios       financeiro      taxa");
   for (const x of porTicker.slice(0, 8)) {
     console.log(
-      `        ${x.ticker.padEnd(10)} ${String(x.qtd).padStart(12)} ${String(x.emAberto ?? "—").padStart(15)} ${String(x.taxa ?? "—").padStart(9)}`
+      `        ${x.ticker.padEnd(10)} ${String(x.qtd).padStart(12)} ${String(x.negocios).padStart(13)} ` +
+        `${Math.round(x.fin).toLocaleString("pt-BR").padStart(16)} ${String(x.taxa ?? "—").padStart(9)}`
     );
   }
   const zerados = porTicker.filter((x) => x.qtd === 0).map((x) => x.ticker);
