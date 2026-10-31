@@ -38,7 +38,7 @@ dados/painel.json     the Painel tab as one object: highlights + macro frame (th
                       external consumers read — see INSTRUCOES-ASSISTENTE.md)
 dados/painel.md       the same, as tables
 dados/historico.json  the daily series per maturity, all families — what the app reads
-dados/futuros.json    B3 futures: DI1 and the clean FX coupon, accumulated daily
+dados/futuros.json    B3 futures: DI1, the clean FX coupon and the IPCA coupon, accumulated daily
 ```
 
 `ntnb.json` keeps its original shape forever; each family got a **sibling**
@@ -161,7 +161,7 @@ server/
     globais.js        Fed (FRED csv) + ECB (Data Portal csv) — collector only
     noticias.js       Google News RSS per region — request-time, best-effort
     yahoo.js          Ibovespa (^BVSP) chart API — request-time, best-effort
-    b3.js             DI1 + cupom cambial from B3's public file (collector only)
+    b3.js             DI1 + cupom cambial + DAP from B3's public file (collector only)
 api/                  Vercel functions: titulos, detalhe, curva, macro, mercado, noticias
 dados/                the committed data (bot-owned) — see "the bridge" above
 .github/
@@ -710,6 +710,33 @@ are the off-cycle months plus the very long end.
 already-known IPCA for the coming months entering the calculation — the same
 family of dirt the short DDI carries, by a different mechanism. Treat the short
 vertices as suspect until that is measured.
+
+**It is now a third curve on the Curva tab**, beside DI × pré and the clean FX
+coupon. Three decisions in it are load-bearing:
+
+- **The write gate is `erroDaFace`, the DAP's analogue of the bootstrap
+  identity.** The FRC proves it was understood by closing the forward identity;
+  the DAP proves it by the implied face being *constant* across maturities. That
+  is stronger than comparing against a hard-coded 100,000, because it catches a
+  changed face as well as a changed convention. Same limit as the bootstrap,
+  `1e-4`, measured at 1e-6 — and `verificar.mjs` carries a **negative control**:
+  prices rebuilt in calendar/365 open the face by 1.64%, so a green result is
+  not the apparatus agreeing with itself.
+- **The short end is cut at presentation, never at collection.** `curvaDAP`
+  returns every maturity and the bridge stores every maturity; `curvasDeFuturos`
+  applies `PRAZO_MINIMO_CURVA` (the same 1.5 years the Treasury curves use).
+  Throwing data away at collection is irreversible, and the distortion's
+  boundary is **not** located: the distorted vertices observed stop at 0.53y and
+  the first clean one is at 1.20y, with no maturity in between. The floor is
+  therefore deliberately conservative — it drops a probably-good vertex rather
+  than plotting a possibly-bad one. What it drops travels on the payload as
+  `curtos`, the same way the dirty DDI vertex does, so the screen can say what
+  was cut and show the 4.9%-against-7.66% that justifies it.
+- **The unit label is `% a.a. + IPCA`, not "real".** That is how the app labels
+  a real rate everywhere else (`unidadeTaxa` in `format.js`, the Treasury
+  curves' own `sufixo`). A reader comparing this curve with the NTN-B one above
+  must see the same unit on both, or the comparison needs a translation the
+  screen never gave them.
 
 #### Comparing futures against Treasury: match the DATE first
 

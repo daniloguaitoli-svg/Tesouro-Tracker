@@ -112,7 +112,7 @@ export function partesDoTicker(ticker) {
 // É PURA de propósito: recebe texto, devolve dados, e por isso o verificar
 // consegue exercitá-la com amostra fixa sem tocar na rede — mesma razão pela
 // qual os parsers do Tesouro e do FRED são exportados.
-export function extrairContratos(textoNegocios, textoCadastro, ativos = ["DI1", "DDI", "FRC", "DOL"]) {
+export function extrairContratos(textoNegocios, textoCadastro, ativos = ["DI1", "DDI", "FRC", "DOL", "DAP"]) {
   const alvo = new Set(ativos);
   const porTicker = new Map();
 
@@ -186,6 +186,63 @@ export function curvaDI(contratos, dataRefISO) {
       };
     })
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+}
+
+// Curva de juro REAL em BRL, a partir da DAP (cupom de IPCA).
+//
+// MESMA CONVENÇÃO DO DI1, não a do FRC — e isso foi medido, não presumido:
+// dias úteis/252, exponencial, face 100.000. Em 30/10/2026, a face implícita
+// fechou em 100.000,00 nos 21 vencimentos (dispersão 0,0001%), contra 1,65%
+// na exponencial corrida/365 e mais de 200% nas lineares. O teste está em
+// scripts/sonda-b3-dap.mjs e o resultado no CLAUDE.md.
+//
+// A DAP é a contraparte de mercado da NTN-B: negocia nos meses K e Q (maio e
+// agosto), que são os meses em que a NTN-B vence, e o vencimento mais longo é
+// 2060-08-16 — o primeiro dia útil depois do 15/08/2060 da NTN-B 2060, que
+// cai num domingo.
+//
+// NENHUM PONTO É DESCARTADO AQUI. A ponta curta é distorcida (ver o piso em
+// datalayer.js), mas o descarte é de APRESENTAÇÃO e acontece lá: o histórico
+// guarda tudo, porque jogar dado fora na coleta é irreversível e a fronteira
+// da distorção ainda não está medida.
+export function curvaDAP(contratos, dataRefISO) {
+  return contratos
+    .filter((c) => c.ativo === "DAP" && c.taxa != null && c.vencimento > dataRefISO)
+    .map((c) => {
+      const du = diasUteis(dataRefISO, c.vencimento);
+      const puRecalculado = du > 0 ? NOCIONAL / Math.pow(1 + c.taxa / 100, du / DIAS_UTEIS_ANO) : null;
+      return {
+        ticker: c.ticker,
+        vencimento: c.vencimento,
+        diasUteis: du,
+        anos: du / DIAS_UTEIS_ANO,
+        taxa: c.taxa,
+        pu: c.ajuste,
+        puRecalculado,
+        negociado: c.negocios > 0,
+      };
+    })
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+}
+
+// A FACE IMPLÍCITA, e por que ela é o portão de gravação da DAP.
+//
+// O FRC tem a identidade do bootstrap para provar que foi entendido; a DAP
+// precisa do equivalente, e é este. Para cada vencimento calcula-se a face que
+// a convenção devolve (ajuste × fator de desconto) e mede-se a DISPERSÃO entre
+// os vencimentos. A face é constante do contrato: se a convenção estiver
+// certa, todos devolvem o mesmo número; se a B3 mudar a convenção, ela abre.
+//
+// Vale mais que comparar com 100.000 fixo, porque não depende de a face ser a
+// que achamos que é — detecta tanto convenção trocada quanto face mudada.
+export function erroDaFace(pontos) {
+  const faces = pontos
+    .filter((p) => p.pu != null && p.taxa != null && p.diasUteis > 0)
+    .map((p) => p.pu * Math.pow(1 + p.taxa / 100, p.diasUteis / DIAS_UTEIS_ANO));
+  if (faces.length < 2) return { dispersao: null, comparados: faces.length, face: faces[0] ?? null };
+  const min = Math.min(...faces);
+  const max = Math.max(...faces);
+  return { dispersao: max / min - 1, comparados: faces.length, face: (min + max) / 2 };
 }
 
 // Curva de cupom limpo em USD, a partir do FRC.
@@ -314,14 +371,16 @@ export async function lerFuturos({ dataISO = ultimoDiaUtilISO(), tentativas = 2,
         baixar(ARQ_CADASTRO, data, limiteMs),
       ]);
       const { dataRef, contratos, incoerentes } = extrairContratos(negocios, cadastro);
-      if (!contratos.length) throw new Error(`arquivo de ${data} chegou sem nenhum contrato DI1/DDI/FRC/DOL`);
+      if (!contratos.length) throw new Error(`arquivo de ${data} chegou sem nenhum contrato DI1/DDI/FRC/DOL/DAP`);
 
       const ref = dataRef || data;
       return {
         data: ref,
         di: curvaDI(contratos, ref),
         cupom: curvaCupom(contratos, ref),
+        dap: curvaDAP(contratos, ref),
         bootstrap: erroDoBootstrap(contratos, ref),
+        face: erroDaFace(curvaDAP(contratos, ref)),
         incoerentes: incoerentes.map((c) => c.ticker),
         fonte: "B3 (UP2DATA, arquivo público)",
       };

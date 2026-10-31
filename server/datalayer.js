@@ -431,6 +431,7 @@ export function curvasDeFuturos(arquivo) {
 
   const ehDI = (c) => c.ativo === "DI1";
   const ehFRC = (c) => c.ativo === "FRC";
+  const ehDAP = (c) => c.ativo === "DAP";
 
   // O vértice curto: o DDI mais curto vivo na data. Não é ponto de curva — a
   // taxa dele é cupom SUJO, contaminada pela variação cambial desde a PTAX do
@@ -445,6 +446,24 @@ export function curvasDeFuturos(arquivo) {
     const [ticker, c] = vivos[0];
     return { slug: ticker, vencimento: c.vencimento, dias: dias(dataISO, c.vencimento), taxaSuja: c.serie[dataISO][0] };
   };
+
+  // O PISO DA PONTA CURTA DA DAP, e por que ele existe.
+  //
+  // Medido em 30/10/2026: a DAP marca 8,26% em 10 dias úteis, MERGULHA até
+  // 4,82% em abril de 2027 e volta a 7,79% em 2028. Não é ruído — é o IPCA já
+  // conhecido dos próximos meses dominando um prazo curto, a mesma família de
+  // problema que o DDI curto tem, por mecanismo diferente.
+  //
+  // O piso é o mesmo PRAZO_MINIMO_CURVA que as curvas do Tesouro usam, e a
+  // escolha é conservadora de propósito: os vértices distorcidos observados
+  // param em 0,53 a, o primeiro limpo está em 1,20 a, e NÃO HÁ VENCIMENTO
+  // ENTRE OS DOIS para localizar a fronteira. Sem poder medir onde a
+  // distorção acaba, perder um vértice bom é melhor que desenhar um ruim.
+  //
+  // Os excluídos não somem: viajam em `curtos` para a tela poder dizer o que
+  // ficou de fora e por quê — mesmo tratamento do vértice sujo do DDI.
+  const dentroDoPiso = (p) => p.anos >= PRAZO_MINIMO_CURVA;
+  const curtosEm = (dataISO) => pontosEm(dataISO, ehDAP, prazoUtil).filter((p) => !dentroDoPiso(p));
 
   const curvas = [
     {
@@ -464,6 +483,19 @@ export function curvasDeFuturos(arquivo) {
       umMesAtras: pontosEm(umMes, ehFRC, prazoCorrido),
       vertice: verticeEm(ultima),
     },
+    {
+      id: "cupom-ipca",
+      nome: "Cupom de IPCA (juro real)",
+      // "+ IPCA" e não "real": é como o app rotula taxa real em todo lugar
+      // (unidadeTaxa em format.js, o sufixo das curvas do Tesouro logo acima).
+      // Quem compara esta curva com a de NTN-B tem de ver a mesma unidade nas
+      // duas, senão a comparação exige uma tradução que a tela não deu.
+      sufixo: "% a.a. + IPCA",
+      convencao: "dias úteis/252, exponencial",
+      agora: pontosEm(ultima, ehDAP, prazoUtil).filter(dentroDoPiso),
+      umMesAtras: pontosEm(umMes, ehDAP, prazoUtil).filter(dentroDoPiso),
+      curtos: curtosEm(ultima),
+    },
   ];
 
   return {
@@ -478,7 +510,8 @@ export function curvasDeFuturos(arquivo) {
       "A curva em dólar sai do FRC, que é a taxa a termo a partir do primeiro vencimento de DDI em aberto — " +
       "o cupom limpo. Por isso ela começa nesse vértice, e não em D0: ancorar em hoje exigiria a taxa spot, " +
       "que não está em fonte pública gratuita. O vértice curto aparece à parte, com a taxa suja, que carrega " +
-      "a variação do câmbio desde a PTAX do dia anterior.",
+      "a variação do câmbio desde a PTAX do dia anterior. A curva de cupom de IPCA é a contraparte de " +
+      "mercado da NTN-B — mesmo juro real, outro emissor — e sai da DAP, na mesma convenção do DI1.",
     historicoNota:
       ordenadas.length < 25
         ? `O histórico começou em ${ordenadas[0] || "—"} e cresce a cada coleta: a comparação com um mês atrás fica completa com o tempo.`

@@ -58,14 +58,16 @@ export function CurvaFuturos() {
   ].filter((s) => s.pontos && s.pontos.length >= 2);
 
   const ehCupom = curva.id === "cupom-limpo";
+  const ehIpca = curva.id === "cupom-ipca";
 
   return (
     <>
       <div className="section-title">Mercado futuro (B3)</div>
       <p className="section-sub">
         Outra fonte e outro emissor: estas são taxas interbancárias negociadas na B3, não
-        dívida do Tesouro. O DI dá a curva pré-fixada em reais; o FRC dá o cupom cambial, que
-        é a curva em dólar. Cada uma na sua convenção — {curva.convencao}.
+        dívida do Tesouro. O DI dá a curva pré-fixada em reais, o FRC dá o cupom cambial (a
+        curva em dólar) e a DAP dá o cupom de IPCA — o juro real, a contraparte de mercado da
+        NTN-B. Cada uma na sua convenção — {curva.convencao}.
       </p>
 
       <div className="chips" style={{ marginBottom: 8 }}>
@@ -94,6 +96,23 @@ export function CurvaFuturos() {
           aberto — não hoje. O DDI curto marca {taxa(curva.vertice.taxaSuja)} nesse prazo de{" "}
           {curva.vertice.dias} dias, mas é <strong>cupom sujo</strong>: carrega a variação do
           câmbio desde a PTAX do dia anterior, e por isso fica fora da curva.
+        </p>
+      )}
+
+      {/* A ressalva da DAP é outra, e precisa de texto próprio. O cupom
+          cambial começa tarde por falta da taxa spot; a DAP começa tarde
+          porque a ponta curta é distorcida pelo IPCA já conhecido dos
+          próximos meses. Mesma honestidade, causas diferentes — e os vértices
+          cortados aparecem com a taxa, para o leitor ver o tamanho do
+          problema em vez de confiar na nossa palavra. */}
+      {ehIpca && curva.curtos?.length > 0 && (
+        <p className="section-sub">
+          Começa em {anos(curva.agora[0].anos)}: os {curva.curtos.length} vencimentos mais curtos
+          ficam de fora, pelo mesmo piso de prazo que as curvas do Tesouro usam. O corte é por
+          prazo, não um a um — mas tem motivo: o mais curto marca{" "}
+          {taxa(Math.min(...curva.curtos.map((p) => p.taxa)))} contra {taxa(curva.agora[0].taxa)} no
+          primeiro ponto do gráfico, porque num prazo curto o IPCA já conhecido dos próximos meses
+          domina o cálculo e a taxa que sobra não descreve juro real de mercado.
         </p>
       )}
 
