@@ -28,6 +28,7 @@ on:
     paths:
       - "scripts/sonda-b3.mjs"
       - "scripts/sonda-b3-inventario.mjs"
+      - "scripts/sonda-b3-dap.mjs"
       - ".github/workflows/sonda-b3.yml"
 
 concurrency:
@@ -59,3 +60,9 @@ jobs:
       # inteiras levaram ~15 s), então baixar de novo custa pouco.
       - name: Inventário dos outros ativos
         run: node scripts/sonda-b3-inventario.mjs
+
+      # Rodada 6: o último portão antes de a DAP virar curva. Separada porque
+      # é um teste, não um levantamento — tem critério de aprovação e um
+      # controle no DI1, e misturá-la no inventário esconderia os dois.
+      - name: Convenção da DAP
+        run: node scripts/sonda-b3-dap.mjs
