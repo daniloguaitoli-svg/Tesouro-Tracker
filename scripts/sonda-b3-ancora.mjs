@@ -56,9 +56,9 @@ for (const DATA of [diasUteisAtras(1), "2026-10-23"]) {
     console.log(`  não veio: ${e.message}`);
     continue;
   }
-  const iT = neg.idx("TckrSymb"), iTx = neg.idx("AdjstdQtTax"), iQ = neg.idx("FinInstrmQty");
+  const iT = neg.indice("TckrSymb"), iTx = neg.indice("AdjstdQtTax"), iQ = neg.indice("FinInstrmQty");
   const taxas = new Map(), negociados = new Map();
-  for (const l of neg.corpo) {
+  for (const l of neg.linhas) {
     if (!l) continue;
     const c = l.split(";");
     const t = c[iT];
@@ -67,9 +67,9 @@ for (const DATA of [diasUteisAtras(1), "2026-10-23"]) {
     if (v != null) taxas.set(t, v);
     negociados.set(t, numeroB3(c[iQ]) || 0);
   }
-  const cT = cad.idx("TckrSymb"), cV = cad.idx("XprtnDt");
+  const cT = cad.indice("TckrSymb"), cV = cad.indice("XprtnDt");
   const venc = new Map();
-  for (const l of cad.corpo) {
+  for (const l of cad.linhas) {
     if (!l) continue;
     const c = l.split(";");
     if (taxas.has(c[cT])) venc.set(c[cT], (c[cV] || "").slice(0, 10));
