@@ -427,6 +427,47 @@ body {
 .fontes summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .fontes p { margin: var(--s2) 0 0; line-height: 1.5; }
 
+/* ---------- Dobra: a tabela que acompanha um gráfico ----------
+   O gráfico é a leitura; a tabela é a conferência. Na aba Curva as três
+   tabelas somavam ~3.000px dos 5.868px de rolagem, e a de futuros sozinha
+   tem 44 linhas — quem abre a aba para ver a forma da curva rolava quatro
+   telas de números que não pediu.
+   `details` nativo, como o "Fontes e método" do Detalhe: fecha por padrão,
+   abre por teclado, e não custa JS nenhum. O resumo substitui o título da
+   seção em vez de somar a ele — um título que não clica ao lado de um que
+   clica ensina a coisa errada. 44px de alvo, que é o mínimo de toque. */
+.dobra { margin-top: var(--s4); }
+.dobra > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.dobra > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dobra[open] > summary { color: var(--text); }
+/* A seta é desenhada aqui porque o marcador nativo muda de forma entre
+   navegadores, e numa linha em versalete ele fica desalinhado no Safari. */
+.dobra > summary::-webkit-details-marker { display: none; }
+.dobra > summary::marker { content: ""; }
+.dobra > summary::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.dobra[open] > summary::before { transform: rotate(45deg); }
+.dobra > summary .quantos { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
+
 /* ---------- Painel em tela larga (>= 960px) ----------
    Acima deste ponto o cartão para de crescer — dois por linha — e sobra
    largura à direita. É essa faixa que a coluna lateral ocupa.

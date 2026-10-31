@@ -412,6 +412,33 @@ chart has no families — its points are derived from both sides and carry no
 `comCupom` — so `separarFamilias` returns it untouched and the legend drops the
 shape entries.
 
+### The Curva tab folds its tables
+
+The tab grew by accretion — four Treasury curves, implied inflation, then three
+B3 futures curves — and reached **5,868px of scroll, seven iPhone screens**,
+with three near-identical charts, nine chips and three tables, one of them 44
+rows. Two changes took it to **2,198px**:
+
+- **Each table sits directly under its own chart.** "Pontos da curva" used to
+  render *after* the implied-inflation section, which has a chart and a table of
+  its own — so the reader met a table 800px below a chart that was not its own.
+  The aviso stays last, after the implícita, because it covers everything that
+  came from the Treasury file and not the B3 block below it.
+- **The tables are `<details class="dobra">`, closed by default.** The chart is
+  the reading; the table is the check. The summary **replaces** the section
+  title rather than sitting beside it — a heading that does not click next to
+  one that does teaches the wrong thing — and carries the row count, so the
+  reader knows the size of what they are opening. Native `details`, like the
+  Detalhe screen's "Fontes e método": keyboard-accessible, no JS. The marker is
+  drawn in CSS because the native one is shaped differently per browser and sits
+  misaligned against a small-caps line in Safari.
+
+Still open, and deliberately not done in that pass: the family chips and the
+axis chips are visually identical though they do different things (one picks
+the curve, the other the ruler, and two sit lit at once), and `Prazo` and
+`Duration` are the same number in a zero-coupon family — by construction, but it
+reads as a defect.
+
 ### The legend draws the real line
 
 `CurvaLegenda` (in `CurvaChart.jsx`) renders **from the same `series` array the

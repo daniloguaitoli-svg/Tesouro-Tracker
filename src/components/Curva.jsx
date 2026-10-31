@@ -43,7 +43,11 @@ function Implicita({ implicita }) {
         <CurvaLegenda series={series} />
       </div>
 
-      <div className="rolagem">
+      <details className="dobra">
+        <summary>
+          Prazo a prazo <span className="quantos">· {agora.length}</span>
+        </summary>
+        <div className="rolagem">
         <table className="tbl">
           <thead>
             <tr>
@@ -64,7 +68,8 @@ function Implicita({ implicita }) {
             ))}
           </tbody>
         </table>
-      </div>
+        </div>
+      </details>
 
       <div className="note">
         Conta pela relação de Fisher — (1+nominal)/(1+real) − 1 — e não pela subtração, que
@@ -163,10 +168,19 @@ export function Curva({ marcados }) {
         <CurvaLegenda series={series} campoX={eixo} />
       </div>
 
-      <Implicita implicita={dados.implicita} />
-
-      <div className="section-title">Pontos da curva</div>
-      <div className="rolagem">
+      {/* A TABELA FICA COLADA NO SEU GRÁFICO, e dobrada.
+          Antes ela vinha DEPOIS da seção de inflação implícita — que tem
+          gráfico e tabela próprios — então o leitor encontrava uma tabela
+          800px abaixo de um gráfico que não era o dela. E dobrada porque o
+          gráfico é a leitura e a tabela é a conferência: as três tabelas
+          desta aba somavam ~3.000px dos 5.868px de rolagem.
+          O resumo SUBSTITUI o título da seção; um título que não clica ao
+          lado de um que clica ensina a coisa errada. */}
+      <details className="dobra">
+        <summary>
+          Pontos da curva <span className="quantos">· {curva.agora.length} vencimentos</span>
+        </summary>
+        <div className="rolagem">
         <table className="tbl">
           <thead>
             <tr>
@@ -194,6 +208,7 @@ export function Curva({ marcados }) {
           </tbody>
         </table>
       </div>
+      </details>
 
       <div className="note">
         {eixo === "duration" ? (
@@ -230,9 +245,14 @@ export function Curva({ marcados }) {
             Mesmo prazo não é mesmo risco — um título com cupom devolve parte do dinheiro
             antes. Veja <strong>por duration</strong> para pôr os dois na mesma escala.
           </>
-        )}{" "}
-        {dados.aviso}
+        )}
       </div>
+
+      <Implicita implicita={dados.implicita} />
+
+      {/* O aviso fecha a seção dos títulos, depois da implícita: ele cobre
+          tudo que veio do arquivo do Tesouro, e não o bloco da B3 abaixo. */}
+      <div className="note">{dados.aviso}</div>
 
       {/* O mercado futuro entra DEPOIS do aviso das curvas de título, e não
           antes: é bloco de outra fonte, com ressalva própria, e empurrá-lo
