@@ -167,12 +167,36 @@ body {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
 .chips { display: flex; gap: var(--s1); flex-wrap: wrap; }
+/* O CHIP É UM BOTÃO, e por isso tem alvo de toque de verdade: 44px é o
+   mínimo, e estes são os controles principais da aba Curva. Antes saíam com
+   25px, por causa da colisão de nome documentada mais abaixo. */
 .chip {
   appearance: none; border: 1px solid var(--line); background: var(--surface);
   color: var(--muted); font: inherit; font-size: 12px; font-weight: 600;
-  padding: 6px 10px; border-radius: 999px; cursor: pointer;
+  min-height: 44px; display: inline-flex; align-items: center;
+  padding: 0 14px; border-radius: 999px; cursor: pointer;
 }
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .chip[aria-pressed="true"] { color: #0a1020; background: var(--accent); border-color: var(--accent); }
+
+/* ---------- O seletor de eixo NÃO é um chip ----------
+   Os chips escolhem QUAL curva; isto escolhe COM QUE RÉGUA medi-la. Eram
+   botões idênticos, empilhados, com dois acesos ao mesmo tempo no que parecia
+   um bloco só — nada na tela dizia que faziam coisas de natureza diferente.
+   Agora: segmentos colados (uma peça, duas posições), rótulo à esquerda, e
+   DENTRO do cartão do gráfico, porque é propriedade daquele desenho e não da
+   seção. Só aparece quando muda alguma coisa — ver `temCupom` em Curva.jsx. */
+.eixo { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+.eixo-rotulo { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.eixo-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.eixo-seg button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--muted);
+  min-height: 36px; padding: 0 12px;
+}
+.eixo-seg button + button { border-left: 1px solid var(--line); }
+.eixo-seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.eixo-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .btn {
   appearance: none; border: 1px solid var(--line); background: var(--surface-2);
@@ -232,15 +256,19 @@ body {
    O `letter-spacing` negativo tira a folga do tabular em corpo grande. */
 .ct-taxa { font-size: 24px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
 
-.chips { display: flex; flex-wrap: wrap; gap: var(--s1); }
-.chip {
+/* A PÍLULA DE VARIAÇÃO não é o chip de seleção, e chamar as duas de `.chip`
+   custou caro: esta regra vem depois da dos botões e sobrescrevia raio,
+   padding e altura deles — os seletores da aba Curva saíam com 25px de alvo
+   contra os 44 mínimos, e só o estado aceso escapava, por especificidade.
+   Nada aqui é `button`: é texto que informa, não controle que se toca. */
+.pilula {
   display: inline-flex; align-items: baseline; gap: var(--s1);
   padding: 3px var(--s2); border-radius: 6px;
   background: var(--surface-2); font-size: 12px; color: var(--muted);
 }
-.chip b { font-weight: 600; color: var(--text); }
-.chip-up { background: var(--up-bg); }
-.chip-down { background: var(--down-bg); }
+.pilula b { font-weight: 600; color: var(--text); }
+.pilula-up { background: var(--up-bg); }
+.pilula-down { background: var(--down-bg); }
 
 .ct-dur { display: flex; flex-direction: column; gap: var(--s1); padding-top: var(--s2); border-top: 1px solid var(--line); }
 .ct-dur-linha { display: flex; justify-content: space-between; gap: var(--s2); font-size: 12px; color: var(--muted); }

@@ -124,6 +124,17 @@ export function Curva({ marcados }) {
   const misturada =
     curva.agora.some((p) => p.comCupom === true) && curva.agora.some((p) => p.comCupom === false);
 
+  // DURATION SÓ EXISTE COMO COISA DISTINTA SE HOUVER CUPOM. Num quadro
+  // zero-cupom a duration É o prazo, por construção — a tabela mostrava
+  // "2,5 a | 2,5 a" em toda linha, e o eixo "Por duration" desenhava o mesmo
+  // gráfico que "Por prazo". Uma coluna que repete a vizinha e um botão que
+  // não muda nada: os dois somem quando não têm o que dizer.
+  const temCupom = curva.agora.some((p) => p.comCupom === true);
+  // Quem escolheu "duration" num quadro com cupom e trocou para um sem ficaria
+  // preso num eixo que já não pode mudar. O estado é preservado; o que vale
+  // para desenhar é o efetivo.
+  const eixoEfetivo = temCupom ? eixo : "anos";
+
   const series = [
     { id: "1a", rotulo: "há um ano", pontos: curva.umAnoAtras, cor: "var(--muted)", tracejado: true },
     { id: "1m", rotulo: "há um mês", pontos: curva.umMesAtras, cor: "var(--accent-2)" },
@@ -148,24 +159,33 @@ export function Curva({ marcados }) {
         </div>
       )}
 
-      <div className="chips" style={{ marginBottom: 8 }}>
-        {[
-          ["anos", "Por prazo"],
-          ["duration", "Por duration"],
-        ].map(([id, rot]) => (
-          <button key={id} className="chip" aria-pressed={eixo === id} onClick={() => setEixo(id)}>
-            {rot}
-          </button>
-        ))}
-      </div>
-
       <div className="card">
+        {/* O SELETOR DE EIXO MORA NO CARTÃO DO GRÁFICO, não na fileira de
+            chips. Ele não escolhe qual curva — escolhe com que régua medi-la —
+            e como chip idêntico aos de família deixava dois botões acesos ao
+            mesmo tempo no que parecia um bloco só. Dentro do cartão, a peça
+            diz de quem é a propriedade que ela muda. */}
+        {temCupom && (
+          <div className="eixo">
+            <span className="eixo-rotulo" id="rot-eixo">Eixo</span>
+            <div className="eixo-seg" role="group" aria-labelledby="rot-eixo">
+              {[
+                ["anos", "Prazo"],
+                ["duration", "Duration"],
+              ].map(([id, rot]) => (
+                <button key={id} type="button" aria-pressed={eixo === id} onClick={() => setEixo(id)}>
+                  {rot}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <CurvaChart
           series={series}
-          campoX={eixo}
-          rotulo={eixo === "duration" ? "Curva de juros por duration" : "Curva de juros por prazo"}
+          campoX={eixoEfetivo}
+          rotulo={eixoEfetivo === "duration" ? "Curva de juros por duration" : "Curva de juros por prazo"}
         />
-        <CurvaLegenda series={series} campoX={eixo} />
+        <CurvaLegenda series={series} campoX={eixoEfetivo} />
       </div>
 
       {/* A TABELA FICA COLADA NO SEU GRÁFICO, e dobrada.
@@ -186,13 +206,13 @@ export function Curva({ marcados }) {
             <tr>
               <th>Vencimento</th>
               <th className="rt">Prazo</th>
-              <th className="rt">Duration</th>
+              {temCupom && <th className="rt">Duration</th>}
               <th className="rt">Taxa ({curva.sufixo})</th>
             </tr>
           </thead>
           <tbody>
             {[...curva.agora]
-              .sort((a, b) => (a[eixo] ?? 0) - (b[eixo] ?? 0))
+              .sort((a, b) => (a[eixoEfetivo] ?? 0) - (b[eixoEfetivo] ?? 0))
               .map((p) => (
               <tr key={p.slug}>
                 <td>
@@ -200,8 +220,8 @@ export function Curva({ marcados }) {
                   <br />
                   <span className="muted" style={{ fontSize: 11 }}>{dataBR(p.vencimento)}</span>
                 </td>
-                <td className="rt mono">{anos(p.anos)}</td>
-                <td className="rt mono">{anos(p.duration)}</td>
+                <td className="rt mono inteiro">{anos(p.anos)}</td>
+                {temCupom && <td className="rt mono inteiro">{anos(p.duration)}</td>}
                 <td className="rt mono">{taxa(p.taxa)}</td>
               </tr>
               ))}
@@ -211,7 +231,7 @@ export function Curva({ marcados }) {
       </details>
 
       <div className="note">
-        {eixo === "duration" ? (
+        {eixoEfetivo === "duration" ? (
           <>
             <strong>Duration é quanto risco de juros o título carrega</strong> — a escala que
             permite comparar um com cupom e um sem. Repare que toda a NTN-B com juros
