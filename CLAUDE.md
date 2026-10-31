@@ -631,6 +631,107 @@ opens beyond 1e-4 (measured 1e-6, a hundredfold margin), a convention changed at
 B3 — the file arrived and was not understood, and writing over good data is
 worse than not writing.
 
+#### What else is in B3's file (measured 30/10/2026, probe round 5)
+
+`scripts/sonda-b3-inventario.mjs` and `scripts/sonda-b3-dap.mjs` are
+reconnaissance: they run on the runner, write nothing and commit nothing. What
+they found, so it need not be re-derived:
+
+**The file is mostly not futures.** 79,340 rows, of which **1,010** are futures
+contracts across **380 roots**; the other 78,330 are equities, funds and above
+all options (35,916 calls + 35,916 puts). Descriptions come from the registry's
+`AsstDesc`, never from guesswork.
+
+The rate curves present: DI1 and **OC1** (the same curve measured on repo rather
+than CDI), DDI and **DCO**, FRC and **FRO** (the OC1-side mirrors of the FX
+coupon pair), **DAP**, plus US/EU/Mexican rate futures (SFR, EST, TIE) and T10.
+Also DOL/WDO, IND/WIN/SML, a full FX zoo, and the agricultural contracts —
+including ethanol, which belongs to the sibling Cana-Tracker, not here.
+
+**Liquidity decides, not presence** (round 5c). Traded contracts on 30/10/2026:
+
+| | vertices that traded | contracts | financial |
+|---|---|---|---|
+| DI1 | 44/44 | 5,458,659 | R$ 457.4 bn |
+| **DAP** | 15/21 | 166,136 | **R$ 23.4 bn** |
+| FRC | 29/42 | 247,039 | R$ 16.6 bn |
+| DDI | 1/44 | 20 | R$ 5.4 m |
+| **OC1** | **0/44** | **0** | **R$ 0** |
+
+Two conclusions worth keeping. **DAP moves more money per day than FRC**, which
+is already in production — so by the standard this repo has already accepted, it
+qualifies. And **OC1 is dead**: 44 vertices, zero trades, with published rates
+that are near-copies of DI1's (OC1F29 15.191% = DI1F30 15.191%). That kills the
+idea of a forward CDI-vs-Selic spread from DI1 × OC1 — those rates are the
+exchange's arbitration, not a market. The DDI row confirms by a second route why
+the FX curve is built from FRC: nobody trades DDI directly.
+
+**Three columns, three different quantities**, and confusing them produced a
+plausible wrong number on the first pass: `TradQty` is the number of **trades**,
+`FinInstrmQty` the number of **contracts**, `NtlFinVol` the financial volume.
+
+**Open interest is not in these files.** `OpngFutrPosDay` in the registry is
+empty in all 89,058 rows, and seven candidate UP2DATA file names
+(`OpenInterestFile`, `OpenPositionFile`, …) all returned HTTP 400. That proves
+none of those seven names is right, not that no such file exists. Traded volume
+is what we have.
+
+**The files are Latin-1, not UTF-8.** Descriptions come back as `Caf� Ar�bica`.
+Harmless today — the provider reads only tickers and numbers — but it would bite
+anyone displaying B3's own name for a contract.
+
+#### DAP: the real-rate curve, convention measured (round 6)
+
+**DAP is business days/252, exponential, face 100,000 — the same convention as
+DI1, not FRC's.** Measured without assuming the face: for each candidate
+convention the *implied* face is computed per vertex (`ajuste × fator`) and the
+**dispersion across vertices** is the criterion, since the face is a contract
+constant. Across 21 maturities from 10 to 8,463 business days:
+
+| convention | implied face (min … max) | dispersion |
+|---|---|---|
+| **exp du/252** | 99,999.95 … 100,000.00 | **0.0001%** |
+| exp cal/365 | 100,048.36 … 101,696.56 | 1.6474% |
+| lin cal/360 | 32,211.90 … 100,154.25 | 210.9232% |
+| lin du/252 | 31,736.56 … 100,029.37 | 215.1865% |
+
+The same test runs on **DI1 as a control**, reproducing its known answer
+(100,000.00 across 44 vertices, 0.0000%). Without that control a green result
+would only say the apparatus agrees with itself. The registry agrees by a second
+route: `ValTpNm = Rate`, `AsstQtnQty = 1`, `CtrctMltplr = 0.00025`.
+
+DAP trades **where the NTN-B lives**: the liquid vertices are the K and Q months
+(May and August), and its longest maturity is 2060-08-16 — the first business
+day after the NTN-B 2060's 15/08, which is a Sunday. The vertices with no trades
+are the off-cycle months plus the very long end.
+
+**Its short end dips and that is not noise**: 8.26% at 10 business days, down to
+4.82% in April 2027, back to 7.79% in 2028. The reading (not measured) is the
+already-known IPCA for the coming months entering the calculation — the same
+family of dirt the short DDI carries, by a different mechanism. Treat the short
+vertices as suspect until that is measured.
+
+#### Comparing futures against Treasury: match the DATE first
+
+A first comparison showed DAP a full 1 p.p. above the NTN-B and DI1 2.3 p.p.
+above the LTN, which would have been a real finding if it were true. **It was a
+date mismatch**: the B3 figures were from 30/10 and the Treasury ones from a
+stale log, across 26/10 — the day the market repriced ~2.5 p.p. in one session
+(prefixado 2029: 12.77% on 23/10, 15.40% on 26/10, 14.80% on 29/10).
+
+Measured properly, the basis is small and well-behaved:
+
+| | spread |
+|---|---|
+| DI1 × LTN/NTN-F, **same date** (23/10) | −0.21 to +0.09 p.p. |
+| DAP × NTN-B, adjacent dates (30 and 29/10) | +0.08 to +0.29 p.p., widening with term |
+
+Both sources crossed the 26/10 jump **together and by the same amount**, which
+is the check that says the move is market and not a collection defect. Any screen
+putting a futures curve beside a Treasury curve must therefore state both dates,
+because the Treasury's lag is at least one business day and a single repricing
+session is worth more than the entire basis being compared.
+
 ### The download retries; the parse does not
 
 `varrerSerie()` retries the **connection** up to 4 times with backoff (2s, 4s,
