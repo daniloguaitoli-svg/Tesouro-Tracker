@@ -1,8 +1,8 @@
 {
- "atualizadoEm": "2026-11-04T00:40:29.640Z",
+ "atualizadoEm": "2026-11-04T18:41:57.101Z",
  "fonte": "B3 — arquivo público UP2DATA (TradeInformationConsolidated + InstrumentsConsolidated)",
  "desde": "2026-10-22",
- "ultimaColeta": "2026-11-03",
+ "ultimaColeta": "2026-10-30",
  "convencao": "DI1: taxa % a.a. em DIAS ÚTEIS/252, exponencial; PU por 100.000 de nocional. DDI e FRC: taxa % a.a. em DIAS CORRIDOS/360, LINEAR. As duas convenções não são intercambiáveis. `serie` mapeia data ISO -> [taxa, PU] e o PU é null onde o contrato não tem preço de ajuste (é o caso do FRC).",
  "nota": "A curva em USD é montada do FRC, que é a taxa a termo a partir do primeiro DDI em aberto — o cupom limpo. Ela começa nesse vértice, não em D0: ancorar em hoje exigiria a taxa spot (spot = DOL − casado), e o casado não está em fonte pública gratuita. O contrato marcado com `cupomSujo` é esse vértice curto, e a taxa dele carrega a variação cambial desde a PTAX do dia anterior — não é ponto de curva.",
  "aviso": "Fontes públicas, com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento.",
