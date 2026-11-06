@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-11-05T18:49:50.481Z",
+ "atualizadoEm": "2026-11-06T00:59:33.545Z",
  "nota": "Taxas NOMINAIS (a.a., sem correção pela inflação) — não compare diretamente com as taxas reais do ntnb.json.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -17,7 +17,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 0.151,
+   "anosAteVencer": 0.147,
    "taxa": 13.48,
    "taxaCompra": 13.48,
    "taxaVenda": 13.6,
@@ -25,9 +25,9 @@
    "puCompra": 979.63,
    "puVenda": 978.97,
    "duration": {
-    "macaulayAnos": 0.151,
-    "modificada": 0.133,
-    "convexidade": 0.135,
+    "macaulayAnos": 0.147,
+    "modificada": 0.129,
+    "convexidade": 0.131,
     "variacaoPrecoMais1pp": -0.13,
     "variacaoPrecoMenos1pp": 0.13
    },
@@ -41,7 +41,7 @@
    "comCupom": true,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 0.151,
+   "anosAteVencer": 0.147,
    "taxa": 13.53,
    "taxaCompra": 13.53,
    "taxaVenda": 13.65,
@@ -49,9 +49,9 @@
    "puCompra": 1027.37,
    "puVenda": 1026.67,
    "duration": {
-    "macaulayAnos": 0.151,
-    "modificada": 0.133,
-    "convexidade": 0.135,
+    "macaulayAnos": 0.147,
+    "modificada": 0.129,
+    "convexidade": 0.131,
     "variacaoPrecoMais1pp": -0.13,
     "variacaoPrecoMenos1pp": 0.13
    },
@@ -65,7 +65,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 1.147,
+   "anosAteVencer": 1.143,
    "taxa": 14.32,
    "taxaCompra": 14.32,
    "taxaVenda": 14.44,
@@ -73,9 +73,9 @@
    "puCompra": 856.35,
    "puVenda": 854.85,
    "duration": {
-    "macaulayAnos": 1.147,
-    "modificada": 1.003,
-    "convexidade": 1.884,
+    "macaulayAnos": 1.143,
+    "modificada": 1,
+    "convexidade": 1.874,
     "variacaoPrecoMais1pp": -0.99,
     "variacaoPrecoMenos1pp": 1.01
    },
@@ -89,7 +89,7 @@
    "comCupom": false,
    "destaque": true,
    "data": "2026-10-30",
-   "anosAteVencer": 2.131,
+   "anosAteVencer": 2.127,
    "taxa": 14.89,
    "taxaCompra": 14.89,
    "taxaVenda": 15.01,
@@ -97,9 +97,9 @@
    "puCompra": 742.71,
    "puVenda": 740.64,
    "duration": {
-    "macaulayAnos": 2.131,
-    "modificada": 1.855,
-    "convexidade": 5.055,
+    "macaulayAnos": 2.127,
+    "modificada": 1.851,
+    "convexidade": 5.039,
     "variacaoPrecoMais1pp": -1.83,
     "variacaoPrecoMenos1pp": 1.88
    },
@@ -113,7 +113,7 @@
    "comCupom": true,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 2.131,
+   "anosAteVencer": 2.127,
    "taxa": 14.77,
    "taxaCompra": 14.77,
    "taxaVenda": 14.89,
@@ -121,11 +121,11 @@
    "puCompra": 953.55,
    "puVenda": 951.12,
    "duration": {
-    "macaulayAnos": 1.899,
-    "modificada": 1.655,
-    "convexidade": 4.407,
+    "macaulayAnos": 1.895,
+    "modificada": 1.651,
+    "convexidade": 4.392,
     "variacaoPrecoMais1pp": -1.63,
-    "variacaoPrecoMenos1pp": 1.68
+    "variacaoPrecoMenos1pp": 1.67
    },
    "pontosNaSerie": 1953
   },
@@ -137,7 +137,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 4.119,
+   "anosAteVencer": 4.115,
    "taxa": 15.3,
    "taxaCompra": 15.3,
    "taxaVenda": 15.42,
@@ -145,9 +145,9 @@
    "puCompra": 555.37,
    "puVenda": 552.67,
    "duration": {
-    "macaulayAnos": 4.119,
-    "modificada": 3.572,
-    "convexidade": 15.861,
+    "macaulayAnos": 4.115,
+    "modificada": 3.569,
+    "convexidade": 15.833,
     "variacaoPrecoMais1pp": -3.49,
     "variacaoPrecoMenos1pp": 3.65
    },
@@ -161,7 +161,7 @@
    "comCupom": true,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 4.119,
+   "anosAteVencer": 4.115,
    "taxa": 15.29,
    "taxaCompra": 15.29,
    "taxaVenda": 15.41,
@@ -169,11 +169,11 @@
    "puCompra": 884.81,
    "puVenda": 881.27,
    "duration": {
-    "macaulayAnos": 3.294,
-    "modificada": 2.857,
-    "convexidade": 11.952,
-    "variacaoPrecoMais1pp": -2.8,
-    "variacaoPrecoMenos1pp": 2.92
+    "macaulayAnos": 3.29,
+    "modificada": 2.853,
+    "convexidade": 11.93,
+    "variacaoPrecoMais1pp": -2.79,
+    "variacaoPrecoMenos1pp": 2.91
    },
    "pontosNaSerie": 1676
   },
@@ -185,7 +185,7 @@
    "comCupom": false,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 5.119,
+   "anosAteVencer": 5.115,
    "taxa": 15.38,
    "taxaCompra": 15.38,
    "taxaVenda": 15.5,
@@ -193,9 +193,9 @@
    "puCompra": 479.96,
    "puVenda": 477.14,
    "duration": {
-    "macaulayAnos": 5.119,
-    "modificada": 4.437,
-    "convexidade": 23.529,
+    "macaulayAnos": 5.115,
+    "modificada": 4.433,
+    "convexidade": 23.496,
     "variacaoPrecoMais1pp": -4.32,
     "variacaoPrecoMenos1pp": 4.55
    },
@@ -209,7 +209,7 @@
    "comCupom": true,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 6.119,
+   "anosAteVencer": 6.115,
    "taxa": 15.42,
    "taxaCompra": 15.42,
    "taxaVenda": 15.54,
@@ -217,9 +217,9 @@
    "puCompra": 834.25,
    "puVenda": 829.99,
    "duration": {
-    "macaulayAnos": 4.37,
-    "modificada": 3.786,
-    "convexidade": 21.138,
+    "macaulayAnos": 4.366,
+    "modificada": 3.783,
+    "convexidade": 21.109,
     "variacaoPrecoMais1pp": -3.68,
     "variacaoPrecoMenos1pp": 3.89
    },
@@ -233,7 +233,7 @@
    "comCupom": true,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 8.099,
+   "anosAteVencer": 8.095,
    "taxa": 15.39,
    "taxaCompra": 15.39,
    "taxaVenda": 15.51,
@@ -241,11 +241,11 @@
    "puCompra": 800.78,
    "puVenda": 796.02,
    "duration": {
-    "macaulayAnos": 5.173,
-    "modificada": 4.483,
-    "convexidade": 30.635,
+    "macaulayAnos": 5.169,
+    "modificada": 4.479,
+    "convexidade": 30.601,
     "variacaoPrecoMais1pp": -4.33,
-    "variacaoPrecoMenos1pp": 4.64
+    "variacaoPrecoMenos1pp": 4.63
    },
    "pontosNaSerie": 683
   },
@@ -257,7 +257,7 @@
    "comCupom": true,
    "destaque": false,
    "data": "2026-10-30",
-   "anosAteVencer": 10.091,
+   "anosAteVencer": 10.087,
    "taxa": 15.23,
    "taxaCompra": 15.23,
    "taxaVenda": 15.35,
@@ -265,9 +265,9 @@
    "puCompra": 780.7,
    "puVenda": 775.57,
    "duration": {
-    "macaulayAnos": 5.777,
-    "modificada": 5.014,
-    "convexidade": 39.921,
+    "macaulayAnos": 5.773,
+    "modificada": 5.01,
+    "convexidade": 39.883,
     "variacaoPrecoMais1pp": -4.81,
     "variacaoPrecoMenos1pp": 5.21
    },
