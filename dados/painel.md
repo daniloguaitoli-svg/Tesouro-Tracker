@@ -1,25 +1,25 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-11-06T00:59:33.545Z.
+Retrato gerado automaticamente em 2026-11-06T18:06:45.473Z.
 
 ## Acompanhados de perto
 
 | Vencimento | Título | Taxa | Significa | PU (R$) | Duration | +1 p.p. | Data |
 | --- | --- | ---: | --- | ---: | ---: | ---: | --- |
-| 01/01/2029 | Tesouro Prefixado 2029 | 14.89% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 742.71 | 2.127 a | -1.83% | 30/10/2026 |
-| 01/03/2031 | Tesouro Selic 2031 | 0.1% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 20120.75 | — | — | 30/10/2026 |
-| 15/08/2032 | Tesouro IPCA+ 2032 | 7.89% | juros reais ao ano ACIMA do IPCA | 3083.9 | 5.734 a | -5.15% | 30/10/2026 |
-| 15/05/2035 | Tesouro IPCA+ 2035 | 7.88% | juros reais ao ano ACIMA do IPCA | 2509.91 | 8.46 a | -7.5% | 30/10/2026 |
+| 01/01/2029 | Tesouro Prefixado 2029 | 14.94% | juros nominais ao ano (a inflação do período corre por conta do investidor) | 743.25 | 2.127 a | -1.83% | 05/11/2026 |
+| 01/03/2031 | Tesouro Selic 2031 | 0.11% | ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo) | 20150.31 | — | — | 05/11/2026 |
+| 15/08/2032 | Tesouro IPCA+ 2032 | 7.92% | juros reais ao ano ACIMA do IPCA | 3082.39 | 5.734 a | -5.15% | 05/11/2026 |
+| 15/05/2035 | Tesouro IPCA+ 2035 | 7.94% | juros reais ao ano ACIMA do IPCA | 2500.9 | 8.46 a | -7.49% | 05/11/2026 |
 
 ## Moldura
 
 | Indicador | Valor | 12 meses | 1 semana | Data |
 | --- | ---: | ---: | ---: | --- |
 | IPCA (acum. 12m) | 4.58% | — | — | 01/09/2026 |
-| Ibovespa | 166191 pts | 8.41% | -1.77% | 05/11/2026 |
-| EUR/BRL | 6.1323 | -0.71% | 2.2% | 05/11/2026 |
-| USD/BRL | 5.4621 | 1.53% | 1.63% | 05/11/2026 |
-| CDI | 13.65% a.a. | — | — | 04/11/2026 |
+| Ibovespa | 168528 pts | 9.91% | 0.36% | 06/11/2026 |
+| EUR/BRL | 6.1317 | -0.6% | 1.31% | 06/11/2026 |
+| USD/BRL | 5.5013 | 2.92% | 1.48% | 06/11/2026 |
+| CDI | 13.65% a.a. | — | — | 05/11/2026 |
 | Selic (meta) | 13.75% a.a. | — | — | 06/11/2026 |
 
 ## Ressalvas
