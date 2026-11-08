@@ -33,6 +33,7 @@ import {
   anosUteisEntre,
   diasUteisEntre,
   hojeISO,
+  brDeISO,
   LIMITE_DIAS_UTEIS,
   arred,
 } from "./util.js";
@@ -514,7 +515,9 @@ export function curvasDeFuturos(arquivo) {
       "mercado da NTN-B — mesmo juro real, outro emissor — e sai da DAP, na mesma convenção do DI1.",
     historicoNota:
       ordenadas.length < 25
-        ? `O histórico começou em ${ordenadas[0] || "—"} e cresce a cada coleta: a comparação com um mês atrás fica completa com o tempo.`
+        ? // A data vai em dd/mm/aaaa: é texto para a tela, e o ISO cru
+          // ("2026-10-22") era a única data fora do padrão do app.
+          `O histórico começou em ${brDeISO(ordenadas[0]) || "—"} e cresce a cada coleta: a comparação com um mês atrás fica completa com o tempo.`
         : null,
     fonte: arquivo?.fonte || "B3",
     aviso: AVISO,

@@ -107,6 +107,10 @@ body {
   margin: var(--s5) 0 var(--s2);
 }
 .section-sub { font-size: 12px; color: var(--muted); margin: 0 0 var(--s3); }
+/* Uma linha logo abaixo de um cartão encostava na borda dele: o .card não tem
+   margem, e a .section-sub só tem margem embaixo. Era o "Começa em…" da curva
+   da B3, colado ao gráfico que ele comenta. */
+.card + .section-sub { margin-top: var(--s3); }
 
 /* ---------- Lista de títulos ---------- */
 .row {
