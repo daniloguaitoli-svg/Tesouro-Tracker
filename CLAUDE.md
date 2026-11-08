@@ -470,7 +470,11 @@ lines, each a 44px bordered capsule around 12px text, the active one a solid
 blue block. Those options answer **two questions**: which indexation, and
 coupon or not. They are now two `Seletor` segments, "Índice" and "Cupom"
 (`components/Seletor.jsx`), and the Curva axis uses the same component in its
-`compacto` form.
+`compacto` form. The B3 block's three curves use it too, as a single "Curva"
+question — with short labels (`Pré (DI)`, `Dólar (FRC)`, `IPCA (DAP)`) that
+travel on the payload as `curto`, because "Cupom de IPCA (juro real)" does not
+fit a third of a segment at 360px. The full `nome` stays on the chart and in
+the ⓘ.
 
 - **The answers are read from the ids**, not from a parallel table:
   `ipca`/`ipca-juros`/… on Títulos, `ipca-sem-cupom`/`pre-com-cupom`/… on
@@ -487,8 +491,8 @@ coupon or not. They are now two `Seletor` segments, "Índice" and "Cupom"
 - **`aria-pressed` buttons, not a radiogroup.** A radiogroup promises arrow-key
   navigation; this does not implement it, and promising it would be worse.
 
-**Chips stay for flat, one-dimensional lists**: the three B3 futures and the
-Calculadora's six rate moves. They were restyled at the same time — 32px
+**Chips stay for the list that does not fit one segment**: the Calculadora's
+six rate moves. They were restyled at the same time — 32px
 visible, borderless on `--surface-2`, the active one a blue tint
 (`color-mix` of `--accent`) instead of a solid block, which also removed a
 hard-coded text hex. Same font weight in both states, so tapping does not

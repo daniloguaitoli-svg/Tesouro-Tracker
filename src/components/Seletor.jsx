@@ -11,8 +11,9 @@
 // separa "qual curva" de "com que régua" agora é o LUGAR, não o formato: o
 // eixo mora dentro do cartão do gráfico, os filtros ficam acima dele.
 //
-// Os chips (`.chip`) continuam para o que não tem duas dimensões: os três
-// futuros da B3 e as variações da Calculadora.
+// Também serve uma pergunta só, com poucas respostas: qual das três curvas
+// da B3. Os chips (`.chip`) ficaram para a lista que não cabe numa peça — as
+// seis variações da Calculadora.
 //
 // Botões com aria-pressed, como os chips e as estrelas do app, e não um
 // radiogroup: um radiogroup promete navegação pelas setas, e prometer o que

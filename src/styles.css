@@ -175,8 +175,9 @@ body {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
 /* ---------- Chips: escolha numa lista curta e plana ----------
-   Ficaram para o que não tem duas dimensões: os três futuros da B3 e as
-   variações da Calculadora (os filtros por família viraram o .seletor abaixo).
+   Ficaram para a lista que não cabe numa peça segmentada: as seis variações
+   da Calculadora. Os filtros por família e as três curvas da B3 viraram o
+   .seletor abaixo.
    Até 11/2026 eram cápsulas de 44px com borda para um texto de 12px — uma
    bolha — e o ativo era um bloco azul cheio com o texto numa cor escrita à
    mão, fora dos tokens. Agora o chip PARECE ter 32px e o ativo é um tom de

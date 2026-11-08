@@ -14,6 +14,7 @@ import { getFuturos } from "../api.js";
 import { CurvaChart, CurvaLegenda } from "./CurvaChart.jsx";
 import { taxa, anos, dataBR, num } from "../format.js";
 import { Explica } from "./Explica.jsx";
+import { Seletor } from "./Seletor.jsx";
 
 export function CurvaFuturos() {
   const [dados, setDados] = useState(null);
@@ -92,15 +93,20 @@ export function CurvaFuturos() {
         Tesouro.
       </p>
 
-      <div className="chips" style={{ marginBottom: "var(--s3)" }}>
-        {(dados.curvas || [])
-          .filter((c) => c.agora.length > 0)
-          .map((c) => (
-            <button key={c.id} className="chip" aria-pressed={curva.id === c.id} onClick={() => setCurvaId(c.id)}>
-              {c.nome}
-            </button>
-          ))}
-      </div>
+      {/* Uma pergunta, três respostas: o mesmo Seletor dos filtros da curva
+          do Tesouro acima, para o bloco não parecer de outro app. Uma curva
+          sem pontos fica apagada em vez de sumir — a peça não muda de
+          largura num dia em que a B3 não entregou uma delas. */}
+      <Seletor
+        rotulo="Curva"
+        opcoes={(dados.curvas || []).map((c) => ({
+          id: c.id,
+          rotulo: c.curto || c.nome,
+          desabilitada: !c.agora?.length,
+        }))}
+        valor={curva.id}
+        onChange={setCurvaId}
+      />
 
       <div className="card">
         <CurvaChart series={series} height={170} rotulo={`Curva ${curva.nome} por prazo`} />
