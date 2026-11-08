@@ -403,11 +403,13 @@ body {
   vertical-align: middle; color: var(--muted); border-radius: 999px;
 }
 .explica-botao:hover { color: var(--accent); }
-.explica-botao:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; }
+/* -10px deixa o anel em volta do ícone (24px), sem invadir o texto do título
+   ao lado — a -6px ele encostava na última letra. */
+.explica-botao:focus-visible { outline: 2px solid var(--accent); outline-offset: -10px; }
 /* Com rótulo ("Fontes"), o botão cresce para caber o texto e deixa de ter
    margem negativa à esquerda — ali ele é o próprio conteúdo da linha. */
 .explica-botao.com-rotulo {
-  width: auto; gap: var(--s1); padding: 0 var(--s2); margin: -12px 0;
+  width: auto; gap: var(--s1); padding: 0 var(--s3); margin: -12px 0;
   font: inherit; color: var(--accent);
 }
 
