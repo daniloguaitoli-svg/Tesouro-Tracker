@@ -422,8 +422,9 @@ rows. Two changes took it to **2,198px**:
 - **Each table sits directly under its own chart.** "Pontos da curva" used to
   render *after* the implied-inflation section, which has a chart and a table of
   its own — so the reader met a table 800px below a chart that was not its own.
-  The aviso stays last, after the implícita, because it covers everything that
-  came from the Treasury file and not the B3 block below it.
+  The B3 block stays last: it is another source with its own date and caveat,
+  and must not read as covered by the explanations above it. (The long aviso
+  that used to sit between them is gone — see **Explanatory text** below.)
 - **The tables are `<details class="dobra">`, closed by default.** The chart is
   the reading; the table is the check. The summary **replaces** the section
   title rather than sitting beside it — a heading that does not click next to
@@ -458,6 +459,46 @@ minimum**, on the main controls of the screen. Only the lit state survived,
 because `[aria-pressed="true"]` outranks a bare `.chip`. The pill is now
 `.pilula`; it is a `span` that informs, never a control anyone taps, so the two
 were never the same thing. Measured after: 44px and 999px.
+
+### Explanatory text: one line on screen, the rest behind an ⓘ
+
+The app's explanations are important and were crowding the screens. Measured
+by height at 390px: Curva 40%, Alertas 40%, Mercado 36% (one 2,067-character
+note at the bottom explaining four tables, far from all of them), Calculadora
+33%. The rule now, applied to Mercado, the footer and Curva:
+
+- **Stays on screen, in one line:** a caveat that changes how a number is read
+  ("Não é previsão de inflação" on the implied inflation; "retorno acumulado,
+  não a variação da taxa" on the rates row), a status line (dates, "começa em
+  01/12, não hoje"), and the legal notice.
+- **Goes behind the ⓘ:** method, definitions and the reasons for each choice.
+- **The ⓘ always sits next to what it explains** — on the section title's
+  line, beside the control it is about (the duration ⓘ lives in the axis
+  selector's row and disappears with it), or at the end of the status line it
+  expands. Several per screen is fine; one far from its context is not, because
+  it makes the reader study the explanation without seeing the thing explained.
+  This placement rule is the owner's.
+
+`components/Explica.jsx` is the one component: a drawn icon (not the "ⓘ"
+character, which each platform draws differently) with a 44px target and
+negative margins so a 19px title line does not grow, opening a
+`role="dialog"` sheet. Focus moves to "Fechar" on open and back to the ⓘ on
+close; Esc and a tap on the backdrop close it. **The sheet renders through a
+portal on `<body>`**: rendered in place it inherited its container's style, and
+inside a `.section-title` the whole body came out in spaced capitals. The
+"Mais" sheet in `Tabs.jsx` was not reused because its CSS only exists below
+719px and it does not manage focus.
+
+**Numbers in an ⓘ come from the payload, not from copy.** The term floor is
+`prazoMinimo` on `getCurva`, the futures conventions are each curve's
+`convencao`, and the dirty DDI rate is the vertex's own `taxaSuja` — a figure
+typed into a sentence keeps saying it after the code changes.
+
+The footer is now one sentence of notice, "Fontes ⓘ" and the last collection.
+The full server `AVISO` still travels on every payload and still feeds the
+Detalhe screen's "Fontes e método"; what went is its second copy inline on
+Mercado and Curva, which repeated the footer on the same screen. The business
+days/252 sentence it carried now lives in the ⓘ next to term and duration.
 
 ### The legend draws the real line
 
