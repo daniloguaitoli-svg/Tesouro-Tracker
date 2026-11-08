@@ -15,6 +15,7 @@ import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque
 import { MarcaIcone } from "./components/MarcaIcone.jsx";
 import { Tabs, BarraInferior } from "./components/Tabs.jsx";
 import { SeloDados } from "./components/SeloDados.jsx";
+import { Explica } from "./components/Explica.jsx";
 import { Painel } from "./components/Painel.jsx";
 import { Titulos } from "./components/Titulos.jsx";
 import { Curva } from "./components/Curva.jsx";
@@ -135,16 +136,40 @@ export default function App() {
       {/* O rodapé não aparece no Detalhe: lá o mesmo aviso mora dobrado em
           "Fontes e método", e a tela ficaria com a frase duas vezes — uma
           recolhida e outra por extenso logo abaixo. */}
+      {/* O RODAPÉ DIZ O ESSENCIAL E GUARDA O RESTO NO ⓘ. Ele aparece em todas
+          as telas, e o aviso de 403 caracteres ocupava ~140px em cada uma —
+          no Mercado e na Curva, duas vezes, porque as notas dessas telas o
+          repetiam. Fica visível o que a regra da casa exige em toda tela
+          (fonte pública, atraso, não é recomendação) e o estado da coleta;
+          as fontes por nome, a convenção de dias úteis e a descrição do app
+          vão para a folha.
+          A lista de fontes também corrige um erro do texto antigo, que dizia
+          "Tesouro Nacional e Banco Central" numa tela, o Mercado, que mostra
+          dados do Yahoo, do FRED e do BCE. */}
       {!slug && (
       <footer className="footer">
-        <strong>Aviso:</strong>{" "}
-        {dados?.aviso ||
-          "Dados de fontes públicas (Tesouro Nacional, ANBIMA e Banco Central), com defasagem de ao menos um dia útil. Uso informativo — não é recomendação de investimento."}
-        <br />
-        Feito para acompanhar taxa, duration e sensibilidade a juros dos títulos do Tesouro
-        Direto: IPCA+, Prefixado e Selic.
+        Dados públicos, com pelo menos um dia útil de atraso. Uso informativo — não é
+        recomendação de investimento.{" "}
+        <Explica titulo="Fontes e método" rotulo="Fontes">
+          <p>
+            Tesouro Nacional e Banco Central em todo o app. Também: B3 (futuros, na aba Curva),
+            Yahoo Finance (bolsas), FRED (Fed e inflação de fora do Brasil), BCE (taxas do BCE)
+            e Google Notícias (manchetes).
+          </p>
+          <p>
+            Prazo, duration e sensibilidade são calculados em dias úteis/252, a convenção do
+            Tesouro e da ANBIMA.
+          </p>
+          <p>
+            Feito para acompanhar taxa, duration e sensibilidade a juros dos títulos do Tesouro
+            Direto: IPCA+, Prefixado e Selic.
+          </p>
+        </Explica>
         {dados?.atualizadoEm && (
-          <> Última coleta: {dataBR(dados.atualizadoEm)} às {horaBR(dados.atualizadoEm)}.</>
+          <>
+            <br />
+            Última coleta: {dataBR(dados.atualizadoEm)} às {horaBR(dados.atualizadoEm)}.
+          </>
         )}
       </footer>
       )}
