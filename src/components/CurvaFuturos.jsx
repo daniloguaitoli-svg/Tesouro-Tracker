@@ -92,7 +92,7 @@ export function CurvaFuturos() {
         Tesouro.
       </p>
 
-      <div className="chips" style={{ marginBottom: 8 }}>
+      <div className="chips" style={{ marginBottom: "var(--s3)" }}>
         {(dados.curvas || [])
           .filter((c) => c.agora.length > 0)
           .map((c) => (

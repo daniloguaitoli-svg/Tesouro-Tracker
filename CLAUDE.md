@@ -438,9 +438,11 @@ Two more followed, and one of them uncovered a defect well beyond the tab:
 
 - **The axis selector is not a chip.** The chips pick *which curve*; the axis
   picks *with which ruler*, and as an identical chip it left two buttons lit at
-  once in what looked like one block. It is now a joined two-position segment
-  with a label, **inside the chart card**, because it is a property of that
-  drawing and not of the section.
+  once in what looked like one block. It is a two-position segment with a
+  label, **inside the chart card**, because it is a property of that drawing
+  and not of the section. Since 11/2026 the family filters above it use the
+  same segment design (see **Selectors and chips** below), so what separates
+  the two is placement, not shape: the axis is the compact one inside the card.
 - **Duration only exists as a distinct quantity when there is a coupon.** In a
   zero-coupon frame duration *is* the term, so the table printed `2,5 a | 2,5 a`
   on every row and "Por duration" drew the same chart as "Por prazo". Both the
@@ -459,6 +461,48 @@ minimum**, on the main controls of the screen. Only the lit state survived,
 because `[aria-pressed="true"]` outranks a bare `.chip`. The pill is now
 `.pilula`; it is a `span` that informs, never a control anyone taps, so the two
 were never the same thing. Measured after: 44px and 999px.
+
+### Selectors and chips: two questions are not six options
+
+The family filters were flat chip lists — six on Títulos (todas, IPCA+, IPCA+
+juros, Prefixado, Prefixado juros, Selic), four on Curva — wrapping onto two
+lines, each a 44px bordered capsule around 12px text, the active one a solid
+blue block. Those options answer **two questions**: which indexation, and
+coupon or not. They are now two `Seletor` segments, "Índice" and "Cupom"
+(`components/Seletor.jsx`), and the Curva axis uses the same component in its
+`compacto` form.
+
+- **The answers are read from the ids**, not from a parallel table:
+  `ipca`/`ipca-juros`/… on Títulos, `ipca-sem-cupom`/`pre-com-cupom`/… on
+  Curva. Rename a category or curve id and the filter follows — or breaks
+  visibly.
+- **The LFT counts as "sem cupom"**, which is what it is. So on Títulos "Com"
+  is *disabled* when Selic is chosen (no LFT pays a coupon), and choosing Selic
+  while "Com" is set resets the coupon to "Todos" instead of showing an empty
+  list for a combination that does not exist. On Curva an option is disabled
+  when its combination has no points, and a change that lands on an empty one
+  falls back to the other coupon form of the same indexation.
+- **Disabled, never hidden.** The piece keeps its width and order — position is
+  how an option is found without reading it.
+- **`aria-pressed` buttons, not a radiogroup.** A radiogroup promises arrow-key
+  navigation; this does not implement it, and promising it would be worse.
+
+**Chips stay for flat, one-dimensional lists**: the three B3 futures and the
+Calculadora's six rate moves. They were restyled at the same time — 32px
+visible, borderless on `--surface-2`, the active one a blue tint
+(`color-mix` of `--accent`) instead of a solid block, which also removed a
+hard-coded text hex. Same font weight in both states, so tapping does not
+change a chip's width and shove its neighbours.
+
+**The 44px touch target is kept invisibly**, and that is the part easy to
+break: a `::after` extends each chip 6px and each segment button 5px above and
+below. Two things defeat it silently, both hit during the build:
+`overflow: hidden` on the button clips its own `::after` (the ellipsis for
+narrow screens therefore lives on an inner `.seletor-texto` span), and rows
+closer than 12px make two targets overlap — hence `.chips`' 12px row gap and
+the 12px between stacked segments. Measured at 390 and 360px: every button
+hit-tests 4px outside its visible edge, and no label is cut ("Prefixado" did
+not fit at 360px until the label column went from 56px to 48px).
 
 ### Explanatory text: one line on screen, the rest behind an ⓘ
 

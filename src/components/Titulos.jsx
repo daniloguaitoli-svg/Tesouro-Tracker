@@ -13,6 +13,23 @@ import { useMemo, useState } from "react";
 import { taxa, pp, anos, reais, dataBR, sinalTaxa, normalizarBusca, unidadeTaxa } from "../format.js";
 import { Sparkline } from "./Sparkline.jsx";
 import { AguardandoColeta, Vazio } from "./States.jsx";
+import { Seletor } from "./Seletor.jsx";
+
+// AS SEIS CATEGORIAS SÃO DUAS PERGUNTAS: qual indexação e se paga cupom. O id
+// de cada categoria já diz as duas coisas ("ipca", "ipca-juros", "prefixado",
+// "prefixado-juros", "selic"), e o filtro lê daí em vez de manter uma tabela
+// paralela que pudesse divergir do catálogo.
+const indiceDe = (id) => (id.startsWith("ipca") ? "ipca" : id.startsWith("prefixado") ? "prefixado" : "selic");
+// A LFT não paga cupom — conta como "sem", que é o que ela é. Por isso "Com"
+// fica desabilitado quando o índice é Selic: não existe LFT com cupom.
+const temCupom = (id) => id.endsWith("-juros");
+
+const INDICES = [
+  { id: "todos", rotulo: "Todos" },
+  { id: "ipca", rotulo: "IPCA+" },
+  { id: "prefixado", rotulo: "Prefixado" },
+  { id: "selic", rotulo: "Selic" },
+];
 
 function Linha({ t, onOpen, marcado, onAlternar }) {
   return (
@@ -51,19 +68,28 @@ function Linha({ t, onOpen, marcado, onAlternar }) {
 
 export function Titulos({ dados, onOpen, marcados, onAlternar }) {
   const [busca, setBusca] = useState("");
-  const [familia, setFamilia] = useState("todas");
+  const [indice, setIndice] = useState("todos");
+  const [cupom, setCupom] = useState("todos"); // "todos" | "sem" | "com"
 
   const categorias = dados.categorias || [];
   const filtradas = useMemo(() => {
     const q = normalizarBusca(busca);
     return categorias
-      .filter((c) => familia === "todas" || c.id === familia)
+      .filter((c) => indice === "todos" || indiceDe(c.id) === indice)
+      .filter((c) => cupom === "todos" || temCupom(c.id) === (cupom === "com"))
       .map((c) => ({
         ...c,
         itens: c.itens.filter((t) => !q || normalizarBusca(`${t.nome} ${t.vencimento}`).includes(q)),
       }))
       .filter((c) => c.itens.length > 0);
-  }, [categorias, busca, familia]);
+  }, [categorias, busca, indice, cupom]);
+
+  // Trocar para Selic com "Com" escolhido deixaria a lista vazia por uma
+  // combinação que não existe — volta para "Todos" em vez de mostrar o vazio.
+  const escolherIndice = (novo) => {
+    setIndice(novo);
+    if (novo === "selic" && cupom === "com") setCupom("todos");
+  };
 
   if (dados.pendente) return <AguardandoColeta />;
 
@@ -79,16 +105,17 @@ export function Titulos({ dados, onOpen, marcados, onAlternar }) {
           aria-label="Buscar vencimento"
         />
       </div>
-      <div className="chips">
-        <button className="chip" aria-pressed={familia === "todas"} onClick={() => setFamilia("todas")}>
-          todas
-        </button>
-        {categorias.map((c) => (
-          <button key={c.id} className="chip" aria-pressed={familia === c.id} onClick={() => setFamilia(c.id)}>
-            {c.curto || c.nome}
-          </button>
-        ))}
-      </div>
+      <Seletor rotulo="Índice" opcoes={INDICES} valor={indice} onChange={escolherIndice} />
+      <Seletor
+        rotulo="Cupom"
+        opcoes={[
+          { id: "todos", rotulo: "Todos" },
+          { id: "sem", rotulo: "Sem" },
+          { id: "com", rotulo: "Com", desabilitada: indice === "selic" },
+        ]}
+        valor={cupom}
+        onChange={setCupom}
+      />
 
       <p className="section-sub" style={{ marginTop: "var(--s3)" }}>
         Toque na estrela para acompanhar um vencimento no Painel
