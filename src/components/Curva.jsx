@@ -11,6 +11,15 @@ import { taxa, anos, dataBR, num } from "../format.js";
 import { ErroBox, Skeletons, AguardandoColeta } from "./States.jsx";
 import { CurvaFuturos } from "./CurvaFuturos.jsx";
 import { Explica } from "./Explica.jsx";
+import { Seletor } from "./Seletor.jsx";
+
+// As quatro curvas são DUAS perguntas — qual indexação e se paga cupom — e o
+// id de cada uma já carrega as duas ("ipca-sem-cupom", "pre-com-cupom"). Os
+// dois seletores montam o id a partir das respostas, em vez de listar quatro
+// chips que escondiam essa estrutura.
+const indiceDaCurva = (id) => (id.startsWith("pre") ? "pre" : "ipca");
+const cupomDaCurva = (id) => (id.includes("com-cupom") ? "com" : "sem");
+const idDaCurva = (indice, cupom) => `${indice}-${cupom}-cupom`;
 
 // A inflação implícita (breakeven): o que o mercado precisa que a inflação seja
 // para o prefixado empatar com o IPCA+ de mesmo prazo. Acima disso o IPCA+
@@ -136,6 +145,19 @@ export function Curva({ marcados }) {
   const curva = disponiveis.find((c) => c.id === familiaId) || disponiveis[0];
   if (!curva) return <AguardandoColeta />;
 
+  const existe = (id) => disponiveis.some((c) => c.id === id);
+  const temIndice = (indice) => disponiveis.some((c) => indiceDaCurva(c.id) === indice);
+  const indiceAtual = indiceDaCurva(curva.id);
+  const cupomAtual = cupomDaCurva(curva.id);
+  // Se a combinação pedida não tem pontos (a prefixada com cupom antes da
+  // primeira coleta que a inclua, por exemplo), fica na outra forma do mesmo
+  // índice em vez de cair num quadro vazio.
+  const escolher = (indice, cupom) => {
+    const alvo = idDaCurva(indice, cupom);
+    const outra = idDaCurva(indice, cupom === "com" ? "sem" : "com");
+    setFamiliaId(existe(alvo) ? alvo : existe(outra) ? outra : curva.id);
+  };
+
   // Este quadro mistura as duas famílias? Depois da separação do IPCA+, só a
   // prefixada mistura — mas a pergunta é feita aos DADOS, não ao id da curva,
   // para o texto continuar certo se as famílias mudarem de arranjo.
@@ -198,34 +220,45 @@ export function Curva({ marcados }) {
         implícita, logo abaixo.
       </p>
       {disponiveis.length > 1 && (
-        <div className="chips" style={{ marginBottom: 8 }}>
-          {disponiveis.map((c) => (
-            <button key={c.id} className="chip" aria-pressed={curva.id === c.id} onClick={() => setFamiliaId(c.id)}>
-              {c.nome}
-            </button>
-          ))}
-        </div>
+        <>
+          <Seletor
+            rotulo="Índice"
+            opcoes={[
+              { id: "ipca", rotulo: "IPCA+", desabilitada: !temIndice("ipca") },
+              { id: "pre", rotulo: "Prefixado", desabilitada: !temIndice("pre") },
+            ]}
+            valor={indiceAtual}
+            onChange={(novo) => escolher(novo, cupomAtual)}
+          />
+          <Seletor
+            rotulo="Cupom"
+            opcoes={[
+              { id: "sem", rotulo: "Sem cupom", desabilitada: !existe(idDaCurva(indiceAtual, "sem")) },
+              { id: "com", rotulo: "Com cupom", desabilitada: !existe(idDaCurva(indiceAtual, "com")) },
+            ]}
+            valor={cupomAtual}
+            onChange={(novo) => escolher(indiceAtual, novo)}
+          />
+        </>
       )}
 
       <div className="card">
-        {/* O SELETOR DE EIXO MORA NO CARTÃO DO GRÁFICO, não na fileira de
-            chips. Ele não escolhe qual curva — escolhe com que régua medi-la —
-            e como chip idêntico aos de família deixava dois botões acesos ao
-            mesmo tempo no que parecia um bloco só. Dentro do cartão, a peça
-            diz de quem é a propriedade que ela muda. */}
+        {/* O SELETOR DE EIXO MORA NO CARTÃO DO GRÁFICO, não junto dos
+            filtros de cima. Ele não escolhe qual curva — escolhe com que
+            régua medi-la. Tem o mesmo desenho dos filtros, então o que diz
+            que ele é outra coisa é o LUGAR: dentro do cartão, a peça diz de
+            quem é a propriedade que ela muda. */}
         {temCupom && (
-          <div className="eixo">
-            <span className="eixo-rotulo" id="rot-eixo">Eixo</span>
-            <div className="eixo-seg" role="group" aria-labelledby="rot-eixo">
-              {[
-                ["anos", "Prazo"],
-                ["duration", "Duration"],
-              ].map(([id, rot]) => (
-                <button key={id} type="button" aria-pressed={eixo === id} onClick={() => setEixo(id)}>
-                  {rot}
-                </button>
-              ))}
-            </div>
+          <Seletor
+            compacto
+            rotulo="Eixo"
+            opcoes={[
+              { id: "anos", rotulo: "Prazo" },
+              { id: "duration", rotulo: "Duration" },
+            ]}
+            valor={eixo}
+            onChange={setEixo}
+          >
             {/* O ⓘ da duration mora AO LADO DO SELETOR, não no título da
                 seção: é ali que a pergunta "o que muda se eu trocar?" nasce,
                 e ele some junto com o seletor nos quadros sem cupom. */}
@@ -249,7 +282,7 @@ export function Curva({ marcados }) {
                 com o tempo.
               </p>
             </Explica>
-          </div>
+          </Seletor>
         )}
         <CurvaChart
           series={series}

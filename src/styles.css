@@ -16,6 +16,10 @@
   --down: #e8735e;   /* baixa — coral */
   --accent: #7aa7ff; /* azul-centáurea; aba ativa e foco */
   --accent-2: #3d5a8f;
+  /* Texto sobre fundo --accent (aba ativa da barra de cima, botão principal).
+     Era um hex escrito à mão em cada regra; agora é o próprio fundo da página,
+     o tom mais escuro do app, que dá o maior contraste sobre o azul. */
+  --on-accent: var(--bg);
   /* Fundo dos chips de variação: derivado do próprio semântico, para alta e
      baixa não poderem divergir da cor do número que eles envolvem. */
   --up-bg: color-mix(in srgb, var(--up) 12%, var(--surface));
@@ -87,7 +91,7 @@ body {
   white-space: nowrap; transition: color .15s, background .15s;
 }
 .tab:hover { color: var(--text); }
-.tab[aria-selected="true"] { color: #0a1020; background: var(--accent); }
+.tab[aria-selected="true"] { color: var(--on-accent); background: var(--accent); }
 
 /* ---------- Cartões ---------- */
 .grid { display: grid; gap: var(--s3); margin-top: var(--s4); }
@@ -167,40 +171,81 @@ body {
   color: var(--text); font: inherit; font-size: 14px; padding: var(--s2) var(--s3);
 }
 .input { flex: 1; min-width: 140px; }
-.input:focus, .select:focus, .row:focus-visible, .tab:focus-visible, .btn:focus-visible, .chip:focus-visible {
+.input:focus, .select:focus, .row:focus-visible, .tab:focus-visible, .btn:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
-.chips { display: flex; gap: var(--s1); flex-wrap: wrap; }
-/* O CHIP É UM BOTÃO, e por isso tem alvo de toque de verdade: 44px é o
-   mínimo, e estes são os controles principais da aba Curva. Antes saíam com
-   25px, por causa da colisão de nome documentada mais abaixo. */
+/* ---------- Chips: escolha numa lista curta e plana ----------
+   Ficaram para o que não tem duas dimensões: os três futuros da B3 e as
+   variações da Calculadora (os filtros por família viraram o .seletor abaixo).
+   Até 11/2026 eram cápsulas de 44px com borda para um texto de 12px — uma
+   bolha — e o ativo era um bloco azul cheio com o texto numa cor escrita à
+   mão, fora dos tokens. Agora o chip PARECE ter 32px e o ativo é um tom de
+   azul, mas o ALVO DE TOQUE continua em 44px: o ::after estende a área
+   clicável 6px para cima e para baixo, invisível. O vão entre linhas é de
+   12px justamente para as áreas de dois chips empilhados se encostarem sem
+   se sobrepor. O peso da fonte é o mesmo nos dois estados: negrito só no
+   ativo mudaria a largura do chip ao tocar e empurraria os vizinhos. */
+.chips { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s2); }
 .chip {
-  appearance: none; border: 1px solid var(--line); background: var(--surface);
-  color: var(--muted); font: inherit; font-size: 12px; font-weight: 600;
-  min-height: 44px; display: inline-flex; align-items: center;
-  padding: 0 14px; border-radius: 999px; cursor: pointer;
+  position: relative; appearance: none; cursor: pointer;
+  border: 1px solid transparent; background: var(--surface-2);
+  color: var(--muted); font: inherit; font-size: 13px; font-weight: 500;
+  height: 32px; display: inline-flex; align-items: center; white-space: nowrap;
+  padding: 0 var(--s3); border-radius: 999px;
 }
+.chip::after { content: ""; position: absolute; inset: -6px 0; }
 .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.chip[aria-pressed="true"] { color: #0a1020; background: var(--accent); border-color: var(--accent); }
-
-/* ---------- O seletor de eixo NÃO é um chip ----------
-   Os chips escolhem QUAL curva; isto escolhe COM QUE RÉGUA medi-la. Eram
-   botões idênticos, empilhados, com dois acesos ao mesmo tempo no que parecia
-   um bloco só — nada na tela dizia que faziam coisas de natureza diferente.
-   Agora: segmentos colados (uma peça, duas posições), rótulo à esquerda, e
-   DENTRO do cartão do gráfico, porque é propriedade daquele desenho e não da
-   seção. Só aparece quando muda alguma coisa — ver `temCupom` em Curva.jsx. */
-.eixo { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
-.eixo-rotulo { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-.eixo-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.eixo-seg button {
-  appearance: none; border: 0; background: transparent; cursor: pointer;
-  font: inherit; font-size: 12px; color: var(--muted);
-  min-height: 36px; padding: 0 12px;
+.chip[aria-pressed="true"] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
-.eixo-seg button + button { border-left: 1px solid var(--line); }
-.eixo-seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; }
-.eixo-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ---------- Seletor: uma pergunta, poucas posições (Seletor.jsx) ----------
+   Uma peça segmentada com o nome da pergunta à esquerda. Serve os filtros de
+   família (Índice + Cupom, em Títulos e na Curva) e o eixo do gráfico da
+   Curva. O que separa "qual curva" de "com que régua" é o LUGAR: o eixo mora
+   dentro do cartão do gráfico (`compacto`), os filtros acima dele.
+   Os botões dividem a largura por igual, então o negrito do ativo não move
+   nada. 34px visíveis + 5px de área invisível em cima e embaixo = 44px de
+   toque; o vão de 12px entre duas peças empilhadas mantém as áreas sem
+   sobreposição. Ativo: fundo um tom acima, anel de linha e texto em azul — o
+   fundo sozinho (--surface-2 sobre --surface) é sutil demais para dizer qual
+   posição está escolhida. */
+.seletor { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
+/* 48px cabe "ÍNDICE" e "CUPOM" e alinha as duas peças pela borda esquerda.
+   A 56px, "Prefixado" não cabia a 360px de tela. */
+.seletor-rotulo {
+  flex: none; width: 48px; font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.seletor-pecas {
+  flex: 1; min-width: 0; display: flex; gap: 2px; padding: 3px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+.seletor-pecas button {
+  position: relative; flex: 1 1 0; min-width: 0; appearance: none; border: 0;
+  background: transparent; cursor: pointer; font: inherit; font-size: 13px;
+  font-weight: 500; color: var(--muted); height: 34px; padding: 0 var(--s1);
+  border-radius: 7px; display: flex; align-items: center; justify-content: center;
+}
+/* O corte com reticências mora no SPAN, não no botão: overflow: hidden no
+   botão recortava também o ::after, e a área de toque voltava a 34px. Numa
+   tela estreita demais para o rótulo, quem encolhe é o texto, nunca o alvo. */
+.seletor-texto { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seletor-pecas button::after { content: ""; position: absolute; inset: -5px 0; }
+.seletor-pecas button[aria-pressed="true"] {
+  background: var(--surface-2); color: var(--accent); font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.seletor-pecas button:disabled { opacity: 0.35; cursor: default; }
+.seletor-pecas button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Dentro do cartão do gráfico: a peça ocupa só o que precisa, sem esticar até
+   a borda — ali ela é um detalhe do desenho, não o controle da seção. */
+.seletor.compacto { margin-bottom: var(--s2); gap: var(--s2); }
+.seletor.compacto .seletor-rotulo { width: auto; }
+.seletor.compacto .seletor-pecas { flex: none; }
+.seletor.compacto .seletor-pecas button { flex: none; padding: 0 var(--s3); }
 
 .btn {
   appearance: none; border: 1px solid var(--line); background: var(--surface-2);
@@ -208,7 +253,7 @@ body {
   padding: var(--s2) var(--s4); border-radius: 10px; cursor: pointer;
 }
 .btn:hover { border-color: var(--accent-2); }
-.btn-primary { background: var(--accent); color: #0a1020; border-color: var(--accent); }
+.btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .btn-ghost { background: transparent; }
 
 /* ---------- Detalhe ---------- */
