@@ -16,6 +16,10 @@
   --down: #e8735e;   /* baixa — coral */
   --accent: #7aa7ff; /* azul-centáurea; aba ativa e foco */
   --accent-2: #3d5a8f;
+  /* Texto sobre fundo --accent (aba ativa da barra de cima, botão principal).
+     Era um hex escrito à mão em cada regra; agora é o próprio fundo da página,
+     o tom mais escuro do app, que dá o maior contraste sobre o azul. */
+  --on-accent: var(--bg);
   /* Fundo dos chips de variação: derivado do próprio semântico, para alta e
      baixa não poderem divergir da cor do número que eles envolvem. */
   --up-bg: color-mix(in srgb, var(--up) 12%, var(--surface));
@@ -87,7 +91,7 @@ body {
   white-space: nowrap; transition: color .15s, background .15s;
 }
 .tab:hover { color: var(--text); }
-.tab[aria-selected="true"] { color: #0a1020; background: var(--accent); }
+.tab[aria-selected="true"] { color: var(--on-accent); background: var(--accent); }
 
 /* ---------- Cartões ---------- */
 .grid { display: grid; gap: var(--s3); margin-top: var(--s4); }
@@ -249,7 +253,7 @@ body {
   padding: var(--s2) var(--s4); border-radius: 10px; cursor: pointer;
 }
 .btn:hover { border-color: var(--accent-2); }
-.btn-primary { background: var(--accent); color: #0a1020; border-color: var(--accent); }
+.btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .btn-ghost { background: transparent; }
 
 /* ---------- Detalhe ---------- */

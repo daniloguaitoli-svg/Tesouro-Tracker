@@ -1430,7 +1430,8 @@ existing bridge file.
   No hard-coded hexes or pixel gaps in components.
   - surfaces `--bg` `--surface` `--surface-2` `--line`
   - text `--text` `--muted`
-  - semantics `--up` `--down` `--accent` `--accent-2`
+  - semantics `--up` `--down` `--accent` `--accent-2`, and `--on-accent` for
+    text on an accent fill (the wide-screen tab bar's active tab, `.btn-primary`)
   - type `--display` and `--ui` (both **IBM Plex Sans**) `--mono` (IBM Plex
     Mono). One text family and its mono sibling, since the 2026-10 redesign:
     three unrelated faces on one screen (Space Grotesk heading, Inter body,
