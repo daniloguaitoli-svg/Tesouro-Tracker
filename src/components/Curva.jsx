@@ -7,9 +7,10 @@
 import { useEffect, useState } from "react";
 import { getCurva } from "../api.js";
 import { CurvaChart, CurvaLegenda } from "./CurvaChart.jsx";
-import { taxa, anos, dataBR } from "../format.js";
+import { taxa, anos, dataBR, num } from "../format.js";
 import { ErroBox, Skeletons, AguardandoColeta } from "./States.jsx";
 import { CurvaFuturos } from "./CurvaFuturos.jsx";
+import { Explica } from "./Explica.jsx";
 
 // A inflação implícita (breakeven): o que o mercado precisa que a inflação seja
 // para o prefixado empatar com o IPCA+ de mesmo prazo. Acima disso o IPCA+
@@ -32,10 +33,35 @@ function Implicita({ implicita }) {
 
   return (
     <>
-      <div className="section-title">Inflação implícita</div>
+      <div className="section-title">
+        Inflação implícita
+        <Explica titulo="Inflação implícita">
+          <p>
+            Acima dessa inflação o IPCA+ entrega mais; abaixo, o Prefixado. É a conta que
+            decide entre as duas famílias.
+          </p>
+          <p>
+            Conta pela relação de Fisher — (1+nominal)/(1+real) − 1 — e não pela subtração,
+            que nestes níveis erra quase meio ponto.
+          </p>
+          <p>
+            LTN e NTN-F vencem em 01/01 e as NTN-B em 15/05 ou 15/08, então não há par exato:
+            a curva real é interpolada no prazo de cada ponto nominal, e só dentro do
+            intervalo observado — nunca extrapolada.
+          </p>
+          <p>
+            Por que não é previsão: embute o prêmio que quem compra prefixado cobra pelo
+            risco de inflação e a diferença de liquidez entre os dois papéis. Por isso tende a
+            ficar acima da inflação que o mercado de fato espera.
+          </p>
+        </Explica>
+      </div>
+      {/* "Não é previsão" fica NA TELA, não no ⓘ: é a ressalva que muda a
+          leitura do número. Sem ela, 6,3% neste gráfico vira "o mercado
+          espera 6,3% de inflação" — fácil e errado. */}
       <p className="section-sub">
-        A inflação que faria o Prefixado empatar com o IPCA+ de mesmo prazo. Acima dela o
-        IPCA+ entrega mais; abaixo, o Prefixado.
+        A inflação que faz o Prefixado empatar com o IPCA+ de mesmo prazo.{" "}
+        <strong>Não é previsão de inflação</strong>: costuma ficar acima do que o mercado espera.
       </p>
 
       <div className="card">
@@ -71,14 +97,6 @@ function Implicita({ implicita }) {
         </div>
       </details>
 
-      <div className="note">
-        Conta pela relação de Fisher — (1+nominal)/(1+real) − 1 — e não pela subtração, que
-        nestes níveis erra quase meio ponto. Como LTN e NTN-F vencem em 01/01 e as NTN-B em
-        15/05 ou 15/08, não há par exato: a curva real é <strong>interpolada</strong> no prazo
-        de cada ponto nominal, e só dentro do intervalo observado — nunca extrapolada.{" "}
-        <strong>Não é previsão de inflação:</strong> embute prêmio de risco e diferença de
-        liquidez, então tende a ficar acima do que o mercado de fato espera.
-      </div>
     </>
   );
 }
@@ -143,11 +161,41 @@ export function Curva({ marcados }) {
 
   return (
     <div>
-      <div className="section-title">Curva de juros</div>
+      <div className="section-title">
+        Curva de juros
+        <Explica titulo="Curva de juros">
+          <p>
+            Cada ponto é um título: a taxa que ele paga até o vencimento, no prazo que falta.
+            As três linhas são a mesma curva hoje, há um mês e há um ano — se ela inteira
+            subiu ou desceu, o mercado repreçou; se mudou de inclinação, mudou a relação entre
+            curto e longo.
+          </p>
+          <p>
+            São quatro quadros: cada indexação, IPCA+ e Prefixado, com cupom e sem cupom.
+            Elas não formam uma curva única — há vencimentos que existem nas duas formas, com
+            a mesma data e taxas diferentes. Juntas, o desenho serrilhava e uma curva ficava
+            espremida pela amplitude da outra. Nas NTN-B longas, a com cupom paga cerca de
+            0,07 p.p. a mais.
+          </p>
+          {misturada && (
+            <p>
+              Este quadro tem as duas famílias, cada uma com a sua linha — ponto cheio sem
+              cupom, anel com cupom.
+            </p>
+          )}
+          {dados.prazoMinimo != null && (
+            <p>
+              Títulos a menos de {num(dados.prazoMinimo, 1)} ano do vencimento ficam de fora:
+              perto do fim, um ruído pequeno no preço vira pontos percentuais de taxa, e o
+              ponto passa a descrever o vencimento chegando, não a curva.
+            </p>
+          )}
+          <p>Prazo em dias úteis/252, a convenção do Tesouro e da ANBIMA.</p>
+        </Explica>
+      </div>
       <p className="section-sub">
-        Taxa por prazo até o vencimento, em quatro curvas: cada indexação em dois quadros,
-        com cupom e sem. Real e nominal não se comparam ponto a ponto — a diferença entre
-        elas é a inflação que o mercado embute, logo abaixo.
+        Real e nominal não se comparam ponto a ponto — a diferença entre elas é a inflação
+        implícita, logo abaixo.
       </p>
       {disponiveis.length > 1 && (
         <div className="chips" style={{ marginBottom: 8 }}>
@@ -178,6 +226,29 @@ export function Curva({ marcados }) {
                 </button>
               ))}
             </div>
+            {/* O ⓘ da duration mora AO LADO DO SELETOR, não no título da
+                seção: é ali que a pergunta "o que muda se eu trocar?" nasce,
+                e ele some junto com o seletor nos quadros sem cupom. */}
+            <Explica titulo="Prazo ou duration">
+              <p>
+                Duration é quanto risco de juros o título carrega — a escala que permite
+                comparar um com cupom e um sem. Mesmo prazo não é mesmo risco: o título com
+                cupom devolve parte do dinheiro antes.
+              </p>
+              <p>
+                Por duration, toda a NTN-B com juros semestrais cabe numa faixa estreita, por
+                mais longo que seja o vencimento: comprar prazo não é comprar risco na mesma
+                proporção.
+              </p>
+              <p>
+                Num quadro sem cupom, duration e prazo são a mesma coisa — por isso este
+                seletor só aparece onde há cupom.
+              </p>
+              <p>
+                Calculada em dias úteis/252 e na data de cada curva, porque a duration encurta
+                com o tempo.
+              </p>
+            </Explica>
           </div>
         )}
         <CurvaChart
@@ -230,53 +301,13 @@ export function Curva({ marcados }) {
       </div>
       </details>
 
-      <div className="note">
-        {eixoEfetivo === "duration" ? (
-          <>
-            <strong>Duration é quanto risco de juros o título carrega</strong> — a escala que
-            permite comparar um com cupom e um sem. Repare que toda a NTN-B com juros
-            semestrais cabe numa faixa estreita, por mais longo que seja o vencimento:
-            comprar prazo não é comprar risco na mesma proporção. Dias úteis/252, e
-            calculada na data de cada curva, porque a duration encurta com o tempo.
-            {misturada && (
-              <>
-                <br />
-                As duas famílias continuam em linhas separadas aqui: no mesmo risco de
-                juros, o mercado não cobra a mesma taxa de quem paga cupom e de quem não.
-              </>
-            )}
-          </>
-        ) : misturada ? (
-          <>
-            Este quadro tem as duas famílias, cada uma com a{" "}
-            <strong>sua própria linha</strong> — ponto cheio sem cupom, anel com cupom.
-            Elas não são uma curva só, e ligá-las numa linha produzia um serrilhado que era
-            desenho, não mercado.
-          </>
-        ) : (
-          <>
-            <strong>Cada família tem o seu quadro</strong> — com cupom e sem cupom, nas duas
-            indexações — porque elas não formam uma curva única: há vencimentos que existem
-            nas duas formas, com a mesma data e taxas diferentes. Juntas, o desenho
-            serrilhava e cada curva ficava espremida pela amplitude da outra. Compare-as
-            trocando o chip acima; nas NTN-B longas, a com cupom paga cerca de 0,07 p.p.
-            a mais.
-            <br />
-            Mesmo prazo não é mesmo risco — um título com cupom devolve parte do dinheiro
-            antes. Veja <strong>por duration</strong> para pôr os dois na mesma escala.
-          </>
-        )}
-      </div>
-
       <Implicita implicita={dados.implicita} />
 
-      {/* O aviso fecha a seção dos títulos, depois da implícita: ele cobre
-          tudo que veio do arquivo do Tesouro, e não o bloco da B3 abaixo. */}
-      <div className="note">{dados.aviso}</div>
-
-      {/* O mercado futuro entra DEPOIS do aviso das curvas de título, e não
-          antes: é bloco de outra fonte, com ressalva própria, e empurrá-lo
-          para o meio faria o aviso de cima parecer cobrir os dois. */}
+      {/* O AVISO LONGO SAIU DAQUI. Ele repetia o rodapé, que já está nesta
+          tela, e a convenção de dias úteis que ele trazia agora mora no ⓘ
+          da curva e no da duration — perto do prazo que ela mede. O mercado
+          futuro continua por último: é outra fonte, com ressalva e data
+          próprias, e não deve parecer coberto pela explicação de cima. */}
       <CurvaFuturos />
     </div>
   );

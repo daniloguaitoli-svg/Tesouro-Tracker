@@ -595,6 +595,10 @@ export async function getCurva() {
       umMesAtras: inflacaoImplicita(real?.umMesAtras || [], prefixada?.umMesAtras || []),
       umAnoAtras: inflacaoImplicita(real?.umAnoAtras || [], prefixada?.umAnoAtras || []),
     },
+    // Vai no payload para o ⓘ da Curva citar o piso sem copiá-lo à mão: um
+    // "1,5 ano" escrito no componente ficaria mentindo no dia em que o piso
+    // mudasse aqui.
+    prazoMinimo: PRAZO_MINIMO_CURVA,
     aviso: AVISO,
   };
 }
