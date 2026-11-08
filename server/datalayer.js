@@ -466,10 +466,14 @@ export function curvasDeFuturos(arquivo) {
   const dentroDoPiso = (p) => p.anos >= PRAZO_MINIMO_CURVA;
   const curtosEm = (dataISO) => pontosEm(dataISO, ehDAP, prazoUtil).filter((p) => !dentroDoPiso(p));
 
+  // `curto` é o rótulo do seletor da tela: três posições numa peça só não
+  // comportam "Cupom de IPCA (juro real)" a 360px. Diz a moeda da curva e o
+  // instrumento de onde ela sai; o nome completo segue no ⓘ e no gráfico.
   const curvas = [
     {
       id: "di-pre",
       nome: "DI × pré",
+      curto: "Pré (DI)",
       sufixo: "% a.a.",
       convencao: "dias úteis/252, exponencial",
       agora: pontosEm(ultima, ehDI, prazoUtil),
@@ -478,6 +482,7 @@ export function curvasDeFuturos(arquivo) {
     {
       id: "cupom-limpo",
       nome: "Cupom cambial limpo",
+      curto: "Dólar (FRC)",
       sufixo: "% a.a. US$",
       convencao: "dias corridos/360, linear",
       agora: pontosEm(ultima, ehFRC, prazoCorrido),
@@ -487,6 +492,7 @@ export function curvasDeFuturos(arquivo) {
     {
       id: "cupom-ipca",
       nome: "Cupom de IPCA (juro real)",
+      curto: "IPCA (DAP)",
       // "+ IPCA" e não "real": é como o app rotula taxa real em todo lugar
       // (unidadeTaxa em format.js, o sufixo das curvas do Tesouro logo acima).
       // Quem compara esta curva com a de NTN-B tem de ver a mesma unidade nas
