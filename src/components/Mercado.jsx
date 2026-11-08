@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { getMercado } from "../api.js";
 import { num, pct, pp, dataBR, mesBR, sinal, vigencia } from "../format.js";
 import { ErroBox, Skeletons } from "./States.jsx";
+import { Explica } from "./Explica.jsx";
 
 function CartaoDecisao({ d, taxaPrincipal, detalhe }) {
   if (!d) return null;
@@ -55,6 +56,79 @@ function Cel({ j, base, casas }) {
   );
 }
 
+// O QUE CADA GRUPO DIZ, e onde. Isto era uma nota única de 2.067 caracteres
+// no fim da aba, explicando quatro tabelas longe de todas elas — e repetindo o
+// aviso que o rodapé já mostra. Agora cada pedaço mora junto da sua tabela:
+//
+//   - `linha`: a ressalva que muda a leitura de um número. Fica NA TELA,
+//     porque escondida num ⓘ ela some, e a regra da casa é dizer na interface
+//     o que a conta não sabe.
+//   - `explica`: método e definição. Vai para o ⓘ na linha do título.
+//
+// As chaves são os ids dos grupos que o servidor manda (datalayer.js). Grupo
+// sem entrada aqui simplesmente não ganha linha nem ⓘ — nada quebra.
+const TEXTO_DO_GRUPO = {
+  cambio: {
+    explica: (
+      <>
+        <p>XXX/YYY é o preço de XXX em YYY: reais por dólar, reais por euro, dólares por euro.</p>
+        <p>
+          O EUR/USD sai da divisão do EUR/BRL pelo USD/BRL. As duas cotações vêm da PTAX, o
+          fixing do Banco Central por volta das 13h, então ele é o euro-dólar implícito nessa
+          cotação, não o par negociado no mercado. Pode diferir um pouco.
+        </p>
+        <p>O número menor sob cada percentual é a cotação de partida da janela.</p>
+      </>
+    ),
+  },
+  juros: {
+    linha: "As janelas mostram retorno acumulado, não a variação da taxa.",
+    explica: (
+      <>
+        <p>
+          O valor é a taxa anualizada, como ela é cotada. As janelas mostram quanto R$ 1
+          aplicado a essa taxa rendeu no período, composto dia a dia.
+        </p>
+        <p>
+          Não é a variação do nível da taxa: o CDI ir de 13,65% para 13,90% é +0,25 p.p., e
+          isso não se compara com "Ibovespa +12%". O retorno se compara, por isso é ele que
+          está aqui.
+        </p>
+      </>
+    ),
+  },
+  bolsas: {
+    linha: "Índices estrangeiros em moeda local, sem conversão para reais.",
+    explica: (
+      <p>
+        Cada bolsa fecha no seu horário, então as datas não coincidem entre as linhas. Cada
+        uma mostra a sua.
+      </p>
+    ),
+  },
+  inflacao: {
+    linha: "Para comparar países, use 12 meses: fora do Brasil, o mês tem sazonalidade.",
+    explica: (
+      <>
+        <p>
+          Sai uma vez por mês, com atraso, e cada instituto publica no seu tempo. Por isso cada
+          linha mostra o mês de referência, que não é o mês corrente e nem sempre é o mesmo
+          entre países.
+        </p>
+        <p>
+          Europa, Holanda e Itália usam o HICP, harmonizado para comparar países. Os EUA usam o
+          CPI-U sem ajuste sazonal, o índice que corrige os TIPS, como o IPCA corrige a NTN-B.
+        </p>
+        <p>
+          Exemplo da sazonalidade: em julho de 2026 a Holanda marcou +1,61% e a Itália −0,97%
+          no mês. Foi efeito de verão e energia, não divergência: em 12 meses as três europeias
+          ficaram entre 2,91% e 2,95%.
+        </p>
+      </>
+    ),
+  },
+};
+
 // A grade de um grupo. Tabela e não cartões de propósito: a leitura desta tela
 // é comparar a MESMA janela entre indicadores diferentes, e isso é uma coluna.
 // Vai dentro de .rolagem porque sete colunas não cabem em 390px — a primeira
@@ -65,9 +139,14 @@ function Grade({ grupo }) {
   // não mede simplesmente não existe, em vez de aparecer vazia fingindo que o
   // dado poderia estar lá.
   const colunas = grupo.colunas || [];
+  const texto = TEXTO_DO_GRUPO[grupo.id];
   return (
     <>
-      <div className="section-title">{grupo.nome}</div>
+      <div className="section-title">
+        {grupo.nome}
+        {texto?.explica && <Explica titulo={grupo.nome}>{texto.explica}</Explica>}
+      </div>
+      {texto?.linha && <p className="section-sub">{texto.linha}</p>}
       <div className="rolagem">
         <table className="tbl grade" style={{ minWidth: 150 + (grupo.comValor ? 80 : 0) + colunas.length * 66 }}>
           <thead>
@@ -170,39 +249,6 @@ export function Mercado() {
           Sem resposta agora: {dados.indisponiveis.join(", ")}. As demais linhas seguem inteiras.
         </p>
       )}
-
-      <div className="note">
-        <strong>Câmbio e bolsas variam em preço; Selic e CDI, não.</strong> Nas duas linhas de
-        juros a coluna é o <strong>retorno acumulado</strong> — quanto R$ 1 aplicado à taxa
-        rendeu na janela, composto dia a dia —, e não a variação do nível da taxa. São coisas
-        diferentes: o CDI ir de 13,65% para 13,90% é +0,25 p.p., o que não se compara com
-        "Ibovespa +12%". O retorno se compara, e é por isso que ele está aqui. O número na
-        coluna do valor continua sendo a taxa anualizada, que é como ela se cota.
-        <br />
-        <strong>As três linhas de câmbio se leem igual:</strong> XXX/YYY é o preço de XXX
-        em YYY — reais por dólar, reais por euro, dólares por euro. A terceira sai do
-        cruzamento das duas primeiras: dividir o EUR/BRL pelo USD/BRL dá exatamente o
-        EUR/USD. Como as duas pernas vêm do mesmo fixing da PTAX, ele é o euro-dólar{" "}
-        <strong>implícito</strong> na cotação do Banco Central por volta das 13h, e não o
-        par negociado naquele instante — pode diferir um pouco do spot.
-        <br />
-        Cada praça fecha na sua hora, então as datas legitimamente não batem entre si — cada
-        linha carrega a sua. Índices estrangeiros estão na moeda de origem, sem conversão.
-        <br />
-        <strong>Inflação sai uma vez por mês e com atraso</strong>, e cada instituto publica
-        no seu tempo — por isso cada linha diz o <strong>mês de referência</strong> a que o
-        número se refere, que não é o mês corrente e nem sempre é o mesmo entre regiões.
-        Europa e Holanda e Itália vêm pelo HICP, harmonizado justamente para se comparar
-        entre países; os Estados Unidos pelo CPI-U sem ajuste sazonal, que é o índice a que
-        os TIPS são indexados — o análogo do IPCA para a NTN-B.
-        <br />
-        <strong>A coluna do mês carrega sazonalidade</strong> nas séries sem ajuste
-        sazonal, que são as de fora do Brasil: em julho de 2026 a Holanda marcou +1,61% e a
-        Itália −0,97%, e isso são saldos de verão e energia, não divergência de inflação —
-        em 12 meses as três europeias ficam entre 2,91% e 2,95%. Para comparar países, use
-        a janela de 12 meses.{" "}
-        {dados.aviso}
-      </div>
     </div>
   );
 }

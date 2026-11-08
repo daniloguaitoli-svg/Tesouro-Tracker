@@ -390,6 +390,57 @@ body {
 }
 .footer a { color: var(--accent); }
 
+/* ---------- Explica: o ⓘ e a folha que ele abre ----------
+   O ⓘ fica na linha do título da seção que ele explica. O alvo de toque é de
+   44px, mas as margens negativas impedem que ele estique a linha do título:
+   o ícone desenhado tem 18px, o resto é área de toque invisível.
+   Ver components/Explica.jsx para a divisão entre o que fica na tela e o que
+   vai para a folha. */
+.explica-botao {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  width: 44px; height: 44px; margin: -14px -12px -14px -6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: middle; color: var(--muted); border-radius: 999px;
+}
+.explica-botao:hover { color: var(--accent); }
+.explica-botao:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; }
+/* Com rótulo ("Fontes"), o botão cresce para caber o texto e deixa de ter
+   margem negativa à esquerda — ali ele é o próprio conteúdo da linha. */
+.explica-botao.com-rotulo {
+  width: auto; gap: var(--s1); padding: 0 var(--s2); margin: -12px 0;
+  font: inherit; color: var(--accent);
+}
+
+/* A folha. Por cima da barra inferior (z 40), com rolagem própria quando o
+   texto passa da altura — a folha nunca empurra a página. */
+.explica-fundo {
+  position: fixed; inset: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 0 var(--s3) var(--s5);
+}
+.explica {
+  width: 100%; max-width: var(--maxw); max-height: 70vh; overflow-y: auto;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 -8px 32px color-mix(in srgb, var(--bg) 80%, transparent);
+  padding: var(--s2) var(--s4) var(--s4);
+}
+.explica-cabeca { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.explica-titulo {
+  font-family: var(--display); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.explica-fechar {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  width: 44px; height: 44px; margin-right: calc(-1 * var(--s3));
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted); border-radius: 999px;
+}
+.explica-fechar:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; }
+.explica-corpo { font-size: 14px; line-height: 1.55; color: var(--text); }
+.explica-corpo p { margin: 0 0 var(--s3); }
+.explica-corpo p:last-child { margin-bottom: 0; }
+
 .backlink {
   appearance: none; border: 0; background: transparent; cursor: pointer;
   color: var(--muted); font: inherit; font-size: 14px; font-weight: 600;
@@ -593,4 +644,7 @@ body {
   }
   .folha-item:hover { background: var(--surface); }
   .folha-item[aria-current="page"] { color: var(--accent); }
+
+  /* A folha do ⓘ sobe acima da barra inferior, como a do "Mais". */
+  .explica-fundo { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
