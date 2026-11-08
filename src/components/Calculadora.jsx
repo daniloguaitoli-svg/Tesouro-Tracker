@@ -13,6 +13,7 @@
 import { useMemo, useState } from "react";
 import { reais, pct, num, taxa, anos, pp } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
+import { Explica } from "./Explica.jsx";
 
 // DUPLICADOS DE PROPÓSITO: espelham CUPOM_SEMESTRAL_NTNB e _NTNF em
 // server/util.js. server/ e src/ nunca se importam, então estes valores são
@@ -123,7 +124,27 @@ export function Calculadora({ dados }) {
         <div className="note">Este vencimento está sem taxa no arquivo — escolha outro.</div>
       ) : (
         <>
-          <div className="section-title">Impacto hoje</div>
+          {/* O MÉTODO MORA NO ⓘ DO "IMPACTO HOJE", não no título da tela: é
+              destes dois números que ele fala. */}
+          <div className="section-title">
+            Impacto hoje
+            <Explica titulo="Impacto hoje">
+              <p>
+                A variação do preço sai da duration modificada e da convexidade do título:
+                ΔP/P ≈ −D·Δy + ½·C·Δy². É uma aproximação de segunda ordem, não uma
+                reprecificação exata — boa para movimentos do tamanho dos desta tela.
+              </p>
+              <p>
+                Por isso 2 p.p. não é o dobro de 1 p.p.: a convexidade entra ao quadrado, então
+                a alta tira menos e a queda soma mais do que dobrar diria.
+              </p>
+              <p>Taxa e preço andam em sentidos opostos: a taxa sobe, o título vale menos hoje.</p>
+              <p>
+                O Tesouro Selic fica de fora: é pós-fixado, e a pergunta "e se a taxa mexer?"
+                não se aplica a ele nesta escala.
+              </p>
+            </Explica>
+          </div>
           <div className="grid grid-2" style={{ marginTop: 0 }}>
             <div className="card">
               <div className="label">Variação do preço</div>
@@ -137,7 +158,38 @@ export function Calculadora({ dados }) {
             </div>
           </div>
 
-          <div className="section-title">Até o vencimento</div>
+          <div className="section-title">
+            Até o vencimento
+            <Explica titulo="O que esta conta não sabe">
+              {ehPrefixado ? (
+                <p>
+                  O valor no vencimento está em reais nominais: a taxa prefixada é cheia, e quanto
+                  dela a inflação vai comer ninguém sabe hoje — esse é exatamente o risco do
+                  prefixado.
+                </p>
+              ) : (
+                <p>
+                  O valor no vencimento está em poder de compra de hoje: a correção pelo IPCA vem
+                  por cima disso, e projetar em reais nominais exigiria adivinhar a inflação
+                  futura.
+                </p>
+              )}
+              {t.comCupom && (
+                <p>
+                  O valor final supõe que os cupons sejam reinvestidos à mesma {rotuloTaxa}. Na
+                  prática eles caem na conta e podem render outra coisa.
+                </p>
+              )}
+              <p>
+                Supõe também que o título seja levado até o vencimento: vendido antes, o valor
+                depende da taxa do dia da venda — que é o que o "Impacto hoje" acima mede.
+              </p>
+              <p>Prazo em dias úteis/252, a convenção do Tesouro e da ANBIMA.</p>
+            </Explica>
+          </div>
+          {/* Bruto de imposto fica NA TELA: com IR de 15% a 22,5% sobre o
+              ganho, é a ressalva que mais muda a leitura do número abaixo. */}
+          <p className="section-sub">Valores brutos de imposto de renda e de taxa de custódia.</p>
           <div className="grid grid-2" style={{ marginTop: 0 }}>
             <div className="card">
               <div className="label">
@@ -164,22 +216,6 @@ export function Calculadora({ dados }) {
             </div>
           </div>
 
-          <div className="note">
-            <strong>O que esta conta não sabe.</strong>{" "}
-            {ehPrefixado ? (
-              <>O valor no vencimento está em <em>reais nominais</em>: a taxa prefixada é cheia,
-              e quanto dela a inflação vai comer ninguém sabe hoje — esse é exatamente o risco
-              do prefixado.</>
-            ) : (
-              <>O valor no vencimento está em poder de compra de hoje: a correção pelo IPCA vem{" "}
-              <em>por cima</em> disso, e projetar em reais nominais exigiria adivinhar a
-              inflação futura.</>
-            )} Os números são brutos de
-            imposto de renda e de taxa de custódia. Para os títulos com cupom, o valor final
-            supõe que os cupons sejam reinvestidos à mesma {rotuloTaxa} — na prática eles caem na
-            conta e podem render outra coisa. E a sensibilidade é uma aproximação de segunda
-            ordem (duration + convexidade), não uma reprecificação exata.
-          </div>
         </>
       )}
     </div>

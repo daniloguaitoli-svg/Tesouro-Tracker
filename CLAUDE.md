@@ -465,12 +465,16 @@ were never the same thing. Measured after: 44px and 999px.
 The app's explanations are important and were crowding the screens. Measured
 by height at 390px: Curva 40%, Alertas 40%, Mercado 36% (one 2,067-character
 note at the bottom explaining four tables, far from all of them), Calculadora
-33%. The rule now, applied to Mercado, the footer and Curva:
+33%. The rule now, applied to Mercado, the footer, Curva, Calculadora and Alertas:
 
 - **Stays on screen, in one line:** a caveat that changes how a number is read
   ("Não é previsão de inflação" on the implied inflation; "retorno acumulado,
   não a variação da taxa" on the rates row), a status line (dates, "começa em
-  01/12, não hoje"), and the legal notice.
+  01/12, não hoje"), and the legal notice. Two more by the same test: the
+  Calculadora's "brutos de imposto de renda e de taxa de custódia" (income tax
+  takes 15–22.5% of the gain the card shows) and the Alertas' "sem
+  notificação" (someone creating an alert expects to be told, and learning
+  otherwise inside an ⓘ is too late).
 - **Goes behind the ⓘ:** method, definitions and the reasons for each choice.
 - **The ⓘ always sits next to what it explains** — on the section title's
   line, beside the control it is about (the duration ⓘ lives in the axis
@@ -1277,7 +1281,9 @@ Everything downstream keys off this:
   Four separate places used to say "taxa real" unconditionally, so a Prefixado
   at 14% read as 14% *above* inflation — the numbers were right and the label
   was not. Never write either phrase by hand there; `verificar.mjs` fails if you
-  do.
+  do. The Alertas form had the same defect until 11/2026 — "taxa real" on a
+  list that includes Prefixado and Selic — and now labels the target with
+  `unidadeTaxa()` of the chosen maturity.
 
 To add another family: teach `classificarTitulo()`, add the category in
 `catalogo.js`, give it a sibling bridge file in the collector. Never reshape an

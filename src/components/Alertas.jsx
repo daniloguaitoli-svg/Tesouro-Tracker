@@ -9,8 +9,9 @@
 // há notificação push: o app é um painel que se consulta, não um serviço que
 // avisa — e prometer aviso que não chega seria pior que não prometer.
 import { useEffect, useMemo, useState } from "react";
-import { taxa, dataBR, anos } from "../format.js";
+import { taxa, dataBR, anos, unidadeTaxa } from "../format.js";
 import { AguardandoColeta, Vazio } from "./States.jsx";
+import { Explica } from "./Explica.jsx";
 
 const CHAVE = "tesouro-tracker-alertas";
 
@@ -51,11 +52,40 @@ export function Alertas({ dados }) {
 
   if (dados.pendente) return <AguardandoColeta />;
 
+  // A unidade do alvo segue o vencimento escolhido. A tela dizia "taxa real"
+  // para todos — e a lista tem Prefixado (taxa nominal) e Selic (ágio sobre a
+  // Selic), o mesmo erro que a Calculadora já cometeu e corrigiu.
+  const escolhido = todos.find((t) => t.slug === slug) || null;
+
   return (
     <div>
-      <div className="section-title">Novo alerta</div>
+      <div className="section-title">
+        Novo alerta
+        <Explica titulo="Como os alertas funcionam">
+          <p>
+            O alerta marca quando a taxa de um vencimento cruza o alvo. Ele é conferido quando
+            esta tela abre, contra a última taxa coletada: não há notificação em segundo plano —
+            o app é um painel que se consulta, e prometer um aviso que não chega seria pior que
+            não prometer.
+          </p>
+          <p>
+            A taxa coletada tem ao menos um dia útil de defasagem: o alerta compara com o que o
+            Tesouro publicou, não com o preço deste momento.
+          </p>
+          <p>
+            O alvo está na unidade do vencimento escolhido: acima do IPCA no IPCA+, nominal no
+            Prefixado, e ágio ou deságio sobre a Selic no Tesouro Selic.
+          </p>
+          <p>
+            A lista fica guardada só neste aparelho — nada sai do celular. Trocar de aparelho ou
+            limpar os dados do navegador apaga os alertas.
+          </p>
+        </Explica>
+      </div>
+      {/* "Sem notificação" fica NA TELA: é o que muda o uso. Quem cria um
+          alerta espera ser avisado, e descobrir o contrário no ⓘ é tarde. */}
       <p className="section-sub">
-        Avisa quando a taxa real de um vencimento cruzar o alvo. Guardado só neste aparelho.
+        Sem notificação: o alerta é conferido quando esta tela abre. Fica só neste aparelho.
       </p>
 
       <div className="card">
@@ -78,7 +108,7 @@ export function Alertas({ dados }) {
             </select>
           </label>
           <label className="campo">
-            <span>Taxa real (% a.a.)</span>
+            <span>Alvo, % {unidadeTaxa(escolhido?.tipo)}</span>
             <input className="input" inputMode="decimal" value={alvo} onChange={(e) => setAlvo(e.target.value)} />
           </label>
         </div>
@@ -115,10 +145,6 @@ export function Alertas({ dados }) {
         );
       })}
 
-      <div className="note">
-        Os alertas são conferidos quando esta tela abre, contra a última coleta — não há
-        notificação em segundo plano. E a taxa coletada tem ao menos um dia útil de defasagem.
-      </div>
     </div>
   );
 }
