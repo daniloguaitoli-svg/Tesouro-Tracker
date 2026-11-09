@@ -127,7 +127,7 @@ export function Titulos({ dados, onOpen, marcados, onAlternar }) {
 
       {filtradas.map((c) => (
         <section key={c.id}>
-          <div className="section-title">{c.nome}</div>
+          <h2 className="section-title">{c.nome}</h2>
           <p className="section-sub">{c.resumo}</p>
           {c.itens.map((t) => (
             <Linha

@@ -11,7 +11,13 @@
 // quando. Três coisas respondem isso: os rótulos de taxa à esquerda, as datas
 // embaixo e a linha tracejada da MÉDIA do período, que é a referência contra a
 // qual "está cara ou barata" faz sentido.
+//
+// DESENHADO EM PIXELS REAIS (ver larguraMedida.js): o quadro tem a largura
+// medida do próprio gráfico, então os 12 do rótulo são 12px em qualquer tela.
+// Antes o quadro era fixo em 366 e esticado: o rótulo saía com ~8px no celular
+// e ~29px num monitor, com a linha engrossando junto.
 import { taxa as fmtTaxa, dataCurtaBR } from "../format.js";
+import { useLarguraMedida } from "../larguraMedida.js";
 
 // Em janela curta a data útil é o dia; em janela longa, o mês. "15/10" repetido
 // três vezes num gráfico de cinco anos não diz nada, e "10/26" num gráfico de
@@ -22,14 +28,25 @@ function rotuloData(iso, porMes) {
   return porMes ? `${mes}/${ano.slice(2)}` : dataCurtaBR(iso);
 }
 
-const L = 42; // sobra à esquerda para os rótulos de taxa
-const B = 20; // sobra embaixo para as datas
+// O piso de texto do app é 12px, e os eixos não são exceção: é por eles que se
+// lê o gráfico. A mono a 12px ocupa ~7,2px por caractere, então "14,78%" pede
+// 44px de margem — os 42 de antes só serviam ao rótulo de 9.
+const FONTE = 12;
+const L = 48; // sobra à esquerda para os rótulos de taxa
+const B = 24; // sobra embaixo para as datas
 const T = 8; // respiro no topo, para o ponto do máximo não encostar na borda
+const LARGURA_PADRAO = 366; // antes de medir, e no teste de fumaça
+// Num quadro largo, 190px de altura viram uma faixa achatada em que a taxa
+// mal se move. Um degrau só, e não proporcional: altura que acompanha a
+// largura faria o gráfico tomar a tela inteira num monitor.
+const LARGO = 700;
 
-export function GraficoTaxa({ pontos, media = null, height = 190, width = 366, rotulo }) {
+export function GraficoTaxa({ pontos, media = null, height, rotulo }) {
+  const [ref, width] = useLarguraMedida(LARGURA_PADRAO);
+  const altura = height ?? (width >= LARGO ? 280 : 190);
   const serie = (pontos || []).filter((p) => p?.taxa != null && Number.isFinite(p.taxa));
   if (serie.length < 2) {
-    return <svg className="grafico-taxa" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" />;
+    return <svg ref={ref} className="grafico-taxa" width={width} height={altura} viewBox={`0 0 ${width} ${altura}`} aria-hidden="true" />;
   }
 
   const valores = serie.map((p) => p.taxa);
@@ -42,10 +59,10 @@ export function GraficoTaxa({ pontos, media = null, height = 190, width = 366, r
   const yMax = max + folga;
 
   const px = (i) => L + (i / (serie.length - 1)) * (width - L - 6);
-  const py = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (height - B - T);
+  const py = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (altura - B - T);
 
   const linha = serie.map((p, i) => `${i ? "L" : "M"}${px(i).toFixed(1)} ${py(p.taxa).toFixed(1)}`).join(" ");
-  const area = `${linha} L${px(serie.length - 1).toFixed(1)} ${height - B} L${L} ${height - B} Z`;
+  const area = `${linha} L${px(serie.length - 1).toFixed(1)} ${altura - B} L${L} ${altura - B} Z`;
 
   // Três marcas de taxa, nos mesmos lugares de sempre (15%, 50%, 85% da
   // altura) em vez de em números redondos: números redondos podem cair fora
@@ -63,8 +80,36 @@ export function GraficoTaxa({ pontos, media = null, height = 190, width = 366, r
   const iMax = valores.indexOf(max);
   const iHoje = serie.length - 1;
 
+  // ONDE VAI A PALAVRA "média". Ela ficava sempre à direita, acima da linha
+  // tracejada — que é onde a série termina, e a taxa de hoje costuma estar
+  // perto da média: a linha passava por cima da palavra. Escolher só entre
+  // esquerda e direita não bastou (no IPCA+ 2029 a série cruza a média nas
+  // duas pontas). Então a palavra procura o lugar mais LIVRE ao longo da
+  // tracejada: seis posições, acima ou abaixo dela, e fica onde a série passa
+  // mais longe. No empate vence a mais à direita, que é onde se procura.
+  const LARGURA_ROTULO = 40; // "média" a 12px na mono, com folga
+  const larguraUtil = width - L - 6;
+  const lugarDaMedia = (() => {
+    if (media == null) return null;
+    let melhor = null;
+    for (let k = 5; k >= 0; k--) {
+      const x0 = L + 4 + (k / 5) * (larguraUtil - LARGURA_ROTULO - 8);
+      const i0 = Math.max(0, Math.floor(((x0 - 4 - L) / larguraUtil) * (serie.length - 1)));
+      const i1 = Math.min(serie.length - 1, Math.ceil(((x0 + LARGURA_ROTULO + 4 - L) / larguraUtil) * (serie.length - 1)));
+      for (const acima of [true, false]) {
+        const base = acima ? py(media) - 5 : py(media) + FONTE + 3; // linha de base do texto
+        if (base > altura - B - 2 || base - FONTE < T) continue; // sairia do quadro
+        const centro = base - FONTE / 2 + 1;
+        let folga = Infinity;
+        for (let i = i0; i <= i1; i++) folga = Math.min(folga, Math.abs(py(serie[i].taxa) - centro));
+        if (!melhor || folga > melhor.folga + 0.5) melhor = { x: x0, y: base, folga };
+      }
+    }
+    return melhor;
+  })();
+
   return (
-    <svg className="grafico-taxa" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={rotulo}>
+    <svg ref={ref} className="grafico-taxa" width={width} height={altura} viewBox={`0 0 ${width} ${altura}`} role="img" aria-label={rotulo}>
       <defs>
         <linearGradient id="gt-area" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="var(--accent)" stopOpacity="0.22" />
@@ -75,7 +120,7 @@ export function GraficoTaxa({ pontos, media = null, height = 190, width = 366, r
       {marcasY.map((v, i) => (
         <g key={i}>
           <line x1={L} y1={py(v)} x2={width - 6} y2={py(v)} stroke="var(--text)" strokeOpacity="0.06" />
-          <text x={0} y={py(v) + 3} fontSize="9" fill="var(--muted)" fontFamily="var(--mono)">
+          <text x={0} y={py(v) + 4} fontSize={FONTE} fill="var(--muted)" fontFamily="var(--mono)">
             {fmtTaxa(v)}
           </text>
         </g>
@@ -97,14 +142,30 @@ export function GraficoTaxa({ pontos, media = null, height = 190, width = 366, r
             strokeLinecap="butt"
             opacity="0.75"
           />
-          <text x={width - 6} y={py(media) - 4} fontSize="9" fill="var(--muted)" fontFamily="var(--mono)" textAnchor="end">
-            média
-          </text>
         </g>
       )}
 
       <path d={area} fill="url(#gt-area)" />
       <path d={linha} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+
+      {/* A palavra vem DEPOIS da linha, e com contorno na cor do fundo: se a
+          série ainda assim passar por ali, ela passa por baixo e o texto
+          continua legível. */}
+      {lugarDaMedia && media >= yMin && media <= yMax && (
+        <text
+          x={lugarDaMedia.x}
+          y={lugarDaMedia.y}
+          fontSize={FONTE}
+          fill="var(--muted)"
+          fontFamily="var(--mono)"
+          stroke="var(--bg)"
+          strokeWidth="3"
+          paintOrder="stroke"
+          strokeLinejoin="round"
+        >
+          média
+        </text>
+      )}
 
       {/* Mínimo e máximo como anéis, hoje como disco cheio: três pontos que
           respondem "onde estamos dentro do que já foi" sem precisar de legenda. */}
@@ -116,8 +177,8 @@ export function GraficoTaxa({ pontos, media = null, height = 190, width = 366, r
         <text
           key={i}
           x={px(i)}
-          y={height - 5}
-          fontSize="9"
+          y={altura - 6}
+          fontSize={FONTE}
           fill="var(--muted)"
           fontFamily="var(--mono)"
           // A primeira e a última encostariam na borda com âncora central.

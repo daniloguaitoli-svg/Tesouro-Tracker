@@ -94,6 +94,12 @@ const TEXTO_DO_GRUPO = {
           isso não se compara com "Ibovespa +12%". O retorno se compara, por isso é ele que
           está aqui.
         </p>
+        <p>
+          Na Selic, o valor é a meta definida pelo Copom, mas o retorno é o da Selic efetiva
+          — a taxa que de fato corre a cada dia, um pouco abaixo da meta. É por isso que o
+          retorno da Selic sai praticamente igual ao do CDI, e não o de quem rendeu a meta
+          cheia.
+        </p>
       </>
     ),
   },
@@ -142,10 +148,10 @@ function Grade({ grupo }) {
   const texto = TEXTO_DO_GRUPO[grupo.id];
   return (
     <>
-      <div className="section-title">
+      <h2 className="section-title">
         {grupo.nome}
         {texto?.explica && <Explica titulo={grupo.nome}>{texto.explica}</Explica>}
-      </div>
+      </h2>
       {texto?.linha && <p className="section-sub">{texto.linha}</p>}
       <div className="rolagem">
         <table className="tbl grade" style={{ minWidth: 150 + (grupo.comValor ? 80 : 0) + colunas.length * 66 }}>
@@ -164,7 +170,7 @@ function Grade({ grupo }) {
                 <td className="col-nome">
                   {l.nome}
                   <br />
-                  <span className="muted" style={{ fontSize: 11 }}>
+                  <span className="linha-menor">
                     {l.sub}
                     {l.mesReferencia ? ` · ref. ${mesBR(l.mesReferencia)}` : l.data ? ` · ${dataBR(l.data)}` : ""}
                     {l.desatualizado && (
@@ -174,8 +180,10 @@ function Grade({ grupo }) {
                 </td>
                 {grupo.comValor && (
                   <td className="rt mono">
-                    {l.valor == null ? "—" : num(l.valor, l.casas ?? 2)}
-                    {l.unidade === "%_ANO" ? "%" : ""}
+                    {/* A unidade só acompanha um número. Com a fonte fora
+                        do ar a célula mostrava "—%": um símbolo de unidade
+                        medindo nada. */}
+                    {l.valor == null ? "—" : `${num(l.valor, l.casas ?? 2)}${l.unidade === "%_ANO" ? "%" : ""}`}
                   </td>
                 )}
                 {colunas.map((c) => (
@@ -213,7 +221,7 @@ export function Mercado() {
 
   return (
     <div>
-      <div className="section-title">Política monetária</div>
+      <h2 className="section-title">Política monetária</h2>
       <p className="section-sub">
         As três decisões que emolduram qualquer taxa desta tela.
       </p>

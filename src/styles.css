@@ -74,8 +74,10 @@ body {
 }
 .brand .marca-icone { flex: none; display: block; }
 .brand small {
-  display: block; font-family: var(--ui); font-weight: 500; font-size: 11px;
-  letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+  /* Sem maiúsculas: a 12px, em caixa alta e espaçada, a frase quebrava em
+     três linhas no celular e empurrava a tela inteira para baixo. */
+  display: block; font-family: var(--ui); font-weight: 400; font-size: 12px;
+  color: var(--muted); letter-spacing: 0;
 }
 
 /* ---------- Abas ---------- */
@@ -105,7 +107,28 @@ body {
   font-size: 26px; font-weight: 600; margin-top: var(--s1); letter-spacing: -0.01em;
 }
 
+/* PISO DE TEXTO: 12px. Nada no app é escrito menor que isso — nem rótulo de
+   eixo, nem a linha de fonte, nem a unidade sob a taxa. Até 11/2026 havia 10
+   e 11px em dezenas de lugares (60 só na aba Títulos), em cinza sobre fundo
+   escuro, que é a combinação que menos se lê num celular. Texto que não cabe
+   a 12px pede outro arranjo, não uma letra menor. */
+
+/* Só para leitor de tela: fora da tela para os olhos, presente para quem
+   navega por títulos. O recorte de 1px é o padrão — display:none e
+   visibility:hidden tirariam o elemento também do leitor. */
+.so-leitor {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+/* A segunda linha de uma célula: o subtítulo sob o nome, a data sob o
+   vencimento. Era um style={{ fontSize: 11 }} repetido nos componentes. */
+.linha-menor { font-size: 12px; color: var(--muted); }
+
+/* Os títulos de seção são <h2> de verdade (eram <div>): é por eles que um
+   leitor de tela percorre a página. A classe define tudo o que o navegador
+   poria por conta própria num h2 — tamanho, peso, margens e entrelinha. */
 .section-title {
+  line-height: 1.5;
   font-family: var(--display); font-weight: 600; font-size: 13px;
   letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
   margin: var(--s5) 0 var(--s2);
@@ -130,7 +153,7 @@ body {
 .row .rowprice { text-align: right; white-space: nowrap; }
 .row .rowprice .p { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; }
 .row .rowprice .d { font-family: var(--mono); font-size: 12px; }
-.row .rowprice .sub { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.row .rowprice .sub { font-size: 12px; color: var(--muted); font-family: var(--mono); }
 .spark { display: block; }
 
 /* ---------- Janelas de variação (12 meses / 1 semana) ---------- */
@@ -150,11 +173,15 @@ body {
   appearance: none; border: 0; background: transparent; padding: 0;
   color: inherit; font: inherit; text-align: left; cursor: pointer;
 }
+/* 44×44: é o controle mais tocado da aba Títulos (30 por tela) e saía com
+   35px de altura e menos de 30 de largura, colado na borda do cartão. */
 .estrela {
   appearance: none; border: 0; background: transparent;
   color: var(--muted); cursor: pointer;
   font-size: 19px; line-height: 1;
-  padding: var(--s2) var(--s1); border-radius: 8px;
+  min-width: 44px; min-height: 44px; margin-right: calc(-1 * var(--s2));
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border-radius: 8px;
   flex: 0 0 auto;
   transition: color .15s;
 }
@@ -168,7 +195,11 @@ body {
 .controls { display: flex; gap: var(--s2); margin: var(--s4) 0 var(--s2); flex-wrap: wrap; }
 .input, .select {
   background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  color: var(--text); font: inherit; font-size: 14px; padding: var(--s2) var(--s3);
+  /* 16px NÃO É ESTÉTICA: abaixo disso o Safari do iPhone dá zoom na página
+     inteira ao focar o campo, e não desfaz ao sair. Com 14px, tocar na busca
+     da aba Títulos ampliava a tela. E 44px é o alvo de toque mínimo. */
+  color: var(--text); font: inherit; font-size: 16px; padding: var(--s2) var(--s3);
+  min-height: 44px;
 }
 .input { flex: 1; min-width: 140px; }
 .input:focus, .select:focus, .row:focus-visible, .tab:focus-visible, .btn:focus-visible {
@@ -194,7 +225,10 @@ body {
   height: 32px; display: inline-flex; align-items: center; white-space: nowrap;
   padding: 0 var(--s3); border-radius: 999px;
 }
-.chip::after { content: ""; position: absolute; inset: -6px 0; }
+/* -7px, e não -6: o inset parte da borda de DENTRO, e o chip tem 1px de
+   borda. Com -6 a área somava 42px — o teste antigo tocava 4px para fora e
+   não via os 2 que faltavam. 30 de miolo + 7 + 7 = 44. */
+.chip::after { content: ""; position: absolute; inset: -7px 0; }
 .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .chip[aria-pressed="true"] {
   color: var(--accent);
@@ -217,7 +251,7 @@ body {
 /* 48px cabe "ÍNDICE" e "CUPOM" e alinha as duas peças pela borda esquerda.
    A 56px, "Prefixado" não cabia a 360px de tela. */
 .seletor-rotulo {
-  flex: none; width: 48px; font-size: 11px; color: var(--muted);
+  flex: none; width: 48px; font-size: 12px; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.08em;
 }
 .seletor-pecas {
@@ -252,6 +286,7 @@ body {
   appearance: none; border: 1px solid var(--line); background: var(--surface-2);
   color: var(--text); font: inherit; font-weight: 600; font-size: 14px;
   padding: var(--s2) var(--s4); border-radius: 10px; cursor: pointer;
+  min-height: 44px;
 }
 .btn:hover { border-color: var(--accent-2); }
 .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
@@ -259,10 +294,13 @@ body {
 
 /* ---------- Detalhe ---------- */
 .tfrow { display: flex; gap: var(--s1); margin: var(--s4) 0 var(--s2); }
-.tfrow .chip { flex: 1; text-align: center; }
+/* justify-content, e não text-align: o chip é flex, então text-align não
+   centralizava nada e o rótulo ficava encostado à esquerda. O teto de largura
+   impede que seis botões de duas letras se estiquem por 1200px num monitor. */
+.tfrow .chip { flex: 1; justify-content: center; max-width: 88px; }
 .statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); margin-top: var(--s4); }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: var(--s3); }
-.stat .k { font-size: 11px; color: var(--muted); }
+.stat .k { font-size: 12px; color: var(--muted); }
 .stat .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 16px; margin-top: 2px; }
 
 .note {
@@ -270,7 +308,7 @@ body {
   border: 1px dashed var(--line); border-radius: 10px; padding: var(--s3); margin-top: var(--s3);
 }
 .pill {
-  display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+  display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent);
   border: 1px solid var(--accent-2); border-radius: 999px; padding: 2px 8px; margin-top: var(--s2);
 }
 .pill + .pill { margin-left: var(--s1); }
@@ -285,7 +323,7 @@ body {
   border-radius: var(--radius); overflow: hidden; margin-bottom: var(--s5);
 }
 .faixa-macro > div { background: var(--surface); padding: var(--s2) var(--s3); min-width: 0; }
-.fm-rotulo { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.fm-rotulo { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .fm-valor { font-size: 14px; font-weight: 600; }
 
 /* ---------- Painel: cartão de um vencimento ---------- */
@@ -325,7 +363,7 @@ body {
 .ct-dur-linha b { font-weight: 500; color: var(--text); }
 .ct-trilho { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--surface-2); }
 .ct-trilho > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
-.ct-escala { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.ct-escala { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .ct-dur-nota { font-size: 12px; color: var(--muted); }
 
 /* ---------- Fluxo de caixa ---------- */
@@ -336,7 +374,10 @@ body {
 .fluxo:last-child .barra > i { background: var(--accent); }
 
 /* ---------- Curva ---------- */
-.curva { width: 100%; height: 220px; }
+/* A altura vem do próprio SVG (atributos width/height = quadro medido), não
+   daqui: com altura fixa no CSS, um gráfico pedido com 170 era centralizado
+   num quadro de 220, com faixa vazia em cima e embaixo. */
+.curva { display: block; width: 100%; height: auto; }
 /* A legenda é desenhada em SVG pelo CurvaLegenda, com o mesmo traço do gráfico.
    30px de amostra é o mínimo em que o tracejado "4 3" mostra três traços — a
    barrinha sólida de 14px que existia aqui antes deixava as três séries iguais
@@ -392,12 +433,12 @@ body {
    ("+0,10%" / "de" / "5,1523"), esticando a linha inteira. O rótulo saiu e hoje
    não há onde quebrar, mas a regra fica: é ela que garante uma linha só se a
    base voltar a ganhar prefixo, sufixo ou unidade. */
-.cel-base { font-size: 10px; opacity: 0.62; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cel-base { font-size: 12px; opacity: 0.62; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---------- Tabelas ---------- */
 .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl th {
-  text-align: left; font-weight: 600; font-size: 11px; letter-spacing: 0.04em;
+  text-align: left; font-weight: 600; font-size: 12px; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--muted);
   padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line);
 }
@@ -412,9 +453,9 @@ body {
 /* Texto, não número: a mono aqui vinha de quando esta linha era só uma data.
    Hoje ela carrega frases ("BCB / SGS (série 432)"), e a regra da casa é mono
    só para número. Os tabulares ficam, para a data não dançar. */
-.pricedate { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pricedate { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .stale {
-  display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700;
   letter-spacing: 0.02em; color: var(--down); border: 1px solid var(--down);
   border-radius: 999px; padding: 1px 7px;
 }
@@ -436,7 +477,7 @@ body {
 /* ---------- Rodapé ---------- */
 .footer {
   margin-top: var(--s6); padding-top: var(--s4); border-top: 1px solid var(--line);
-  font-size: 11px; color: var(--muted); line-height: 1.6;
+  font-size: 12px; color: var(--muted); line-height: 1.6;
 }
 .footer a { color: var(--accent); }
 
@@ -529,6 +570,7 @@ body {
 
 /* ---------- Detalhe ---------- */
 .det-cabeca { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s4); }
+.det-nome { margin: 0; font-family: var(--display); font-size: 17px; font-weight: 600; line-height: 1.3; }
 .det-taxa-linha { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
 /* O maior número da tela: é por ele que se chegou aqui. */
 .det-taxa { font-size: 40px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; }
@@ -617,6 +659,10 @@ body {
     flex: 1 1 320px; min-width: 0;
     display: flex; flex-direction: column; gap: var(--s4);
     position: sticky; top: var(--s4);
+    /* A mesma margem de cima do título de seção ao lado: sem ela o primeiro
+       cartão da lateral encostava na barra de abas (0px), enquanto a coluna
+       principal começava 24px abaixo. */
+    margin-top: var(--s5);
   }
 
   /* Dois (ou mais) cartões por linha, por largura e não por contagem: com
@@ -634,10 +680,14 @@ body {
   margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
 }
+/* Parece um link de 19px e continua parecendo; a área de toque é que cresce,
+   pelo ::after invisível — o mesmo recurso dos chips e do seletor. */
 .lat-link {
+  position: relative;
   background: none; border: 0; padding: 0; font: inherit; font-size: 13px;
   color: var(--accent); cursor: pointer;
 }
+.lat-link::after { content: ""; position: absolute; inset: -13px -8px; }
 .lat-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lat-nota { margin: 0; font-size: 12px; color: var(--muted); }
 .lat-lista { display: flex; flex-direction: column; }
@@ -648,7 +698,6 @@ body {
 .lat-linha:last-child { border-bottom: 0; }
 .lat-linha b { font-weight: 600; }
 /* Na lateral o quadro é mais baixo que na aba Curva (150 contra 220). */
-.painel-lateral .curva { height: 150px; }
 
 /* ---------- Barra inferior (celular) ----------
    Abaixo de 720px a tira de abas some e a barra fixa no rodapé assume. */
@@ -671,7 +720,7 @@ body {
     appearance: none; border: 0; background: transparent; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     min-height: 52px; padding: 4px 2px; border-radius: 10px;
-    color: var(--muted); font: 500 11px var(--ui);
+    color: var(--muted); font: 500 12px var(--ui);
   }
   .barra-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .barra-item[aria-current="page"] { color: var(--accent); font-weight: 600; }

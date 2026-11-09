@@ -58,6 +58,10 @@ export function Detalhe({ slug, onBack }) {
       <button className="backlink" onClick={onBack}>← voltar</button>
 
       <div className="det-cabeca">
+        {/* O NOME DO TÍTULO. A tela abria direto na taxa e nunca dizia de
+            qual título — só a data de vencimento, três linhas abaixo. Quem
+            chegava pelo Painel sabia; quem voltava ao app, não. */}
+        <h1 className="det-nome">{t.nome}</h1>
         <div className="det-taxa-linha">
           <b className="det-taxa mono">{taxa(t.taxa, t.tipo === "selic" ? 4 : 2)}</b>
           <span className="det-unidade">{unidadeTaxa(t.tipo)}</span>
@@ -124,7 +128,7 @@ export function Detalhe({ slug, onBack }) {
 
       {d.macaulay != null && (
         <>
-          <div className="section-title">Se a taxa mudar…</div>
+          <h2 className="section-title">Se a taxa mudar…</h2>
           {/* Quatro cenários em vez de dois: ±1 p.p. sozinho não mostra que a
               reação é assimétrica, e é a assimetria que importa aqui — a queda
               de 2 p.p. ganha mais do que a alta de 2 p.p. tira. Os quatro vêm
@@ -171,7 +175,7 @@ export function Detalhe({ slug, onBack }) {
 
       {fluxos.length > 0 && (
         <>
-          <div className="section-title">Fluxo de caixa até o vencimento</div>
+          <h2 className="section-title">Fluxo de caixa até o vencimento</h2>
           <p className="section-sub">
             {fluxos.length} pagamento{fluxos.length > 1 ? "s" : ""} por 100 de valor nominal
             corrigido (VNA). O último traz o principal junto.

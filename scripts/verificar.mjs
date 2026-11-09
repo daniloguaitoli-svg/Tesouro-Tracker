@@ -766,6 +766,44 @@ conferir(itensRss[1].titulo === "B & C", "CDATA e entidades decodificados");
 conferir(noticias.extrairItens("nada").length === 0, "XML irreconhecível devolve lista vazia (a tela explica)");
 conferir(noticias.REGIOES.length === 3, "três regiões configuradas");
 
+// O FILTRO DO QUE NÃO É MANCHETE. No feed real de 09/11/2026, duas das oito
+// manchetes dos EUA eram a página de cotação da CNN com o nome do ativo por
+// preencher ("symbol__ Stock Quote…"), repetida, e a primeira do Brasil era
+// o anúncio de um simpósio. Cada conferência abaixo guarda um lado da regra:
+// o que tem de sair, e o que NÃO pode sair junto.
+const itemRss = (t, l, d, f) =>
+  `<item><title>${t}${f ? " - " + f : ""}</title><link>${l}</link>${d ? `<pubDate>${d}</pubDate>` : ""}${f ? `<source url="x">${f}</source>` : ""}</item>`;
+const feedSujo = `<rss>${[
+  itemRss("symbol__ Stock Quote Price and Forecast", "https://t/1", "Mon, 09 Nov 2026 17:40:05 GMT", "CNN"),
+  itemRss("Tech set to still sway US stock market", "https://t/2", "Mon, 09 Nov 2026 16:55:16 GMT", "Reuters"),
+  itemRss("symbol__ Stock Quote Price and Forecast", "https://t/3", "Mon, 09 Nov 2026 17:40:11 GMT", "CNN"),
+  itemRss("UFPI divulga programação do 2º Simpósio Sala de Ações", "https://t/4", "Mon, 09 Nov 2026 17:27:00 GMT", "UFPI"),
+  itemRss("Mercado eleva projeção da Selic", "https://t/5", "Mon, 09 Nov 2026 13:26:00 GMT", "Agência Brasil"),
+  itemRss("Mercado eleva projeção da Selic!", "https://t/6", "Mon, 09 Nov 2026 14:00:00 GMT", "Outro"),
+  itemRss("Congresso aprova arcabouço; corte de juros em curso", "https://t/7", "Mon, 09 Nov 2026 19:00:00 GMT", "Valor"),
+  itemRss("Powell press conference: Fed holds", "https://t/8", "Mon, 09 Nov 2026 18:00:00 GMT", "WSJ"),
+  itemRss("Sem data nenhuma", "https://t/9", null, "X"),
+].join("")}</rss>`;
+const limpos = noticias.extrairItens(feedSujo);
+const titulosLimpos = limpos.map((x) => x.titulo);
+conferir(!titulosLimpos.some((t) => /symbol__/.test(t)), "página de cotação com modelo por preencher fica de fora");
+conferir(!titulosLimpos.some((t) => /Simpósio/.test(t)), "divulgação de evento fica de fora");
+conferir(titulosLimpos.filter((t) => /projeção da Selic/.test(t)).length === 1, "manchete repetida entra uma vez só");
+// O outro lado: as três palavras que NÃO podem estar no filtro, porque são
+// manchete de mercado todo dia. Quem "completar" a lista de eventos com
+// congresso, curso ou conference derruba estas três.
+conferir(titulosLimpos.some((t) => /Congresso aprova/.test(t)), '"Congresso" e "em curso" não são descartados');
+conferir(titulosLimpos.some((t) => /press conference/.test(t)), '"press conference" não é descartada');
+conferir(limpos.length === 5, `sobraram as cinco manchetes de verdade (${limpos.length})`);
+const datasLimpas = limpos.filter((x) => x.data).map((x) => Date.parse(x.data));
+conferir(datasLimpas.every((d, i) => i === 0 || datasLimpas[i - 1] >= d), "manchetes da mais nova para a mais antiga");
+conferir(limpos[limpos.length - 1].data === null, "manchete sem data vai para o fim, não some");
+// Filtra ANTES de cortar: com limite 2, as duas primeiras do feed são lixo e
+// uma boa. Cortar primeiro devolveria uma manchete só.
+conferir(noticias.extrairItens(feedSujo, 2).length === 2, "o limite conta manchetes aproveitadas, não itens lidos");
+conferir(noticias.descartadosDoFeed(feedSujo).length === 3, "o coletor recebe os três descartes, com motivo");
+conferir(noticias.motivoDoDescarte("Ibovespa fecha em alta com exterior") === null, "manchete comum não tem motivo de descarte");
+
 console.log("\nparser da ANBIMA");
 const amostra = [
   "Titulo@Data Referencia@Codigo SELIC@Data Base/Emissao@Data Vencimento@Taxa Compra@Taxa Venda@Taxa Indicativa@PU",
@@ -1194,6 +1232,34 @@ conferir(/const rotuloTaxa\s*=/.test(calcSrc), "Calculadora deriva rotuloTaxa do
 for (const termo of ["taxa real", "taxa nominal"]) {
   const n = (calcSemComentarios.match(new RegExp(termo, "g")) || []).length;
   conferir(n === 0, `"${termo}" não aparece escrito à mão na Calculadora (achou ${n})`);
+}
+
+console.log("\npiso de texto e gráficos em pixels reais");
+// NADA ABAIXO DE 12px. Em 11/2026 havia 10 e 11px em dezenas de lugares (60 só
+// na aba Títulos) e 9 nos eixos dos gráficos. O piso só se mantém se uma
+// regra nova a 11px reprovar aqui — a olho, um pixel a menos nunca parece
+// errado, e é assim que eles voltam um a um.
+{
+  const { readdir } = await import("node:fs/promises");
+  const css = await ler("src/styles.css");
+  const noCss = [...css.matchAll(/font(?:-size)?:[^;{}]*?\b(\d+(?:\.\d+)?)px/g)].map((m) => Number(m[1])).filter((n) => n < 12);
+  conferir(noCss.length === 0, `nenhum font-size abaixo de 12px no styles.css (achou ${noCss.join(", ") || "nenhum"})`);
+  const pequenosJsx = [];
+  for (const arq of (await readdir(join(RAIZ, "src/components"))).filter((a) => a.endsWith(".jsx"))) {
+    const src = await ler(`src/components/${arq}`);
+    for (const m of src.matchAll(/fontSize[=:]\s*\{?\s*"?(\d+(?:\.\d+)?)\b/g)) if (Number(m[1]) < 12) pequenosJsx.push(`${arq}: ${m[1]}`);
+  }
+  conferir(pequenosJsx.length === 0, `nenhum fontSize abaixo de 12 escrito nos componentes (achou ${pequenosJsx.join("; ") || "nenhum"})`);
+  // O piso só vale nos gráficos porque eles são desenhados na largura medida.
+  // Com o quadro fixo de antes, "12" virava 10px no celular e 39px no monitor.
+  for (const arq of ["GraficoTaxa.jsx", "CurvaChart.jsx"]) {
+    const src = await ler(`src/components/${arq}`);
+    conferir(/useLarguraMedida\(/.test(src), `${arq} desenha na largura medida (uma unidade = um pixel)`);
+    conferir(/<svg ref=\{ref\}[^>]*width=\{width\}/.test(src), `${arq}: o SVG leva a largura medida como atributo`);
+  }
+  // O campo de texto a menos de 16px faz o Safari do iPhone dar zoom na página.
+  const regraCampo = css.match(/\.input, \.select \{[^}]*\}/)?.[0] || "";
+  conferir(/font-size: 16px/.test(regraCampo), "campos de texto a 16px (abaixo disso o iPhone dá zoom ao focar)");
 }
 
 console.log("\nlegenda da curva");
