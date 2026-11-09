@@ -277,7 +277,14 @@ export const INFLACAO = [
     nota: "Comparável ponto a ponto com a Zona do Euro e a Holanda." },
 ];
 
+// `subNivel` diz O QUE É o número da coluna "Último", e na Selic isso importa:
+// o nível mostrado é a META do Copom (série 432), mas o retorno das janelas é
+// composto com a Selic EFETIVA do dia (série 11), que corre abaixo da meta. A
+// linha dizia só "% a.a." — então lia-se "13,75%" ao lado de um retorno de
+// quem rendeu 13,65%, igual ao do CDI até a última casa, sem nada na tela
+// explicando por quê. O CDI não tem essa diferença: nível (4389) e retorno
+// (12) são a mesma taxa.
 export const JUROS_DIARIOS = [
-  { id: "selic", serie: 11, nome: "Selic", descricao: "Taxa Selic diária (% a.d.), série 11 do SGS." },
-  { id: "cdi", serie: 12, nome: "CDI", descricao: "Taxa DI diária (% a.d.), série 12 do SGS." },
+  { id: "selic", serie: 11, nome: "Selic", subNivel: "meta · % a.a.", descricao: "Taxa Selic diária (% a.d.), série 11 do SGS." },
+  { id: "cdi", serie: 12, nome: "CDI", subNivel: "% a.a.", descricao: "Taxa DI diária (% a.d.), série 12 do SGS." },
 ];

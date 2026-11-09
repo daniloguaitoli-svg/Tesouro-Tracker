@@ -878,7 +878,7 @@ export async function getMercado() {
     return {
       id: j.id,
       nome: j.nome,
-      sub: nivel ? "% a.a." : "acumulado",
+      sub: nivel ? j.subNivel : "acumulado",
       valor: nivel?.valor ?? null,
       casas: 2,
       unidade: "%_ANO",

@@ -42,7 +42,7 @@ function Implicita({ implicita }) {
 
   return (
     <>
-      <div className="section-title">
+      <h2 className="section-title">
         Inflação implícita
         <Explica titulo="Inflação implícita">
           <p>
@@ -64,7 +64,7 @@ function Implicita({ implicita }) {
             ficar acima da inflação que o mercado de fato espera.
           </p>
         </Explica>
-      </div>
+      </h2>
       {/* "Não é previsão" fica NA TELA, não no ⓘ: é a ressalva que muda a
           leitura do número. Sem ela, 6,3% neste gráfico vira "o mercado
           espera 6,3% de inflação" — fácil e errado. */}
@@ -183,7 +183,7 @@ export function Curva({ marcados }) {
 
   return (
     <div>
-      <div className="section-title">
+      <h2 className="section-title">
         Curva de juros
         <Explica titulo="Curva de juros">
           <p>
@@ -214,7 +214,7 @@ export function Curva({ marcados }) {
           )}
           <p>Prazo em dias úteis/252, a convenção do Tesouro e da ANBIMA.</p>
         </Explica>
-      </div>
+      </h2>
       <p className="section-sub">
         Real e nominal não se comparam ponto a ponto — a diferença entre elas é a inflação
         implícita, logo abaixo.
@@ -322,7 +322,7 @@ export function Curva({ marcados }) {
                 <td>
                   {p.nome} {p.destaque && <span aria-label="acompanhado de perto">⭐</span>}
                   <br />
-                  <span className="muted" style={{ fontSize: 11 }}>{dataBR(p.vencimento)}</span>
+                  <span className="linha-menor">{dataBR(p.vencimento)}</span>
                 </td>
                 <td className="rt mono inteiro">{anos(p.anos)}</td>
                 {temCupom && <td className="rt mono inteiro">{anos(p.duration)}</td>}

@@ -55,9 +55,54 @@ function desescapar(txt) {
     .trim();
 }
 
+// ---------- O que não é manchete ----------
+// O feed é uma BUSCA, e busca devolve o que casa com as palavras, não o que é
+// notícia. Medido no feed real de 09/11/2026: duas das oito manchetes dos EUA
+// eram "symbol__ Stock Quote Price and Forecast" (página de cotação da CNN com
+// o nome do ativo por preencher), e a primeira do Brasil era o anúncio de um
+// simpósio universitário que cita "mercado financeiro".
+//
+// Só sai o que tem REGRA EXPLICÁVEL. Julgar relevância por regex seria fingir
+// uma curadoria que o app não faz — e a tela diz que a seleção é do agregador.
+// Cada regra abaixo descreve um TIPO de página, nunca um veículo.
+const NAO_E_MANCHETE = [
+  // Modelo por preencher: "symbol__", "{{ticker}}", "${nome}".
+  { motivo: "modelo por preencher", re: /\w__(\s|$)|\{\{|\$\{/ },
+  // Página de cotação de um ativo, não notícia sobre ele.
+  { motivo: "página de cotação", re: /\bstock quote\b|\bprice and forecast\b|\bcotação em tempo real\b/i },
+  // Divulgação de evento. A lista é curta DE PROPÓSITO: "congresso" e "curso"
+  // ficam de fora porque "Congresso aprova…" e "corte de juros em curso" são
+  // manchete de mercado, e "conference" porque a coletiva do Fed é "press
+  // conference".
+  { motivo: "divulgação de evento", re: /\bsimp[óo]sio\b|\bsemin[áa]rio\b|\bpalestra\b|\bwebinar\b|\binscrições abertas\b/i },
+];
+
+// Exportada para o verificar.mjs e para o coletor, que registra no log o que
+// o filtro tirou do feed real — é a única forma de ver se uma regra está
+// comendo manchete de verdade.
+export function motivoDoDescarte(titulo) {
+  return NAO_E_MANCHETE.find((r) => r.re.test(titulo))?.motivo ?? null;
+}
+
+// A mesma manchete chega mais de uma vez: republicada por outro veículo, ou
+// com dois links para a mesma página. Compara sem acento, caixa e pontuação.
+const chaveDoTitulo = (titulo) =>
+  titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
 // Extrai os itens de um XML de RSS. Pura e exportada para o verificar.mjs.
+//
+// A ORDEM DAS ETAPAS IMPORTA:
+//   1. lê o feed INTEIRO (são até 100 itens), e não só os primeiros `limite`:
+//      cortar antes de filtrar devolvia menos manchetes do que havia;
+//   2. tira o que não é manchete e as repetidas;
+//   3. fica com os primeiros `limite` NA ORDEM DO AGREGADOR — é a seleção
+//      dele por relevância, a que a tela diz mostrar. Pegar os oito mais
+//      recentes de cem trocaria essa seleção por "o que saiu por último",
+//      de qualquer veículo;
+//   4. só então ordena esses por data, a mais nova primeiro, para a leitura.
 export function extrairItens(xml, limite = 8) {
   const itens = [];
+  const vistos = new Set();
   const blocos = String(xml ?? "").match(/<item>[\s\S]*?<\/item>/g) || [];
   for (const bloco of blocos) {
     const titulo = desescapar(bloco.match(/<title>([\s\S]*?)<\/title>/)?.[1]);
@@ -73,10 +118,37 @@ export function extrairItens(xml, limite = 8) {
     // O Google News repete a fonte no fim do título ("Manchete - Fonte");
     // com o campo <source> presente, o sufixo vira ruído — corta.
     const tituloLimpo = fonte && titulo.endsWith(` - ${fonte}`) ? titulo.slice(0, -(fonte.length + 3)) : titulo;
+    if (motivoDoDescarte(tituloLimpo)) continue;
+    const chave = chaveDoTitulo(tituloLimpo);
+    if (!chave || vistos.has(chave) || vistos.has(url)) continue;
+    vistos.add(chave);
+    vistos.add(url);
     itens.push({ titulo: tituloLimpo, url, fonte: fonte || null, data });
     if (itens.length >= limite) break;
   }
-  return itens;
+  // Sem data vai para o fim, na ordem em que veio (o sort do JS é estável).
+  return itens.sort((a, b) => (b.data ? Date.parse(b.data) : -Infinity) - (a.data ? Date.parse(a.data) : -Infinity));
+}
+
+// O que o filtro tirou de um feed, com o motivo. Não é usada pela tela: existe
+// para o coletor escrever no log, no runner, o que cada regra descartou do
+// feed de verdade. Uma regra que começa a comer manchete só aparece ali.
+export function descartadosDoFeed(xml) {
+  const fora = [];
+  for (const bloco of String(xml ?? "").match(/<item>[\s\S]*?<\/item>/g) || []) {
+    const titulo = desescapar(bloco.match(/<title>([\s\S]*?)<\/title>/)?.[1]);
+    const motivo = titulo && motivoDoDescarte(titulo);
+    if (motivo) fora.push({ titulo, motivo });
+  }
+  return fora;
+}
+
+// Baixa o feed de uma região. Separada de `manchetes` para o coletor poder
+// olhar o XML inteiro (manchetes aproveitadas E descartadas) num pedido só.
+export async function baixarFeed(regiao) {
+  const r = await fetch(regiao.url, { headers: UA });
+  if (!r.ok) throw new Error(`RSS ${regiao.id}: HTTP ${r.status}`);
+  return r.text();
 }
 
 // Manchetes de uma região, com cache. Lança em falha — quem decide o que fazer
@@ -84,9 +156,7 @@ export function extrairItens(xml, limite = 8) {
 export async function manchetes(regiao) {
   const hit = cache.get(regiao.id);
   if (hit && Date.now() - hit.ts < TTL_MS) return hit.itens;
-  const r = await fetch(regiao.url, { headers: UA });
-  if (!r.ok) throw new Error(`RSS ${regiao.id}: HTTP ${r.status}`);
-  const itens = extrairItens(await r.text());
+  const itens = extrairItens(await baixarFeed(regiao));
   if (!itens.length) throw new Error(`RSS ${regiao.id}: nenhum item reconhecido`);
   cache.set(regiao.id, { ts: Date.now(), itens });
   return itens;

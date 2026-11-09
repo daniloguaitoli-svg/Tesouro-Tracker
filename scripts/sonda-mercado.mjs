@@ -210,6 +210,44 @@ console.log("\n=== as séries como o app as lê (pelo mesmo bcb.serie) ===");
   }
 }
 
+// SELIC × CDI: AS DUAS LINHAS SÃO MESMO IGUAIS?
+// Em 09/11/2026 a tela mostrava o MESMO retorno para Selic e CDI nas cinco
+// janelas, até a última casa. Duas explicações, com ações opostas: as séries
+// 11 e 12 do SGS são de fato iguais dia a dia (e a tela está certa), ou o app
+// está lendo a mesma série duas vezes (e a tela mente). Só a leitura crua das
+// duas, lado a lado, separa uma da outra — e só o runner alcança o SGS.
+// Informativo: não reprova a sonda, porque as duas respostas são legítimas
+// para o mercado; o que ela faz é dizer QUAL é.
+console.log("\n=== Selic (série 11) × CDI (série 12), dia a dia ===");
+{
+  const bcb = await import("../server/providers/bcb.js");
+  try {
+    const [selic, cdi] = [await bcb.serie(11, { dias: 800 }), await bcb.serie(12, { dias: 800 })];
+    const porData = new Map(cdi.map((p) => [p.date, p.close]));
+    const comuns = selic.filter((p) => porData.has(p.date)).slice(-252);
+    const diferentes = comuns.filter((p) => p.close !== porData.get(p.date));
+    const maior = Math.max(0, ...comuns.map((p) => Math.abs(p.close - porData.get(p.date))));
+    const anual = (d) => ((1 + d / 100) ** 252 - 1) * 100;
+    const uS = selic[selic.length - 1], uC = cdi[cdi.length - 1];
+    console.log(`  dias comparados: ${comuns.length} (${comuns[0]?.date} -> ${comuns[comuns.length - 1]?.date})`);
+    console.log(`  dias em que as duas diferem: ${diferentes.length}  ·  maior diferença: ${maior.toFixed(6)} p.p. ao dia`);
+    if (diferentes.length) {
+      for (const p of diferentes.slice(-3)) console.log(`    ${p.date}  Selic ${p.close}  CDI ${porData.get(p.date)}`);
+    }
+    console.log(`  último dia: Selic ${uS?.close}% a.d. (${anual(uS?.close).toFixed(2)}% a.a.)  ·  CDI ${uC?.close}% a.d. (${anual(uC?.close).toFixed(2)}% a.a.)`);
+    // .at(-1), não .pop(): o provider devolve o array do próprio cache.
+    const meta = (await bcb.serie(macroPorId.selic.serie, { dias: 30 })).at(-1);
+    console.log(`  meta da Selic (série ${macroPorId.selic.serie}): ${meta?.close}% a.a. — a efetiva corre ${(meta?.close - anual(uS?.close)).toFixed(2)} p.p. abaixo`);
+    console.log(
+      diferentes.length === 0
+        ? "  LEITURA: as duas séries são idênticas na janela — retornos iguais na tela são dado, não defeito."
+        : "  LEITURA: as séries diferem — retornos IDÊNTICOS na tela seriam defeito de leitura."
+    );
+  } catch (e) {
+    console.log(`  inconclusivo: ${motivo(e)}`);
+  }
+}
+
 console.log("\n=== a grade como a tela vai receber ===");
 const m = await getMercado();
 for (const g of m.grupos) {

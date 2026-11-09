@@ -42,7 +42,7 @@ export function CurvaFuturos() {
   if (dados.pendente) {
     return (
       <>
-        <div className="section-title">Mercado futuro (B3)</div>
+        <h2 className="section-title">Mercado futuro (B3)</h2>
         <p className="section-sub">
           Aguardando a primeira coleta dos futuros. A curva aparece aqui assim que o
           arquivo da B3 for lido — o histórico é acumulado dia a dia, não baixado de uma vez.
@@ -64,7 +64,7 @@ export function CurvaFuturos() {
 
   return (
     <>
-      <div className="section-title">
+      <h2 className="section-title">
         Mercado futuro (B3)
         <Explica titulo="Mercado futuro (B3)">
           <p>
@@ -87,7 +87,7 @@ export function CurvaFuturos() {
             moveu a curva mais do que a diferença entre as duas fontes.
           </p>
         </Explica>
-      </div>
+      </h2>
       <p className="section-sub">
         Taxas interbancárias negociadas na B3 — outra fonte e outro emissor, não dívida do
         Tesouro.

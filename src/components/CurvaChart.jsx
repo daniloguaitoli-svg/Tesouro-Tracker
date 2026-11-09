@@ -6,8 +6,17 @@
 // de verdade, não por índice — senão a curva mentiria sobre a forma dela, que é
 // justamente o que se quer ler.
 
-const L = 34; // espaço à esquerda para os rótulos do eixo Y
-const B = 18; // espaço abaixo para os rótulos do eixo X
+//
+// DESENHADO EM PIXELS REAIS, como o GraficoTaxa (ver larguraMedida.js): o
+// quadro tem a largura medida, então rótulo e traço têm o tamanho declarado
+// em qualquer tela, em vez de encolher no celular e inchar no monitor.
+import { taxa as fmtTaxa } from "../format.js";
+import { useLarguraMedida } from "../larguraMedida.js";
+
+const FONTE = 12; // o piso de texto do app; ver GraficoTaxa
+const L = 48; // espaço à esquerda para os rótulos do eixo Y ("14,78%" a 12px)
+const B = 22; // espaço abaixo para os rótulos do eixo X
+const LARGURA_PADRAO = 366; // antes de medir, e no teste de fumaça
 
 // O traço da linha histórica e o raio dos pontos moram aqui porque a LEGENDA
 // desenha com os mesmos valores. Enquanto ela era um retângulo sólido pintado à
@@ -73,7 +82,6 @@ function Marca({ x, y, comCupom, destaque, cor }) {
 export function CurvaChart({
   series,
   height = 220,
-  width = 366,
   rotulo = "Curva de juros por prazo",
   campoX = "anos",
   sufixoX = "a",
@@ -83,8 +91,9 @@ export function CurvaChart({
   // zero-cupom — e desenhar a polilinha na ordem antiga faria a linha voltar
   // sobre si mesma. Pontos sem o campo (duration null) saem em vez de virar
   // zero e ancorar a curva na origem.
+  const [ref, width] = useLarguraMedida(LARGURA_PADRAO);
   const comDados = desenhaveis(series, campoX);
-  if (!comDados.length) return <svg className="curva" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" />;
+  if (!comDados.length) return <svg ref={ref} className="curva" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" />;
 
   const todos = comDados.flatMap((s) => s.pontos);
   const anosMin = Math.min(...todos.map((p) => p[campoX]));
@@ -104,17 +113,28 @@ export function CurvaChart({
   const marcasX = [anosMin, (anosMin + anosMax) / 2, anosMax];
 
   return (
-    <svg className="curva" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={rotulo}>
+    <svg ref={ref} className="curva" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={rotulo}>
       {marcasY.map((t, i) => (
         <g key={i}>
           <line x1={L} y1={py(t)} x2={width - 6} y2={py(t)} stroke="var(--text)" strokeOpacity="0.06" />
-          <text x={4} y={py(t) + 3} fontSize="9" fill="var(--muted)" fontFamily="var(--mono)">
-            {t.toFixed(2)}%
+          {/* fmtTaxa, e não toFixed: o toFixed escrevia "7.82%", com ponto,
+              o único número do app fora do padrão brasileiro. */}
+          <text x={0} y={py(t) + 4} fontSize={FONTE} fill="var(--muted)" fontFamily="var(--mono)">
+            {fmtTaxa(t)}
           </text>
         </g>
       ))}
       {marcasX.map((a, i) => (
-        <text key={i} x={px(a)} y={height - 4} fontSize="9" fill="var(--muted)" fontFamily="var(--mono)" textAnchor="middle">
+        <text
+          key={i}
+          x={px(a)}
+          y={height - 5}
+          fontSize={FONTE}
+          fill="var(--muted)"
+          fontFamily="var(--mono)"
+          // A primeira e a última sairiam do quadro com âncora central.
+          textAnchor={i === 0 ? "start" : i === marcasX.length - 1 ? "end" : "middle"}
+        >
           {a.toFixed(0)}{sufixoX}
         </text>
       ))}

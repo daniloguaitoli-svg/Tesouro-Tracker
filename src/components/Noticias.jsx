@@ -32,7 +32,7 @@ export function Noticias() {
     <div>
       {dados.regioes.map((r) => (
         <section key={r.id}>
-          <div className="section-title">{r.nome}</div>
+          <h2 className="section-title">{r.nome}</h2>
           {r.itens.length === 0 && (
             <p className="section-sub">Sem manchetes desta região agora{r.erro ? " (fonte indisponível)" : ""}.</p>
           )}

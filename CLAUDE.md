@@ -499,8 +499,11 @@ hard-coded text hex. Same font weight in both states, so tapping does not
 change a chip's width and shove its neighbours.
 
 **The 44px touch target is kept invisibly**, and that is the part easy to
-break: a `::after` extends each chip 6px and each segment button 5px above and
-below. Two things defeat it silently, both hit during the build:
+break: a `::after` extends each chip and each segment button above and
+below — the chip's inset is −7px, not −6: an inset is measured from the
+*padding* box and the chip has a 1px border, so −6 gave 42px, which a test
+tapping 4px outside the edge could not see. Two more things defeat it
+silently, both hit during the build:
 `overflow: hidden` on the button clips its own `::after` (the ellipsis for
 narrow screens therefore lives on an inner `.seletor-texto` span), and rows
 closer than 12px make two targets overlap — hence `.chips`' 12px row gap and
@@ -613,6 +616,29 @@ switch from `dd/mm` to `mm/aa` past ~180 days on screen, since three identical
 months on a five-year chart say nothing. The dashed average uses a **butt**
 linecap for the reason the Curva legend documents: a round cap eats the gap and
 the dashes close into a solid line.
+
+**Both charts are drawn in real pixels** (`src/larguraMedida.js`). They used to
+draw into a fixed 366-unit frame that was stretched to the screen, and
+everything inside stretched with it. Measured 2026-11-09 on this chart: at
+1280px the axis labels came out at ~29px and the line 6px thick, in a 600px
+tall frame; at 390px the same labels, declared as 9, rendered at ~8px. The
+number in the code was the size of nothing. `useLarguraMedida` measures the
+SVG's own width (ResizeObserver) and the viewBox takes that size, so one unit
+is one pixel on any screen. The hook's default covers the first paint and
+jsdom, which neither computes layout nor implements ResizeObserver — the same
+kind of guard as `useTelaLarga`. `.curva` therefore has `height: auto`: with a
+fixed CSS height, a chart requested at 170 was letterboxed inside 220.
+
+The word "média" **looks for free space**: six positions along the dashed
+line, above or below it, choosing where the series passes farthest (ties go to
+the right). Always-right put it where the series ends, and today's rate is
+usually near the average; left-or-right was not enough either, since on the
+IPCA+ 2029 the series crosses the average at both ends. It is painted after
+the line with a background-coloured outline, so a crossing passes underneath.
+
+The screen now opens with the bond's **name** as its `<h1>`. It used to open
+straight on the rate and never said which bond it was — only the maturity
+date, three lines down.
 
 The disclaimer there is folded into a `<details>` labelled "Fontes e método",
 and `App.jsx` drops its own footer while a slug is open — otherwise the same
@@ -1108,6 +1134,18 @@ ones. They live in `JUROS_DIARIOS`, deliberately outside `MACRO`, because
 `MACRO` feeds the Painel's Moldura and a "CDI 0.0494%" card next to IPCA would
 be nothing but confusing.
 
+**The Selic row mixes two series on purpose, and says so.** Its level is the
+Copom **target** (SGS 432) while its returns compound the **effective** Selic
+(SGS 11), which runs below the target — so the row read "13,75%" beside the
+return of something yielding 13,65%, identical to the CDI row to the last
+digit, with nothing explaining why. Each `JUROS_DIARIOS` entry now carries a
+`subNivel` ("meta · % a.a." for Selic, "% a.a." for CDI) and the Juros ⓘ
+explains it. `sonda-mercado.mjs` compares series 11 and 12 day by day over 252
+days: if they are identical, equal returns on screen are data; if they differ,
+identical returns would be a reading defect. It is informational and does not
+fail the probe. A missing level renders "—", not "—%" — the unit only
+accompanies a number.
+
 Window rules, all in `server/util.js` and all checked:
 
 - **YTD anchors on the last close of the *previous* year**, not the first day of
@@ -1382,6 +1420,28 @@ existing bridge file.
   is the only place with open network where the RSS parser can be checked
   against the real feed.
 
+  **The feed is a search, and a search returns what matches the words, not
+  what is news.** Measured on the live feed of 2026-11-09: two of the eight US
+  headlines were "symbol__ Stock Quote Price and Forecast" (a CNN quote page
+  with its template unfilled, twice), and the first Brazilian one was a
+  university symposium notice that mentions "mercado financeiro".
+  `extrairItens()` now works in four steps, **in this order**: read the whole
+  feed (up to 100 items, not just the first eight — cutting before filtering
+  returned fewer headlines than existed); drop non-headlines and duplicates;
+  keep the first eight **in the aggregator's order**, which is its relevance
+  ranking and the selection the screen says it shows; only then sort those by
+  date, newest first.
+
+  Only what has an **explainable rule** is dropped — judging relevance by regex
+  would fake a curation the app does not do. `NAO_E_MANCHETE` has three rules,
+  each describing a *kind of page*, never an outlet: unfilled template, quote
+  page, event announcement. The event list is short on purpose: "congresso",
+  "curso" and "conference" are excluded from it because "Congresso aprova…",
+  "corte de juros em curso" and "press conference" are market headlines every
+  day — `verificar.mjs` holds both sides. The collector logs what each rule
+  discarded from the real feed (`descartadosDoFeed`), which is the only way to
+  see a rule eating a real headline.
+
 ## Conventions
 
 - **Portuguese everywhere** — identifiers (`carregar`, `pontos`,
@@ -1447,6 +1507,24 @@ existing bridge file.
     time it carried "BCB / SGS (série 432)" it was a paragraph in a typewriter
     face. Tabular figures stay wherever digits need to line up.
   - layout `--s1`…`--s7` (4→48px) `--radius` `--maxw`
+- **Text floor: 12px, everywhere** — axis labels, the source line, the unit
+  under a rate, the bottom-bar labels. Until 11/2026 there were 10 and 11px in
+  dozens of places (60 on Títulos alone) in grey on dark, the combination that
+  reads worst on a phone. Text that does not fit at 12px needs another
+  arrangement, not a smaller letter: the header tagline lost its capitals
+  rather than its size. `verificar.mjs` fails on any `font-size` below 12 in
+  `styles.css` or `fontSize` below 12 in a component.
+- **Form fields are 16px, and that is not style.** Below 16px iOS Safari zooms
+  the whole page when a field takes focus and does not zoom back; at 14px,
+  tapping the search box on Títulos enlarged the screen.
+- **Touch targets are 44px.** Controls that should look smaller keep the target
+  with an invisible `::after` (chips, segments, the ⓘ, `.lat-link`); the star
+  on Títulos, fields and buttons are simply 44px tall.
+- **Real headings.** Each tab has an `<h1>` naming it, visually hidden
+  (`.so-leitor`) because the lit tab already says it on screen; Detalhe's `<h1>`
+  is the bond's name; section titles are `<h2 class="section-title">`. Before
+  11/2026 the phone screens had no heading at all, so a screen reader could not
+  move between sections.
 - **Loading / error / empty states** come from `components/States.jsx`
   (`Loading`, `Skeletons`, `ErroBox`, `Vazio`, `AguardandoColeta`). Extend those
   rather than hand-rolling. `AguardandoColeta` is the pre-first-collection state

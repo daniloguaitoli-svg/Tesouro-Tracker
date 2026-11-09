@@ -81,7 +81,7 @@ export function Calculadora({ dados }) {
 
   return (
     <div>
-      <div className="section-title">Sensibilidade a juros</div>
+      <h2 className="section-title">Sensibilidade a juros</h2>
       <p className="section-sub">
         Quanto uma mudança na {rotuloTaxa} mexe na posição hoje, e o que ela entrega até o
         vencimento.
@@ -126,7 +126,7 @@ export function Calculadora({ dados }) {
         <>
           {/* O MÉTODO MORA NO ⓘ DO "IMPACTO HOJE", não no título da tela: é
               destes dois números que ele fala. */}
-          <div className="section-title">
+          <h2 className="section-title">
             Impacto hoje
             <Explica titulo="Impacto hoje">
               <p>
@@ -144,7 +144,7 @@ export function Calculadora({ dados }) {
                 não se aplica a ele nesta escala.
               </p>
             </Explica>
-          </div>
+          </h2>
           <div className="grid grid-2" style={{ marginTop: 0 }}>
             <div className="card">
               <div className="label">Variação do preço</div>
@@ -158,7 +158,7 @@ export function Calculadora({ dados }) {
             </div>
           </div>
 
-          <div className="section-title">
+          <h2 className="section-title">
             Até o vencimento
             <Explica titulo="O que esta conta não sabe">
               {ehPrefixado ? (
@@ -186,7 +186,7 @@ export function Calculadora({ dados }) {
               </p>
               <p>Prazo em dias úteis/252, a convenção do Tesouro e da ANBIMA.</p>
             </Explica>
-          </div>
+          </h2>
           {/* Bruto de imposto fica NA TELA: com IR de 15% a 22,5% sobre o
               ganho, é a ressalva que mais muda a leitura do número abaixo. */}
           <p className="section-sub">Valores brutos de imposto de renda e de taxa de custódia.</p>

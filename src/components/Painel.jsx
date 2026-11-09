@@ -173,7 +173,7 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva })
 
       {/* O aviso de preço velho saiu daqui: agora é o selo do topo (SeloDados),
           que segue a mesma regra — só os vencimentos acompanhados. */}
-      <div className="section-title">Acompanhados de perto</div>
+      <h2 className="section-title">Acompanhados de perto</h2>
       {destaques.length === 0 ? (
         <div className="note">
           Nenhum vencimento acompanhado no momento. Abra a aba <strong>Títulos</strong> e

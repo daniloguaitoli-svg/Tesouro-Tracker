@@ -88,7 +88,7 @@ export default function App() {
           <MarcaIcone />
           <span>
             Tesouro
-            <small>títulos do Tesouro Direto · taxas e duration</small>
+            <small>Títulos do Tesouro Direto · taxas e duration</small>
           </span>
         </div>
         {/* Só o selo de data aqui. O IPCA 12m saiu: desde que o Painel ganhou a
@@ -111,6 +111,11 @@ export default function App() {
 
           {dados && (
             <main>
+              {/* O NOME DA TELA, para quem navega por títulos. Invisível: em
+                  tela a aba acesa já diz onde se está, mas um leitor de tela
+                  pula de título em título, e sem este a página não tinha
+                  nenhum — nem h1, nem h2 (os títulos de seção eram <div>). */}
+              <h1 className="so-leitor">{TABS.find((t) => t.id === tab)?.label}</h1>
               {tab === "painel" && (
                 <Painel
                   dados={dados}

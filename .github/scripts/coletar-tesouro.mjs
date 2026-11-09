@@ -51,7 +51,7 @@ import {
 } from "../../server/ponte.js";
 import { lerGlobais } from "../../server/providers/globais.js";
 import { lerFuturos } from "../../server/providers/b3.js";
-import { REGIOES, manchetes } from "../../server/providers/noticias.js";
+import { REGIOES, baixarFeed, extrairItens, descartadosDoFeed } from "../../server/providers/noticias.js";
 import { ibovespa } from "../../server/providers/yahoo.js";
 import { getMacro } from "../../server/datalayer.js";
 import { variacaoPeriodo } from "../../server/util.js";
@@ -399,8 +399,15 @@ try {
 console.log("");
 for (const regiao of REGIOES) {
   try {
-    const itens = await manchetes(regiao);
+    const xml = await baixarFeed(regiao);
+    const itens = extrairItens(xml);
+    if (!itens.length) throw new Error("nenhum item reconhecido");
     console.log(`notícias ${regiao.id}: ${itens.length} manchetes (ex.: "${itens[0].titulo.slice(0, 70)}")`);
+    // O QUE O FILTRO TIROU, com o motivo. É aqui, no feed de verdade, que se
+    // vê se uma regra de noticias.js está descartando manchete legítima.
+    for (const d of descartadosDoFeed(xml).slice(0, 6)) {
+      console.log(`  fora (${d.motivo}): "${d.titulo.slice(0, 70)}"`);
+    }
   } catch (e) {
     console.log(`notícias ${regiao.id}: FALHA ${e.message} — a tela mostrará a região vazia`);
   }

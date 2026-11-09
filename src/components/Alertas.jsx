@@ -59,7 +59,7 @@ export function Alertas({ dados }) {
 
   return (
     <div>
-      <div className="section-title">
+      <h2 className="section-title">
         Novo alerta
         <Explica titulo="Como os alertas funcionam">
           <p>
@@ -81,7 +81,7 @@ export function Alertas({ dados }) {
             limpar os dados do navegador apaga os alertas.
           </p>
         </Explica>
-      </div>
+      </h2>
       {/* "Sem notificação" fica NA TELA: é o que muda o uso. Quem cria um
           alerta espera ser avisado, e descobrir o contrário no ⓘ é tarde. */}
       <p className="section-sub">
@@ -117,7 +117,7 @@ export function Alertas({ dados }) {
         </button>
       </div>
 
-      <div className="section-title">Alertas ({alertas.length})</div>
+      <h2 className="section-title">Alertas ({alertas.length})</h2>
       {alertas.length === 0 && <Vazio texto="Nenhum alerta ainda." />}
       {alertas.map((a) => {
         const t = todos.find((x) => x.slug === a.slug);
