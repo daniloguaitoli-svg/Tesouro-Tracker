@@ -24,6 +24,8 @@ import { REGIOES, manchetes } from "./providers/noticias.js";
 import {
   variacaoPeriodo,
   variacaoNoAno,
+  variacoesDoTitulo,
+  percentilDoUltimo,
   cruzarSeries,
   retornoPeriodo,
   retornoNoAno,
@@ -66,17 +68,21 @@ function anotarData(item) {
   return { ...item, diasSemAtualizar: dias, desatualizado: dias > limite };
 }
 
-// Variação entre os dois últimos pontos. Para um título de renda fixa as duas
-// coisas interessam e contam histórias opostas: a TAXA varia em pontos
-// percentuais, o PREÇO em porcentagem — e quando uma sobe a outra cai.
-function variacaoDaSerie(serie) {
-  if (!serie || serie.length < 2) return { taxaVarPP: null, puVarPct: null, anterior: null };
-  const ult = serie[serie.length - 1];
-  const ant = serie[serie.length - 2];
+// A variação do DIA, tirada da mesma conta das outras janelas (1D em
+// variacoesDoTitulo) e não de uma segunda fórmula: assim ela herda a regra do
+// cupom. Até 11/2026 esta função subtraía os dois últimos PUs direto, e no dia
+// em que um cupom saía do preço a tela mostrava "preço −5,23%" em vermelho
+// num título que não tinha perdido nada.
+//
+// Para um título de renda fixa as duas coisas interessam e contam histórias
+// opostas: a TAXA varia em pontos percentuais, o PREÇO em porcentagem — e
+// quando uma sobe a outra cai.
+function variacaoDoDia(variacoes) {
+  const dia = variacoes["1D"];
   return {
-    anterior: ant.date,
-    taxaVarPP: ult.taxa != null && ant.taxa != null ? ult.taxa - ant.taxa : null,
-    puVarPct: ult.pu != null && ant.pu != null && ant.pu !== 0 ? ((ult.pu - ant.pu) / ant.pu) * 100 : null,
+    anterior: dia?.de ?? null,
+    taxaVarPP: dia?.taxaPP ?? null,
+    puVarPct: dia?.puPct ?? null,
   };
 }
 
@@ -93,6 +99,7 @@ function montarItem(slug, { comSerie = false } = {}) {
   const comCupom = meta.comCupom === true;
   const cupomAnual = meta.cupomAnual ?? undefined;
   const taxa = ultimo?.taxa ?? null;
+  const variacoes = variacoesDoTitulo(serie, { comCupom, vencimentoISO: vencimento });
 
   // A taxa vem em % a.a. no arquivo; a matemática do título trabalha em
   // decimal. LFT fica sem duration de propósito (pós-fixada; a taxa cotada é
@@ -126,7 +133,11 @@ function montarItem(slug, { comSerie = false } = {}) {
     pu: ultimo?.pu ?? null,
     anosAteVencer: anosUteisEntre(hojeISO(), vencimento),
     pontos: serie.length,
-    ...variacaoDaSerie(serie),
+    ...variacaoDoDia(variacoes),
+    // As três janelas do cartão do Painel (1 dia, 1 semana, 1 mês). Cada uma
+    // é null quando a série não alcança a data, e traz `cupom` quando um
+    // pagamento saiu do preço no meio — aí o preço vem null de propósito.
+    variacoes,
     // Campo a campo, e não `...duration`, porque `fluxos` não cabe aqui: o
     // payload de /api/titulos leva dezenas de vencimentos, e o fluxo de caixa
     // de cada um só interessa na tela de detalhe. Ao acrescentar um cenário,
@@ -220,7 +231,10 @@ export async function getDetalhe(slug, tf = "1A") {
     throw erro;
   }
 
-  const dias = TF_DIAS[tf] ?? TF_DIAS["1A"];
+  // `in`, e não `??`: o valor de MAX é null DE PROPÓSITO ("sem corte"), e o
+  // `??` lia esse null como "período desconhecido" e caía em 1A. O botão MAX
+  // mostrava um ano desde que existe — 246 pontos de um título com 1.957.
+  const dias = tf in TF_DIAS ? TF_DIAS[tf] : TF_DIAS["1A"];
   const serieCompleta = item.serie || [];
   const corte = dias == null ? null : new Date(Date.now() - dias * 864e5).toISOString().slice(0, 10);
   const pontos = corte ? serieCompleta.filter((p) => p.date >= corte) : serieCompleta;
@@ -234,6 +248,10 @@ export async function getDetalhe(slug, tf = "1A") {
         media: taxas.reduce((s, v) => s + v, 0) / taxas.length,
         variacaoPP: taxas.length > 1 ? taxas[taxas.length - 1] - taxas[0] : null,
         pontos: taxas.length,
+        // Onde a taxa de hoje cai dentro da própria janela: acima de quantos %
+        // dos outros dias. É o que dá escala a "7,6% é muito ou pouco?" — a
+        // média sozinha não diz se hoje é um extremo ou um dia qualquer.
+        percentil: percentilDoUltimo(taxas),
       }
     : null;
 

@@ -160,6 +160,7 @@ src/
   format.js           pt-BR formatting (num, taxa, pct, pp, anos, reais, dataBR, …)
   destaques.js        which maturities the user follows (localStorage, per device)
   alertas.js          rate alerts: storage and the trigger rule (pure, no imports)
+  impostos.js         income tax at maturity: the sourced table and the sum (pure, no imports)
   rota.js             where you are, written in the URL hash (pure, no imports)
   useRota.js          the hook that ties rota.js to the browser history
   larguraMedida.js    the measured width charts draw at
@@ -252,7 +253,8 @@ tab in a narrow strip in the middle of the screen.
 
 A followed maturity is one `.cartao-titulo`: name and term on the left, **rate
 on the right** (stacked, every rate lands in the same column, so two of them
-compare at a glance), the day's moves as chips, and duration on a **fixed 0–20
+compare at a glance), the moves over the chosen period as chips (see **Three
+windows, and the coupon in the middle** below), and duration on a **fixed 0–20
 year rule**. Fixed is the point — a bar normalised to the screen's largest
 value changes meaning with each selection, where 100% is the 2035 one day and
 the 2060 the next. Above 20 years it saturates, which is honest: it is "long"
@@ -657,9 +659,75 @@ The screen now opens with the bond's **name** as its `<h1>`. It used to open
 straight on the rate and never said which bond it was — only the maturity
 date, three lines down.
 
+**Under the three stat cells sits where today's rate falls in the window**:
+"acima da de 76% dos dias do período", with a dot on a rail. Minimum, average
+and maximum give the edges; this says whether today is an extreme or an
+ordinary day — 7.87% against an average of 7.56% does not reveal that only a
+quarter of the days paid more. Four decisions in it:
+
+- **It is a rank, not a position between min and max** (`percentilDoUltimo` in
+  `server/util.js`): one panic day stretches the range and would push every
+  other day into a corner.
+- **Today is out of the denominator and ties do not count as below**, so the
+  period's maximum reads 100 and the sentence "above X% of the days" stays
+  literally true.
+- **Below `MIN_PONTOS_PERCENTIL` (15) it is `null` and the block is absent.**
+  Fifteen, not twenty, because the 1M window holds about 18 points once the
+  collection lag is taken off.
+- **The ⓘ carries the two caveats that matter**: it says nothing about where
+  the rate goes next, and the bond is not the same bond it was a year ago — it
+  shortens every day, so part of the distance to the past is the term
+  shrinking, not the market moving.
+
+**`MAX` was showing one year, since the screen existed.** `TF_DIAS.MAX` is
+`null` on purpose ("no cut"), and `TF_DIAS[tf] ?? TF_DIAS["1A"]` read that
+`null` as an unknown period. Nobody noticed because a year of chart does not
+look wrong — it surfaced only when the percentile printed the same figure for
+1A and MAX on a bond with 1,957 points. The lookup is `tf in TF_DIAS` now, and
+`verificar.mjs` asserts MAX returns the whole series.
+
 The disclaimer there is folded into a `<details>` labelled "Fontes e método",
 and `App.jsx` drops its own footer while a slug is open — otherwise the same
 sentence appears twice on one screen, once folded and once in full right below.
+
+### Three windows, and the coupon in the middle
+
+Every bond carries `variacoes` — rate (p.p.) and price (%) over **1 day, 1 week
+and 1 month** (`variacoesDoTitulo` in `server/util.js`). The Painel has one
+"Período" selector for all cards, not one per card: the reading of that list
+is comparing bonds with each other, which only holds with all of them on the
+same window. The choice lives in `App` (the Painel unmounts on every tab
+switch) and travels to Detalhe, so the chips there repeat the card's numbers
+and say which period they are ("variação em 1 mês"). `ChipsDeVariacao` in
+`Chip.jsx` is the one component for both.
+
+- **1 day is the last point against the previous one**, never "24 hours ago" —
+  the same rule as the Mercado grid, for the same Monday.
+- **The base is the last price at or before the target date**, but no more than
+  10 days before it. Without that ceiling a bond that spent months out of offer
+  would have "1 week" measured against the last price before the gap.
+- **A window the series cannot reach is `null`**, rendered "—".
+- `taxaVarPP` / `puVarPct` are still on the item and are **the 1D window**,
+  not a second formula (`verificar.mjs` checks they are equal).
+
+**The price does not cross a coupon.** On the day a coupon leaves the price,
+the PU drops by its value — 3% on an NTN-B, 5% on an NTN-F — with nobody having
+lost anything. Until 11/2026 the app showed that in red: "preço −5,23%" on
+30/06/2026 for the Prefixado com juros 2031. Adding the coupon back would need
+that day's VNA, which the Treasury file does not carry; so in a window with a
+coupon the price is `null`, the coupon date travels as `cupom`, and the chip
+reads "— cupom". The rate crosses the coupon unharmed.
+
+**The drop happens on the last price day BEFORE the coupon date, not on it**
+(`dataExCupom`): 14/08 for the 15/08 coupon, 14/05 for 15/05 (a Friday, a
+business day), 30/12 for 01/01. It is D+1 settlement — a buyer on the eve no
+longer receives that coupon. "Price day" is a business day other than 24/12 and
+31/12: both are business days in the holiday calendar, and in the whole history
+(2019 on) neither has a single published price. `verificar.mjs` checks the rule
+**against reality**, not against itself: for each of the ~200 coupon payments
+the history reaches, the part of the PU move that the rate change does *not*
+explain must sit exactly on the computed ex-date. That subtraction matters —
+on 10/11/2022 the market fell more than a coupon, four days before one.
 
 ### The bond math lives in `server/util.js`
 
@@ -1120,6 +1188,7 @@ changed in both places**:
 | `CUPOM_SEMESTRAL_NTNB` | `server/util.js` | `src/components/Calculadora.jsx` |
 | `CUPOM_SEMESTRAL_NTNF` | `server/util.js` | `src/components/Calculadora.jsx` |
 | periodicity labels | `ROTULO_PERIODICIDADE` in `server/util.js` | `PERIODICIDADE` in `src/format.js` |
+| variation window ids | `JANELAS_DO_TITULO` in `server/util.js` | `PERIODOS` in `src/components/Chip.jsx` |
 
 `verificar.mjs` compares both sides.
 
@@ -1374,8 +1443,20 @@ Three decisions in it are load-bearing:
   the app lying about its own lag, which is the one thing it exists to state.
   `estadoDaConexao()` feeds an amber strip on **every** screen, Detalhe
   included, with the time the data was stored — the **oldest** time when
-  several screens fell back, since that is the worst case on screen. Amber like
+  several requests fell back, since that is the worst case on screen. Amber like
   the stale-price badge: the same kind of news, not an error.
+- **The state is one entry per URL, not one flag for the app.** It was a single
+  variable until 11/2026 — the last answer decided — and the Curva tab makes
+  **two** requests at once (`/api/curva`, `/api/futuros`). With one source down,
+  the other arriving fine erased the warning: stored data on screen, no strip.
+  Worse, `App` read the strip clearing as "the network is back" and remounted
+  the screen, both requests went out again, and the cycle repeated for as long
+  as the arrival order did. Measured against a dev server with `/api/curva`
+  answering 502: **364 requests in 4 seconds, and no warning shown**; 2 after.
+  Now a good answer only answers for itself. It also clears other URLs'
+  *no-network* entries (the network evidently exists) and fires
+  `assinarVolta`; *server-error* entries stay, because another URL answering
+  says nothing about that one.
 - **5xx falls back, 4xx does not.** A server or upstream outage is worth less
   than the stored answer (and the strip says "O servidor não respondeu"); a 4xx
   is a wrong request — a bond that does not exist — and stored data there would
@@ -1390,12 +1471,22 @@ every cache it does not recognise, so `public/sw.js` names the data cache
 never import each other; if they drift nothing errors — the app just forgets,
 on every update, everything it stored. `verificar.mjs` compares them.
 
-When the network returns (the browser's `online` event, or the strip clearing
-because *another* screen managed to fetch), `App` reloads the bonds and bumps
-`geracao`, the `key` of the open screen, so it remounts and fetches again.
-Without that the strip would disappear while the screen kept the stored data —
-the worst combination. Detail answers are capped at `MAX_DETALHES` (40), oldest
-first out.
+When the network returns (the browser's `online` event, or `assinarVolta` — a
+request succeeding while other screens still showed data stored for lack of
+network), `App` reloads the bonds and bumps `geracao`, the `key` of the open
+screen, so it remounts and fetches again. **The signal is not "the strip
+cleared"**: it also clears when the person changes screen.
+
+On a screen change `App` calls `soltarGuardados`: what the previous screen
+showed from the device is no longer in view, and the strip must stop talking
+about it. Two things are kept — the bonds, which stay on screen across every
+tab, and **the lack of network while it lasts**: offline, the Títulos tab shows
+what was loaded before the network dropped, and clearing the strip there would
+say everything is current. In both cases each screen change retries the bonds —
+one request per navigation, no loop — and that request is what discovers the
+network is back. `verificar.mjs` exercises all of this with a fake `fetch` and
+a fake cache, in both arrival orders. Detail answers are capped at
+`MAX_DETALHES` (40), oldest first out.
 
 ### Sorting on Títulos stays inside each family
 
@@ -1430,6 +1521,60 @@ the navigation announce.
   does. An alert on a bond that left the list (matured) simply does not fire.
 - There is still no push notification, and the screen still says so: the alert
   is checked when the app opens.
+
+## After income tax: sourced, zero-coupon only
+
+The Calculadora showed the value at maturity **gross**, with a sentence saying
+so. Income tax takes 15–22.5% of the gain, and on an IPCA+ it falls on the
+inflation correction too — so gross and what reaches the account can be far
+apart, and the sentence never said how far. `src/impostos.js` (pure, exercised
+by `verificar.mjs`) now computes the net figure, and a card shows it with the
+tax in reais and the net annual rate beside the gross one.
+
+**The rules are sourced, not remembered** — the repo's rule for facts.
+Checked on 2026-11-10, and `CONFERIDO_EM` puts that date on screen:
+
+- Regressive table by **calendar days** held — 22.5% up to 180, 20% to 360,
+  17.5% to 720, 15% above: Lei 11.033/2004, art. 1º, repeated on the Receita
+  Federal's "Tributação de 2026" page (updated 2026-04-27), in the row for
+  fixed income in general.
+- MP 1.303/2025, which would have replaced the table with a flat rate,
+  **lapsed on 2025-10-08** without becoming law. If a flat rate is ever
+  enacted, `FAIXAS_IR` is the one place to change — and re-check the source
+  rather than trusting this paragraph.
+- Custody fee: 0.20% a year on the bonds' value, charged by B3 each semester.
+
+The official pages could not be opened from the session that wrote this (the
+hosts are outside its network allowlist); the figures were read through search
+results quoting those pages, and agree with each other. Open them before
+changing a number.
+
+What it deliberately does **not** compute, each stated on screen or in the ⓘ:
+
+- **Coupon bonds.** Each coupon is taxed when paid, at the rate for the time
+  since purchase, and on an NTN-B each coupon's amount depends on inflation up
+  to its date. It can be approximated; it cannot be approximated and called
+  net. Those bonds get one line saying so, with the table behind the ⓘ.
+- **The custody fee.** It is charged on the bond's value along the way, and
+  the path of the price to maturity is unknown today. The ⓘ gives the rate and
+  its first-year size in reais.
+- **Under 30 days to maturity** there is IOF as well, on a table the app does
+  not carry: no figure rather than a figure without it.
+
+**An IPCA+ needs an assumed inflation, and it is a field, not a constant.**
+The tax is on the *nominal* gain, so the net in today's purchasing power
+depends on how much inflation there is: more inflation, more tax on the same
+real gain. The field starts at the 12-month IPCA — the one inflation number
+the app already shows — and an empty or non-numeric field shows "informe a
+inflação", never a net computed with zero. The card also prints the tax as a
+share of the **real** gain (15% of the nominal gain was 21% of the real one on
+the IPCA+ 2032 at 4.5% inflation), which is the number that says how big the
+bite is.
+
+Rates in the ⓘ are rendered from `FAIXAS_IR`, never typed into a sentence;
+`verificar.mjs` fails if "22,5" or "17,5" appears in `Calculadora.jsx`, pins
+the table and its boundaries (180/181, 360/361, 720/721), and re-derives the
+IPCA+ figure by an independent formula.
 
 ## Who chooses the Painel's "Acompanhados de perto"
 
@@ -1687,7 +1832,9 @@ icons.
 The README lists real limitations: at least one business day of lag;
 duration+convexity is a second-order approximation, not a repricing;
 "compra"/"venda" are from the Treasury's point of view; everything is gross of
-tax and custody fees; terminal values are in today's purchasing power. Every
+tax and custody fees except the Calculadora's one net-of-income-tax card (and
+that one still leaves the custody fee out, and needs an assumed inflation for
+an IPCA+); terminal values are in today's purchasing power. Every
 screen carries the footer disclaimer: public sources, delayed, informational
 only — **not investment advice**. If you add a feature with a similar caveat,
 state it in the UI and the README instead of implying more precision than free

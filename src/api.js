@@ -31,9 +31,21 @@ const MAX_DETALHES = 40;
 const temCache = () => typeof caches !== "undefined";
 
 // ---------- De onde veio o que está na tela ----------
-// null = da rede. { salvoEm, motivo } = do aparelho, e por quê.
+// UMA ENTRADA POR ENDEREÇO servido do aparelho, e não um estado só para o app.
+//
+// Até 11/2026 era uma variável: a última resposta decidia. Só que a aba Curva
+// faz DUAS buscas ao mesmo tempo (/api/curva e /api/futuros), e com uma delas
+// fora do ar a outra, ao chegar bem, apagava o aviso — o gráfico seguia com o
+// dado guardado e a tela dizia que estava tudo em dia. Pior: o App lia o
+// aviso se apagando como "a rede voltou", remontava a tela, as duas buscas
+// saíam de novo e o ciclo recomeçava enquanto a ordem de chegada se repetisse.
+//
+// Com uma entrada por endereço, uma resposta boa só responde por si mesma.
+const servidosDoAparelho = new Map(); // url -> { salvoEm, motivo }
+// O resumo que a faixa de aviso lê: null = tudo da rede.
 let conexao = null;
 const ouvintes = new Set();
+const ouvintesDaVolta = new Set();
 
 export function estadoDaConexao() {
   return conexao;
@@ -42,13 +54,65 @@ export function assinarConexao(aoMudar) {
   ouvintes.add(aoMudar);
   return () => ouvintes.delete(aoMudar);
 }
-function mudarConexao(nova) {
-  // Várias telas podem cair no guardado na mesma sessão. O aviso mostra a
-  // hora MAIS ANTIGA: é a que diz o pior caso do que está na tela.
-  if (nova && conexao && conexao.salvoEm <= nova.salvoEm) nova = { ...nova, salvoEm: conexao.salvoEm };
+// "A rede voltou": uma busca deu certo enquanto OUTRAS telas ainda mostravam
+// dado guardado por falta de conexão. É o sinal para buscá-las de novo.
+export function assinarVolta(aoVoltar) {
+  ouvintesDaVolta.add(aoVoltar);
+  return () => ouvintesDaVolta.delete(aoVoltar);
+}
+export function veioDoAparelho(url) {
+  return servidosDoAparelho.has(url);
+}
+
+function resumir() {
+  let nova = null;
+  for (const e of servidosDoAparelho.values()) {
+    if (!nova) {
+      nova = { ...e };
+      continue;
+    }
+    // A hora MAIS ANTIGA: é a que diz o pior caso do que está na tela.
+    if ((e.salvoEm || "") < (nova.salvoEm || "")) nova.salvoEm = e.salvoEm;
+    // Faltando rede para uma delas, é isso que a faixa diz: o servidor
+    // "não ter respondido" às outras deixa de ser a notícia.
+    if (e.motivo === "conexao") nova.motivo = "conexao";
+  }
+  // O objeto só troca quando o conteúdo troca: useSyncExternalStore compara
+  // por identidade, e um objeto novo a cada chamada renderizaria sem parar.
   if (conexao?.salvoEm === nova?.salvoEm && conexao?.motivo === nova?.motivo) return;
   conexao = nova;
   for (const f of ouvintes) f();
+}
+
+function marcarDoAparelho(url, entrada) {
+  servidosDoAparelho.set(url, entrada);
+  resumir();
+}
+
+// A rede respondeu a `url`. Isso limpa a entrada DELA — e as de falta de
+// conexão das outras, porque a conexão evidentemente existe (quem avisa o App
+// para buscá-las de novo é assinarVolta). As de erro do servidor ficam: outro
+// endereço ter respondido não diz nada sobre aquele.
+function chegouDaRede(url) {
+  let voltou = false;
+  for (const [u, e] of servidosDoAparelho) {
+    if (u === url) servidosDoAparelho.delete(u);
+    else if (e.motivo === "conexao") {
+      servidosDoAparelho.delete(u);
+      voltou = true;
+    }
+  }
+  resumir();
+  if (voltou) for (const f of ouvintesDaVolta) f();
+}
+
+// A tela mudou: o que as telas anteriores mostravam do aparelho já não está
+// à vista, e o aviso não pode continuar falando delas. `manter` diz o que
+// segue valendo através da troca (recebe o endereço e a entrada): os títulos,
+// que o App carrega uma vez só, e a falta de conexão enquanto ela durar.
+export function soltarGuardados(manter = () => false) {
+  for (const [u, e] of servidosDoAparelho) if (!manter(u, e)) servidosDoAparelho.delete(u);
+  resumir();
 }
 
 // ---------- Guardar e reaver ----------
@@ -90,9 +154,10 @@ async function getJSON(url) {
     // fetch só rejeita quando não houve resposta nenhuma: sem rede.
     const guardado = await doAparelho(url);
     if (guardado) {
-      mudarConexao({ salvoEm: guardado.salvoEm, motivo: "conexao" });
+      marcarDoAparelho(url, { salvoEm: guardado.salvoEm, motivo: "conexao" });
       return guardado.dados;
     }
+    soltarGuardados((u) => u !== url);
     throw new Error("Sem conexão, e este aparelho ainda não guardou estes dados.");
   }
 
@@ -102,7 +167,7 @@ async function getJSON(url) {
     // que o app sempre pediu, e é o que o fetch do teste de fumaça oferece.
     const j = await r.json();
     guardar(url, JSON.stringify(j)); // sem await: guardar não pode atrasar a tela
-    mudarConexao(null);
+    chegouDaRede(url);
     return j;
   }
 
@@ -113,14 +178,20 @@ async function getJSON(url) {
   if (r.status >= 500) {
     const guardado = await doAparelho(url);
     if (guardado) {
-      mudarConexao({ salvoEm: guardado.salvoEm, motivo: "servidor" });
+      marcarDoAparelho(url, { salvoEm: guardado.salvoEm, motivo: "servidor" });
       return guardado.dados;
     }
   }
+  // Virou erro na tela: se este endereço vinha sendo servido do aparelho, já
+  // não é — quem está à vista agora é a mensagem de erro.
+  soltarGuardados((u) => u !== url);
   throw new Error(j.error || `Erro ${r.status}`);
 }
 
-export const getTitulos = () => getJSON("/api/titulos");
+// Exportado porque o App precisa saber se OS TÍTULOS vieram do aparelho: é o
+// único dado que ele carrega uma vez e mantém através de todas as telas.
+export const URL_TITULOS = "/api/titulos";
+export const getTitulos = () => getJSON(URL_TITULOS);
 export const getCurva = () => getJSON("/api/curva");
 // Endpoint próprio, e não um campo do /api/curva: a fonte é a B3, não o
 // Tesouro, e um dia sem coleta lá não pode esvaziar a curva dos títulos.

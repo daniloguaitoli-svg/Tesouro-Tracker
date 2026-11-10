@@ -1834,7 +1834,315 @@ console.log("\ndados guardados no aparelho");
   const corpo = apiSrc.slice(apiSrc.indexOf("async function getJSON"));
   conferir(corpo.indexOf("await fetch(url)") < corpo.indexOf("doAparelho(url)"), "a rede vem antes do guardado");
   conferir(/r\.status >= 500/.test(corpo), "só erro do servidor (5xx) recorre ao guardado; 4xx continua erro");
-  conferir(/mudarConexao\(\{ salvoEm/.test(corpo), "servir do aparelho sempre avisa a tela, com a hora");
+  conferir((corpo.match(/marcarDoAparelho\(url, \{ salvoEm/g) || []).length === 2, "servir do aparelho sempre avisa a tela, com a hora (sem rede e 5xx)");
+}
+
+// O aviso de dado guardado, EXERCITADO. A aba Curva faz duas buscas ao mesmo
+// tempo; com o estado numa variável só, a que chegava bem apagava o aviso da
+// que tinha falhado, e o App lia isso como "a rede voltou" e remontava a tela
+// em laço. O que se confere aqui é o comportamento, com um fetch e um cache de
+// mentira — a ordem de chegada das respostas não pode mudar o resultado.
+{
+  const guardado = new Map();
+  const cacheFalso = {
+    put: async (url, resp) => void guardado.set(url, resp),
+    match: async (url) => guardado.get(url)?.clone(),
+    keys: async () => [...guardado.keys()].map((u) => ({ url: `http://app${u}` })),
+    delete: async (req) => guardado.delete(new URL(req.url).pathname),
+  };
+  const fetchDeAntes = globalThis.fetch;
+  const cachesDeAntes = globalThis.caches;
+  globalThis.caches = { open: async () => cacheFalso };
+  let rede = {}; // url -> "ok" | 502 | 404 | "fora"
+  globalThis.fetch = async (url) => {
+    const como = rede[url] ?? "ok";
+    if (como === "fora") throw new TypeError("sem rede");
+    if (como === "ok") return { ok: true, status: 200, json: async () => ({ url, daRede: true }) };
+    return { ok: false, status: como, json: async () => ({ error: "fonte fora do ar" }) };
+  };
+  const api = await import("../src/api.js");
+  const pausa = () => new Promise((r) => setTimeout(r, 5)); // guardar() não é esperado por getJSON
+  let voltas = 0;
+  const desligar = api.assinarVolta(() => voltas++);
+
+  await Promise.all([api.getCurva(), api.getFuturos()]);
+  await pausa();
+  conferir(api.estadoDaConexao() === null, "tudo da rede: sem aviso");
+
+  // Uma fonte fora do ar entre duas da mesma tela — nas DUAS ordens de chegada.
+  rede = { "/api/curva": 502 };
+  await api.getCurva();
+  await api.getFuturos();
+  const falhaPrimeiro = api.estadoDaConexao();
+  await api.getFuturos();
+  await api.getCurva();
+  const falhaDepois = api.estadoDaConexao();
+  conferir(
+    falhaPrimeiro?.motivo === "servidor" && falhaDepois?.motivo === "servidor",
+    "uma busca que deu certo não apaga o aviso de outra que falhou (qualquer ordem de chegada)"
+  );
+  conferir(voltas === 0, "e isso não conta como 'a rede voltou' — era o que remontava a tela em laço");
+  conferir(api.veioDoAparelho("/api/curva") && !api.veioDoAparelho("/api/futuros"), "o estado é por endereço");
+  conferir(api.estadoDaConexao() === api.estadoDaConexao(), "o resumo mantém a identidade entre leituras (useSyncExternalStore)");
+
+  // O servidor volta para aquele endereço: só então o aviso some.
+  rede = {};
+  await api.getCurva();
+  await pausa();
+  conferir(api.estadoDaConexao() === null, "o aviso some quando o PRÓPRIO endereço volta a responder");
+
+  // Sem rede em duas telas; uma busca dá certo: a rede voltou para todas.
+  rede = { "/api/curva": "fora", "/api/futuros": "fora" };
+  await Promise.all([api.getCurva(), api.getFuturos()]);
+  conferir(api.estadoDaConexao()?.motivo === "conexao", "sem rede: aviso de conexão");
+  rede = { "/api/curva": "fora" };
+  await api.getFuturos();
+  conferir(voltas === 1 && api.estadoDaConexao() === null, "uma resposta boa limpa a falta de conexão das outras e avisa o App, uma vez");
+
+  // Trocar de tela solta o que a tela anterior mostrava; os títulos ficam.
+  rede = { "/api/curva": 502, "/api/titulos": 502 };
+  await api.getTitulos().catch(() => {}); // ainda não guardado: vira erro, não aviso
+  conferir(api.estadoDaConexao() === null, "5xx sem nada guardado é erro na tela, não aviso de dado guardado");
+  rede = {};
+  await api.getTitulos();
+  await pausa();
+  rede = { "/api/curva": 502, "/api/titulos": 502 };
+  await Promise.all([api.getCurva(), api.getTitulos()]);
+  api.soltarGuardados((u) => u === api.URL_TITULOS);
+  conferir(api.veioDoAparelho(api.URL_TITULOS) && !api.veioDoAparelho("/api/curva"), "trocar de tela solta a tela anterior e mantém os títulos");
+  // 4xx num endereço que vinha do aparelho: passa a ser erro, e o aviso sai.
+  rede = { "/api/titulos": 404 };
+  const erro404 = await api.getTitulos().then(() => null, (e) => e);
+  conferir(erro404 instanceof Error && api.estadoDaConexao() === null, "4xx é erro, sem recorrer ao guardado nem deixar aviso para trás");
+
+  desligar();
+  globalThis.fetch = fetchDeAntes;
+  if (cachesDeAntes === undefined) delete globalThis.caches;
+  else globalThis.caches = cachesDeAntes;
+
+  const appSrc = await ler("src/App.jsx");
+  conferir(/assinarVolta\(/.test(appSrc) && !/estavaGuardado/.test(appSrc), "o App remonta pelo sinal de volta, não pelo aviso se apagando");
+}
+
+// ---------------------------------------------------------------
+// As três janelas do cartão do Painel. O que se defende aqui é o que não dá
+// erro quando quebra: uma base errada continua devolvendo um número com cara
+// de certo.
+console.log("\nvariação do título por janela");
+{
+  // Dias úteis de 03/08 a 14/08/2026 (sem feriado no meio), taxa e PU subindo.
+  const dias = ["03", "04", "05", "06", "07", "10", "11", "12", "13", "14"];
+  const serie = dias.map((d, i) => ({ date: `2026-08-${d}`, taxa: 7 + i * 0.01, pu: 1000 + i }));
+  const v = util.variacoesDoTitulo(serie);
+  conferir(
+    util.JANELAS_DO_TITULO.every((j) => j.id in v) && Object.keys(v).length === util.JANELAS_DO_TITULO.length,
+    `uma entrada por janela (${Object.keys(v).join(", ")})`
+  );
+  conferir(v["1D"].de === "2026-08-13" && perto(v["1D"].taxaPP, 0.01, 1e-9), "1 dia = último ponto contra o anterior");
+  conferir(perto(v["1D"].puPct, (1 / 1008) * 100, 1e-9), "o preço varia em %, sobre o PU da base");
+  // 14/08 − 7 dias = 07/08, que existe na série.
+  conferir(v["1S"].de === "2026-08-07" && perto(v["1S"].taxaPP, 0.05, 1e-9), `1 semana ancora 7 dias antes (${v["1S"].de})`);
+  conferir(v["1M"] === null, "série que não alcança 1 mês devolve null, não a variação desde o ponto mais antigo");
+
+  // Segunda-feira: o "1 dia" é contra a sexta, não null.
+  const ateSegunda = [...serie, { date: "2026-08-17", taxa: 7.2, pu: 1020 }];
+  conferir(util.variacoesDoTitulo(ateSegunda)["1D"].de === "2026-08-14", "na segunda, 1 dia compara com a sexta");
+  // Alvo em fim de semana (17/08 − 7 = 10/08 existe; 16/08 − 7 = 09/08, domingo, não).
+  const ateTerca = [...ateSegunda, { date: "2026-08-18", taxa: 7.2, pu: 1021 }];
+  conferir(util.variacoesDoTitulo(ateTerca)["1S"].de === "2026-08-11", "alvo existente é usado como está");
+  const semODia = ateTerca.filter((p) => p.date !== "2026-08-11");
+  conferir(util.variacoesDoTitulo(semODia)["1S"].de === "2026-08-10", "alvo sem preço recua para o último publicado antes");
+
+  // Título que ficou fora de oferta: o último preço antes do buraco não é
+  // "uma semana atrás".
+  const comBuraco = [
+    { date: "2026-03-02", taxa: 6, pu: 900 },
+    { date: "2026-03-03", taxa: 6, pu: 901 },
+    { date: "2026-08-13", taxa: 7, pu: 1000 },
+    { date: "2026-08-14", taxa: 7.1, pu: 995 },
+  ];
+  const vb = util.variacoesDoTitulo(comBuraco);
+  conferir(vb["1S"] === null && vb["1M"] === null, "base velha demais (título meses sem preço) vira null");
+  conferir(vb["1D"] !== null, "o dia continua valendo com o buraco para trás");
+
+  conferir(util.variacoesDoTitulo([])["1D"] === null && util.variacoesDoTitulo(null)["1M"] === null, "série vazia ou ausente: tudo null");
+  const semTaxa = util.variacoesDoTitulo([{ date: "2026-08-13", taxa: null, pu: 10 }, { date: "2026-08-14", taxa: 7, pu: 11 }]);
+  conferir(semTaxa["1D"].taxaPP === null && semTaxa["1D"].puPct != null, "taxa ausente na base -> taxaPP null, nunca diferença contra zero");
+}
+
+// O cupom. No dia em que ele sai do preço o PU cai 3% a 5% sem perda nenhuma;
+// a tela mostrava essa queda em vermelho.
+console.log("\ncupom dentro da janela");
+{
+  conferir(util.dataExCupom("2026-08-15") === "2026-08-14", "cupom de sábado: sai do preço na sexta");
+  conferir(util.dataExCupom("2026-05-15") === "2026-05-14", "cupom em dia útil: sai do preço na VÉSPERA (liquidação em D+1)");
+  conferir(util.dataExCupom("2026-01-01") === "2025-12-30", "cupom de 01/01: sai em 30/12 — 31/12 não tem preço");
+
+  const venc = "2030-08-15";
+  const antes = { date: "2026-08-13", taxa: 8.12, pu: 4566.39 };
+  const ex = { date: "2026-08-14", taxa: 8.12, pu: 4427.13 };
+  const depois = { date: "2026-08-17", taxa: 8.14, pu: 4425.3 };
+  const comCupom = util.variacoesDoTitulo([antes, ex], { comCupom: true, vencimentoISO: venc });
+  conferir(comCupom["1D"].puPct === null && comCupom["1D"].cupom === "2026-08-15", "janela com cupom: preço null e a data do cupom junto");
+  conferir(perto(comCupom["1D"].taxaPP, 0, 1e-9), "a taxa atravessa o cupom normalmente");
+  const semCupom = util.variacoesDoTitulo([antes, ex], { comCupom: false, vencimentoISO: venc });
+  conferir(semCupom["1D"].puPct != null && semCupom["1D"].cupom === null, "título sem cupom nunca tem o preço suprimido");
+  const passou = util.variacoesDoTitulo([antes, ex, depois], { comCupom: true, vencimentoISO: venc });
+  conferir(passou["1D"].puPct != null && passou["1D"].cupom === null, "no pregão seguinte o preço volta");
+  conferir(util.cupomNaJanela({ vencimentoISO: venc, deISO: "2026-08-14", ateISO: "2026-08-20" }) === null, "janela que começa na data-ex não contém a queda");
+  conferir(util.cupomNaJanela({ vencimentoISO: venc, deISO: "2026-07-17", ateISO: "2026-08-17" }) === "2026-08-15", "janela de um mês enxerga o cupom do meio");
+
+  // A REGRA CONTRA A REALIDADE. As checagens acima só dizem que a função faz o
+  // que eu acho que ela deve fazer. Esta diz que o Tesouro concorda: em cada
+  // pagamento que o histórico alcança, a queda do PU que a taxa NÃO explica
+  // tem de estar exatamente na data-ex calculada.
+  const hist = JSON.parse(await ler("dados/historico.json"));
+  let conferidos = 0;
+  const fora = [];
+  for (const t of Object.values(hist.titulos || {})) {
+    if (!t.comCupom) continue;
+    const datas = Object.keys(t.serie).sort();
+    if (datas.length < 8) continue;
+    const residuo = (i) => {
+      const [tx1, pu1] = t.serie[datas[i - 1]];
+      const [tx2, pu2] = t.serie[datas[i]];
+      if (tx1 == null || tx2 == null || !pu1 || !pu2) return null;
+      const d = util.calcularDuration({ vencimentoISO: t.vencimento, comCupom: true, cupomAnual: t.cupomAnual ?? undefined, taxaReal: tx1 / 100, hojeISO: datas[i - 1] });
+      if (d.modificada == null) return null;
+      // Variação do preço menos o que a mudança de taxa explica.
+      return ((pu2 - pu1) / pu1) * 100 + d.modificada * (tx2 - tx1);
+    };
+    let d = util.dataDeISO(t.vencimento);
+    for (;;) {
+      const cupom = d.toISOString().slice(0, 10);
+      d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 6, d.getUTCDate()));
+      if (cupom <= datas[0]) break;
+      if (cupom >= t.vencimento || cupom > datas[datas.length - 1]) continue;
+      const i = datas.indexOf(util.dataExCupom(cupom));
+      if (i < 1) continue; // sem preço naquele dia: nada a conferir
+      let pior = null;
+      for (let k = Math.max(1, i - 3); k <= Math.min(datas.length - 1, i + 3); k++) {
+        const r = residuo(k);
+        if (r != null && (pior == null || r < pior.r)) pior = { r, data: datas[k] };
+      }
+      conferidos++;
+      if (!pior || pior.data !== datas[i] || pior.r > -1.5 || pior.r < -7) fora.push(`${t.tipo} ${t.vencimento} cupom ${cupom}`);
+    }
+  }
+  if (conferidos === 0) avisar("histórico sem pagamentos de cupom para conferir a data-ex (arquivo-semente?)");
+  else conferir(fora.length === 0, `data-ex bate com a queda do PU em ${conferidos} pagamentos reais${fora.length ? ` — fora: ${fora.slice(0, 3).join("; ")}` : ""}`);
+}
+
+console.log("\njanelas no payload");
+{
+  const tit = await datalayer.getTitulos();
+  const itens = tit.categorias.flatMap((c) => c.itens);
+  if (!itens.length) avisar("sem títulos no arquivo — payload das janelas não conferido");
+  else {
+    const ids = util.JANELAS_DO_TITULO.map((j) => j.id);
+    conferir(itens.every((t) => t.variacoes && ids.every((id) => id in t.variacoes)), `todo título leva as ${ids.length} janelas`);
+    conferir(
+      itens.every((t) => (t.variacoes["1D"]?.taxaPP ?? null) === t.taxaVarPP && (t.variacoes["1D"]?.puPct ?? null) === t.puVarPct),
+      "a variação do dia é a janela 1D, não uma segunda conta"
+    );
+    conferir(
+      itens.every((t) => Object.values(t.variacoes).every((v) => !v || !v.cupom || v.puPct === null)),
+      "onde há cupom na janela, o preço vai null"
+    );
+    conferir(itens.every((t) => t.comCupom || Object.values(t.variacoes).every((v) => !v || v.cupom === null)), "título sem cupom nunca acusa cupom");
+  }
+  // Os ids atravessam a linha server/src copiados à mão.
+  const chipSrc = await ler("src/components/Chip.jsx");
+  const bloco = chipSrc.slice(chipSrc.indexOf("export const PERIODOS"), chipSrc.indexOf("];", chipSrc.indexOf("export const PERIODOS")));
+  const noCliente = [...bloco.matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
+  conferir(noCliente.join() === util.JANELAS_DO_TITULO.map((j) => j.id).join(), `PERIODOS (Chip.jsx) = JANELAS_DO_TITULO (util.js): ${noCliente.join(", ")}`);
+  const painelSrc = await ler("src/components/Painel.jsx");
+  const detSrc = await ler("src/components/Detalhe.jsx");
+  conferir(/<ChipsDeVariacao/.test(painelSrc) && /<ChipsDeVariacao/.test(detSrc), "Painel e Detalhe usam o mesmo componente de chips (a regra do cupom vale nos dois)");
+  conferir(!/puVarPct/.test(painelSrc) && !/puVarPct/.test(detSrc), "nenhuma das duas telas lê o preço do dia por fora da janela");
+}
+
+console.log("\na taxa de hoje dentro do período");
+{
+  const subindo = Array.from({ length: 20 }, (_, i) => i + 1);
+  conferir(util.percentilDoUltimo(subindo) === 100, "hoje é a maior do período -> 100");
+  conferir(util.percentilDoUltimo([...subindo].reverse()) === 0, "hoje é a menor -> 0");
+  const meio = [...Array.from({ length: 19 }, (_, i) => i + 1), 10.5];
+  conferir(perto(util.percentilDoUltimo(meio), (10 / 19) * 100, 1e-9), "conta só os OUTROS dias: 10 de 19 abaixo");
+  conferir(util.percentilDoUltimo(Array(20).fill(7)) === 0, "empate não conta como abaixo");
+  conferir(util.percentilDoUltimo(subindo.slice(0, util.MIN_PONTOS_PERCENTIL - 1)) === null, `menos de ${util.MIN_PONTOS_PERCENTIL} pontos -> null, não uma frase sobre quatro pregões`);
+  conferir(util.percentilDoUltimo([null, ...subindo]) === 100 && util.percentilDoUltimo(null) === null, "nulos saem da conta; série ausente -> null");
+
+  const tit = await datalayer.getTitulos();
+  const algum = tit.categorias[0]?.itens[0];
+  if (algum) {
+    const det = await datalayer.getDetalhe(algum.slug, "1A");
+    const p = det.estatisticas?.percentil;
+    conferir(det.estatisticas && "percentil" in det.estatisticas, "getDetalhe leva o percentil nas estatísticas");
+    conferir(p == null || (p >= 0 && p <= 100), `percentil entre 0 e 100 (${p == null ? "null" : p.toFixed(1)})`);
+    // MAX é "sem corte". O valor dele em TF_DIAS é null, e um `??` lia esse
+    // null como período desconhecido: o botão mostrava 1 ano e ninguém via,
+    // porque um ano de gráfico não parece errado.
+    const maisLongo = tit.categorias.flatMap((c) => c.itens).reduce((a, b) => (b.pontos > a.pontos ? b : a));
+    const max = await datalayer.getDetalhe(maisLongo.slug, "MAX");
+    const umAno = await datalayer.getDetalhe(maisLongo.slug, "1A");
+    conferir(max.pontos.length === maisLongo.pontos, `MAX devolve a série inteira (${max.pontos.length} de ${maisLongo.pontos} pontos)`);
+    if (maisLongo.pontos > 300) conferir(max.pontos.length > umAno.pontos.length, "MAX não é 1A com outro nome");
+    const invalido = await datalayer.getDetalhe(maisLongo.slug, "XYZ");
+    conferir(invalido.pontos.length === umAno.pontos.length, "período desconhecido continua caindo em 1A");
+  }
+}
+
+// O imposto. As alíquotas são de lei — fixadas aqui para que uma mexida
+// distraída na tabela falhe, em vez de mudar em silêncio um número que a
+// pessoa lê como "é isso que vou receber".
+console.log("\nimposto de renda no vencimento");
+{
+  const imp = await import("../src/impostos.js");
+  conferir(
+    JSON.stringify(imp.FAIXAS_IR.map((f) => [f.ateDias, f.aliquota])) === JSON.stringify([[180, 0.225], [360, 0.2], [720, 0.175], [null, 0.15]]),
+    "tabela regressiva: 22,5% até 180 dias, 20% até 360, 17,5% até 720, 15% acima (Lei 11.033/2004)"
+  );
+  const bordas = [[1, 0.225], [180, 0.225], [181, 0.2], [360, 0.2], [361, 0.175], [720, 0.175], [721, 0.15], [9000, 0.15]];
+  conferir(bordas.every(([d, a]) => imp.aliquotaIR(d) === a), "as bordas das faixas caem do lado certo (180/181, 360/361, 720/721)");
+  conferir(imp.aliquotaIR(null) === null && imp.aliquotaIR(-1) === null, "prazo ausente ou negativo -> null");
+  conferir(imp.diasCorridosEntre("2026-11-10", "2029-01-01") === 783, "prazo do imposto em dias CORRIDOS");
+  conferir(/^\d{4}-\d{2}-\d{2}$/.test(imp.CONFERIDO_EM), `a data em que a regra foi conferida vai junto (${imp.CONFERIDO_EM})`);
+
+  // Prefixado: R$ 1.000 a 10% por 3 anos = 1.331; 15% de 331 = 49,65.
+  const pre = imp.liquidoNoVencimento({ investido: 1000, taxaAA: 0.1, anosUteis: 3, diasCorridos: 1095 });
+  conferir(perto(pre.bruto, 1331, 1e-6) && perto(pre.imposto, 49.65, 1e-6) && perto(pre.liquido, 1281.35, 1e-6), `prefixado: 1.000 -> 1.331 bruto -> ${pre.liquido.toFixed(2)} líquido`);
+  conferir(perto(1000 * Math.pow(1 + pre.taxaLiquidaAA, 3), pre.liquido, 1e-6), "a taxa líquida, composta pelo prazo, devolve o líquido");
+  conferir(pre.taxaLiquidaAA < 0.1, "a taxa líquida fica abaixo da bruta");
+
+  // IPCA+: o imposto é sobre o ganho NOMINAL. Conta refeita aqui, por fora.
+  const r = 0.05, pi = 0.1, n = 2, dias = 730, V = 1000;
+  const nominal = V * Math.pow(1 + r, n) * Math.pow(1 + pi, dias / 365);
+  const esperado = (nominal - 0.15 * (nominal - V)) / Math.pow(1 + pi, dias / 365);
+  const ipca = imp.liquidoNoVencimento({ investido: V, taxaAA: r, anosUteis: n, diasCorridos: dias, inflacaoAA: pi });
+  conferir(perto(ipca.liquido, esperado, 1e-6), `IPCA+: imposto sobre o ganho nominal, resultado a preços de hoje (${ipca.liquido.toFixed(2)})`);
+  conferir(perto(ipca.bruto, V * Math.pow(1 + r, n), 1e-6), "o bruto do IPCA+ continua a preços de hoje, igual ao cartão de cima");
+  const semInflacao = imp.liquidoNoVencimento({ investido: V, taxaAA: r, anosUteis: n, diasCorridos: dias, inflacaoAA: 0 });
+  const maisInflacao = imp.liquidoNoVencimento({ investido: V, taxaAA: r, anosUteis: n, diasCorridos: dias, inflacaoAA: 0.2 });
+  conferir(semInflacao.liquido > ipca.liquido && ipca.liquido > maisInflacao.liquido, "mais inflação -> menos líquido real (a correção também é tributada)");
+  const semInflacaoPre = imp.liquidoNoVencimento({ investido: V, taxaAA: r, anosUteis: n, diasCorridos: dias });
+  conferir(perto(semInflacao.liquido, semInflacaoPre.liquido, 1e-9), "inflação zero reduz ao caso do prefixado");
+
+  const negativa = imp.liquidoNoVencimento({ investido: 1000, taxaAA: -0.01, anosUteis: 2, diasCorridos: 730 });
+  conferir(perto(negativa.imposto, 0, 1e-9) && perto(negativa.liquido, negativa.bruto, 1e-9), "sem ganho não há imposto (nem crédito)");
+  conferir(imp.liquidoNoVencimento({ investido: 1000, taxaAA: 0.1, anosUteis: 0.05, diasCorridos: imp.PRAZO_IOF_DIAS - 1 }) === null, "menos de 30 dias: há IOF, a conta não sai");
+  conferir(
+    imp.liquidoNoVencimento({ investido: 0, taxaAA: 0.1, anosUteis: 3, diasCorridos: 1095 }) === null &&
+      imp.liquidoNoVencimento({ investido: 1000, taxaAA: null, anosUteis: 3, diasCorridos: 1095 }) === null &&
+      imp.liquidoNoVencimento({ investido: 1000, taxaAA: 0.1, anosUteis: 3, diasCorridos: 1095, inflacaoAA: NaN }) === null,
+    "dado faltando -> null, nunca um líquido calculado com zero"
+  );
+
+  const calcFonte = await ler("src/components/Calculadora.jsx");
+  conferir(/liquidoNoVencimento\(/.test(calcFonte), "a Calculadora usa a conta de impostos.js");
+  conferir(/!t\.comCupom && !faltaInflacao/.test(calcFonte), "o líquido só sai para título SEM cupom e com a inflação informada");
+  conferir(!/22[,.]5|17[,.]5|0[,.]20?\s*%/.test(calcFonte), "nenhuma alíquota escrita à mão na tela: os números vêm de impostos.js");
+  conferir(/CONFERIDO_EM/.test(calcFonte), "a tela mostra a data em que a regra foi conferida");
 }
 
 // Casas decimais fixas por tipo de número. Um zero à direita que some não dá

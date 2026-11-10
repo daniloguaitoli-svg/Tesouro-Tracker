@@ -17,7 +17,7 @@
 // a taxa real se mexe. Para um horizonte longo (e para comparar posições), ela
 // diz mais do que a taxa sozinha.
 
-import { diasUteis } from "./feriados.js";
+import { diasUteis, ehDiaUtil } from "./feriados.js";
 
 // ---------- Constantes do título ----------
 
@@ -479,4 +479,133 @@ export function precoPor100({ vencimentoISO, comCupom, cupomAnual = CUPOM_ANUAL_
   const fluxos = fluxosNTNB({ vencimentoISO, comCupom, cupomAnual, hojeISO: hoje });
   if (!fluxos.length) return null;
   return fluxos.reduce((s, f) => s + f.valor / Math.pow(1 + taxaReal, f.anos), 0);
+}
+
+// ---------- Variação de um título por janela, e o cupom que cai no meio ----------
+
+// As janelas do cartão do Painel. `dias: null` é o dia: último ponto contra o
+// anterior, e não "24 horas atrás" — na segunda-feira o ponto anterior é o de
+// sexta, e pedir um dia corrido devolveria null toda segunda.
+export const JANELAS_DO_TITULO = [
+  { id: "1D", dias: null },
+  { id: "1S", dias: 7 },
+  { id: "1M", dias: 30 },
+];
+
+// Quanto a base pode ficar ANTES da data pedida. "Em ou antes" resolve fim de
+// semana e feriado, mas sem teto resolveria também um título que ficou meses
+// fora de oferta: a base seria o último preço antes do buraco, e a tela
+// chamaria de "1 semana" uma variação de três meses. Dez dias cobrem a pior
+// sequência real sem preço (Natal + Ano Novo, Carnaval) com folga.
+const TOLERANCIA_DA_BASE_DIAS = 10;
+
+const isoMenosDias = (iso, dias) => new Date(dataDeISO(iso).getTime() - dias * MS_DIA).toISOString().slice(0, 10);
+
+// Dia em que o Tesouro publica preço: dia útil, menos 24/12 e 31/12. As duas
+// datas são úteis no calendário de feriados, mas em todo o histórico (2019 em
+// diante) não há um único preço nelas — e a de 31/12 importa aqui, porque o
+// cupom da NTN-F cai em 01/01.
+function ehDiaDePreco(data) {
+  if (!ehDiaUtil(data)) return false;
+  return !(data.getUTCMonth() === 11 && (data.getUTCDate() === 24 || data.getUTCDate() === 31));
+}
+
+// A data em que o PU publicado JÁ NÃO TRAZ o cupom: o último dia de preço
+// antes da data do cupom, e não a data do cupom.
+//
+// Medido no histórico, em cinco pagamentos de três títulos: o PU cai o valor
+// do cupom no pregão ANTERIOR à data — 14/08 para o cupom de 15/08 (sábado),
+// 14/05 para o de 15/05 (sexta), 30/06 para o de 01/07, 30/12 para o de 01/01.
+// É a liquidação em D+1: quem compra na véspera já não recebe aquele cupom,
+// então o preço da véspera já vem sem ele. scripts/verificar.mjs confere esta
+// regra contra TODOS os pagamentos que o histórico alcança.
+export function dataExCupom(cupomISO) {
+  let d = new Date(dataDeISO(cupomISO).getTime() - MS_DIA);
+  while (!ehDiaDePreco(d)) d = new Date(d.getTime() - MS_DIA);
+  return d.toISOString().slice(0, 10);
+}
+
+// O cupom (data ISO) que saiu do preço dentro da janela (de, até], ou null.
+// As datas saem como em fluxosNTNB: do vencimento para trás, de 6 em 6 meses.
+export function cupomNaJanela({ vencimentoISO, deISO, ateISO }) {
+  if (!vencimentoISO || !deISO || !ateISO) return null;
+  let d = dataDeISO(vencimentoISO);
+  for (;;) {
+    const cupom = d.toISOString().slice(0, 10);
+    const ex = dataExCupom(cupom);
+    // Daqui para trás todas as datas-ex são ainda mais antigas.
+    if (ex <= deISO) return null;
+    if (ex <= ateISO) return cupom;
+    d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 6, d.getUTCDate()));
+  }
+}
+
+// Variação da TAXA (em p.p.) e do PREÇO (em %) de um título em cada janela.
+// `serie` é [{ date, taxa, pu }] em ordem crescente.
+//
+// A TAXA ATRAVESSA UM CUPOM SEM PROBLEMA; O PREÇO, NÃO. No dia em que o cupom
+// sai, o PU cai o valor dele — 3% numa NTN-B, 5% numa NTN-F — sem que o
+// investidor tenha perdido nada: o dinheiro foi para a conta. Mostrar isso
+// como "preço −5,23%" em vermelho é a tela inventando uma perda. Somar o
+// cupom de volta exigiria o VNA do dia, que o arquivo do Tesouro não traz;
+// então, numa janela com cupom, o preço sai null (a tela mostra "—") e a
+// data do cupom vai junto, para a tela dizer por quê.
+//
+// Cada janela devolve null quando a série não alcança a data pedida — nunca
+// a variação contra o ponto mais antigo que houver.
+export function variacoesDoTitulo(serie, { comCupom = false, vencimentoISO = null } = {}) {
+  const saida = {};
+  const n = Array.isArray(serie) ? serie.length : 0;
+  const ult = n ? serie[n - 1] : null;
+
+  for (const { id, dias } of JANELAS_DO_TITULO) {
+    let base = null;
+    if (ult && dias == null) {
+      base = n >= 2 ? serie[n - 2] : null;
+    } else if (ult) {
+      const alvo = isoMenosDias(ult.date, dias);
+      for (let i = n - 2; i >= 0; i--) {
+        if (serie[i].date <= alvo) {
+          base = serie[i];
+          break;
+        }
+      }
+      if (base && base.date < isoMenosDias(alvo, TOLERANCIA_DA_BASE_DIAS)) base = null;
+    }
+    if (!base) {
+      saida[id] = null;
+      continue;
+    }
+
+    const cupom = comCupom ? cupomNaJanela({ vencimentoISO, deISO: base.date, ateISO: ult.date }) : null;
+    saida[id] = {
+      de: base.date,
+      ate: ult.date,
+      taxaPP: ult.taxa != null && base.taxa != null ? ult.taxa - base.taxa : null,
+      puPct: !cupom && ult.pu != null && base.pu != null && base.pu !== 0 ? ((ult.pu - base.pu) / base.pu) * 100 : null,
+      cupom,
+    };
+  }
+  return saida;
+}
+
+// ---------- Onde a taxa de hoje está no próprio histórico ----------
+
+// Com menos pontos que isto, "acima de 80% dos dias" seria uma frase sobre
+// quatro pregões. Quinze é o que deixa a janela de 1 mês (uns 20 pregões,
+// menos os dias de defasagem da coleta) ainda ter a sua comparação.
+export const MIN_PONTOS_PERCENTIL = 15;
+
+// Em quantos % dos OUTROS dias da janela a taxa esteve ABAIXO da de hoje.
+// 100 = hoje é a maior do período; 0 = é a menor. Empate não conta como
+// abaixo: a frase na tela é "acima de X% dos dias", e um dia igual a hoje não
+// está abaixo de hoje. O dia de hoje sai do denominador — comparar hoje com
+// hoje não informa nada, e sem isso o máximo do período daria 99%, não 100.
+export function percentilDoUltimo(valores, minimo = MIN_PONTOS_PERCENTIL) {
+  const v = (valores || []).filter((x) => x != null && Number.isFinite(x));
+  if (v.length < minimo) return null;
+  const atual = v[v.length - 1];
+  let abaixo = 0;
+  for (let i = 0; i < v.length - 1; i++) if (v[i] < atual) abaixo++;
+  return (abaixo / (v.length - 1)) * 100;
 }
