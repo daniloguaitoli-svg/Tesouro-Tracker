@@ -254,8 +254,12 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
 - **Bruto de custos.** Nada aqui desconta imposto de renda nem taxa de custódia.
 - **Valor no vencimento em poder de compra de hoje.** A correção pelo IPCA vem
   por cima; projetar em reais nominais exigiria adivinhar a inflação futura.
-- **Alertas são por dispositivo** (`localStorage`), conferidos quando a tela
-  abre. Não há notificação em segundo plano.
+- **Alertas são por dispositivo** (`localStorage`), conferidos quando o app
+  abre: um alerta atingido aparece no Painel e na navegação. Não há
+  notificação em segundo plano.
+- **Sem rede, o app mostra o último dado que este aparelho viu**, e diz isso
+  numa faixa em todas as telas, com a hora em que guardou. O que o aparelho
+  nunca abriu (um título, um período) continua indisponível sem rede.
 - **Vencimentos são descobertos do arquivo**, não de uma lista chutada. Um
   vencimento que não esteja no catálogo aparece com rótulo genérico — nunca com
   dado inventado.

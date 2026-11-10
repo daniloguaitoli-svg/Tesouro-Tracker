@@ -5,13 +5,21 @@
 //     aponta para o JavaScript mais recente); cai no cache só quando offline.
 //   - Assets com hash (/assets/*.js|css) -> CACHE-FIRST: são imutáveis e o nome
 //     muda a cada build, então versões novas entram sozinhas.
-//   - /api/*            -> sempre rede (dados nunca vão para o cache).
+//   - /api/*            -> o worker não toca: quem busca, guarda e recorre ao
+//     guardado quando a rede falha é src/api.js, que precisa contar à tela de
+//     onde veio a resposta. O worker só PRESERVA esse cache (DADOS, abaixo).
 // O par skipWaiting + clients.claim faz a versão nova assumir na hora; o
 // registro em main.jsx recarrega a página uma vez quando detecta a atualização.
 //
 // CACHE é a string de versão a subir quando os assets precachados mudarem.
 const CACHE = "tesouro-tracker-v2";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest"];
+// O cache das respostas de /api, escrito por src/api.js (CACHE_DADOS). Está
+// aqui só para NÃO ser apagado: a ativação abaixo remove todo cache que não
+// reconhece, e sem esta linha cada atualização do app jogaria fora o que o
+// aparelho guardou para mostrar sem rede. O verificar.mjs confere que o nome
+// é o mesmo dos dois lados.
+const DADOS = "tesouro-dados-v1";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -23,7 +31,7 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
       .keys()
-      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE && k !== DADOS).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -40,7 +48,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(request.url);
   if (request.method !== "GET") return;
   if (url.origin !== location.origin) return; // terceiros (fontes) passam direto
-  if (url.pathname.startsWith("/api/")) return; // dados sempre da rede
+  if (url.pathname.startsWith("/api/")) return; // dados: quem cuida é src/api.js
 
   if (ehNavegacao(request)) {
     e.respondWith(

@@ -131,6 +131,18 @@ of it, and server-side rendering never runs `useEffect` at all — the state wou
 stay `null` either way. Only a real DOM with populated responses executes the
 body of the component.
 
+**The smoke test fails when `<main>` is missing — it used to pass.** `textoDaAba`
+read `container.querySelector("main") || container`, and that fallback was a
+hole the size of the test: when the data did not load, `App` never mounted
+`<main>`, the measured text became the frame's (brand, tabs, footer — about 320
+characters), and **every tab passed with the app blank**. It happened on
+2026-11-10: a change in `src/api.js` read the response with `.text()`, which
+the test's fake `fetch` does not offer, and the run stayed green with seven
+tabs "rendered" at 318 characters each. Only the identical number gave it away.
+Now a missing `<main>` is a failure that quotes the error on screen. If you
+change how `src/api.js` reads a response, remember the fake `fetch` in
+`fumaca.mjs` only implements `ok`, `status` and `json()`.
+
 If you add a tab to `TABS` in `App.jsx`, add its label to `ABAS_ESPERADAS` in
 `scripts/fumaca.mjs` — otherwise the new screen has no coverage at all.
 
@@ -143,9 +155,14 @@ index.html            entry, fonts, PWA tags (lang="pt-BR")
 src/
   main.jsx            mounts React + service worker (PROD only, auto-reload on update)
   App.jsx             frame: topbar (brand + selo de data), 7 abas, full-screen Detalhe
-  api.js              the only data import for the UI — thin fetch wrappers over /api
+  api.js              the only data import for the UI — fetch wrappers over /api, plus
+                      the last-good-answer store used when the network fails
   format.js           pt-BR formatting (num, taxa, pct, pp, anos, reais, dataBR, …)
   destaques.js        which maturities the user follows (localStorage, per device)
+  alertas.js          rate alerts: storage and the trigger rule (pure, no imports)
+  rota.js             where you are, written in the URL hash (pure, no imports)
+  useRota.js          the hook that ties rota.js to the browser history
+  larguraMedida.js    the measured width charts draw at
   components/         Painel, Titulos, Curva, Calculadora, Alertas, Detalhe + widgets
   styles.css          design tokens at the top, then components
 server/
@@ -1305,6 +1322,115 @@ going stale) survives a second pass a minute later; a blip does not.
 
 Run it by hand after touching a symbol, a series number, or the window maths.
 
+## Getting around: the URL, the back button and no network
+
+### The route lives in the hash
+
+Tab and open bond used to be React state only. The address never changed, so
+Android's back button left the app instead of closing the open bond, a bond
+could not be bookmarked or sent, and a reload returned to the Painel. Now the
+route is `#/curva` or `#/titulo/<slug>` (`src/rota.js`, pure; `src/useRota.js`,
+the hook).
+
+**Hash, not path**, because a real path needs the server to answer
+`index.html` for any address and the service worker to do the same offline. The
+hash never reaches the server: it behaves identically in dev, on Vercel and
+with no network, without touching any configuration.
+
+**The history rule is a tabbed app's**, and `verificar.mjs` pins both halves:
+
+- **Opening a bond pushes an entry.** Back closes it and returns to the list
+  **at the scroll position it was left at** — Títulos is ~4,400px, and landing
+  at the top after looking at the tenth bond meant scrolling it all again.
+- **Switching tabs replaces the entry.** Back does not replay every tab
+  visited; from a tab, back leaves the app, as in any app with a bottom bar.
+
+"← voltar" calls `history.back()` when the entry was pushed from inside the app
+(`history.state.interno`), so the on-screen button and the device's back button
+do the **same** thing. On a direct link there is no app screen behind, and
+`history.back()` would leave for wherever the person came from — there it
+replaces the entry with the tab instead.
+
+React state is updated immediately rather than waiting for a browser event:
+`pushState`/`replaceState` fire no `popstate`. The listeners only cover what
+comes from outside — the back button and a hand-edited address. An unknown or
+malformed hash opens the default tab, never an error, and a "slug" that does
+not look like one (`/^[a-z0-9-]+$/i`) never reaches `/api`.
+
+`document.title` follows the screen ("Curva · Tesouro Tracker", or the bond's
+name once its data arrives), so history entries say where they lead.
+
+### With no network, the app shows the last data it saw — and says so
+
+Opening the installed app without signal used to give an error screen, for data
+that changes once a day. `src/api.js` now keeps each good answer on the device
+(Cache Storage, `CACHE_DADOS`) and returns it when the network fails.
+
+Three decisions in it are load-bearing:
+
+- **Network first, always.** The stored answer only appears *after* `fetch`
+  failed, never as a shortcut. `verificar.mjs` checks the order.
+- **It never hides that it happened.** Stored data presented as current would be
+  the app lying about its own lag, which is the one thing it exists to state.
+  `estadoDaConexao()` feeds an amber strip on **every** screen, Detalhe
+  included, with the time the data was stored — the **oldest** time when
+  several screens fell back, since that is the worst case on screen. Amber like
+  the stale-price badge: the same kind of news, not an error.
+- **5xx falls back, 4xx does not.** A server or upstream outage is worth less
+  than the stored answer (and the strip says "O servidor não respondeu"); a 4xx
+  is a wrong request — a bond that does not exist — and stored data there would
+  hide the real error. What the device never opened stays unavailable, with a
+  message that says why.
+
+**It lives in `api.js`, not in the service worker**, because the worker only
+exists in production and cannot tell the screen that an answer came from the
+device. The worker's only part is **not deleting it**: its `activate` removes
+every cache it does not recognise, so `public/sw.js` names the data cache
+(`DADOS`) and spares it. The name is duplicated across the two files, which
+never import each other; if they drift nothing errors — the app just forgets,
+on every update, everything it stored. `verificar.mjs` compares them.
+
+When the network returns (the browser's `online` event, or the strip clearing
+because *another* screen managed to fetch), `App` reloads the bonds and bumps
+`geracao`, the `key` of the open screen, so it remounts and fetches again.
+Without that the strip would disappear while the screen kept the stored data —
+the worst combination. Detail answers are capped at `MAX_DETALHES` (40), oldest
+first out.
+
+### Sorting on Títulos stays inside each family
+
+The "Ordem" selector (Vencimento · Taxa · Variação) reorders the rows **within
+each family**, and the family groups stay. One flat list from highest rate to
+lowest would put a 14% nominal Prefixado above a 7.8% real IPCA+ — the
+comparison this whole app exists not to make. "Variação" sorts by the **size**
+of the day's move, not its sign: the question is "what moved most", and a
+−0.30 p.p. fall moved more than a +0.05 rise. Missing values go last.
+
+### A triggered alert shows where you land, not only in its tab
+
+Alerts lived inside `Alertas.jsx`, so a triggered one was visible only to
+someone who opened that tab — which on a phone sits behind "Mais". The list and
+the trigger rule are now `src/alertas.js` (pure, exercised by `verificar.mjs`)
+and the state is in `App`, like the stars: `Alertas` edits, and the Painel and
+the navigation announce.
+
+- **The Painel opens with the notice** when any alert is met: one names the bond
+  and both rates, several are counted. It is a button to the Alertas tab, and it
+  is **blue** — amber already means stale data and green/coral mean a price
+  moved; this is a condition the person set themselves.
+- **The navigation carries the count**, on the Alertas tab and, on the phone, on
+  "Mais" itself — otherwise it would be hidden from exactly the people behind
+  it. The number is drawn by CSS from `data-aviso`, **not** as a `<span>` in the
+  button: the button's text must stay the tab's name, which is how the smoke
+  test finds tabs ("Alertas2" is no tab), and the count goes in `aria-label`
+  for screen readers. The badge sets `box-sizing` itself — the global
+  `* { box-sizing: border-box }` does not reach pseudo-elements, and without it
+  the badge came out 28px wide and covered the "Mais" icon.
+- **The target itself counts as met**, in both directions; a missing rate never
+  does. An alert on a bond that left the list (matured) simply does not fire.
+- There is still no push notification, and the screen still says so: the alert
+  is checked when the app opens.
+
 ## Who chooses the Painel's "Acompanhados de perto"
 
 **The user does**, via the star on each row of the Títulos tab. The choice is
@@ -1608,7 +1734,9 @@ data supports.
   data files are deliberately committed — that is the whole bridge — and
   ignoring them would empty the app in production while leaving dev perfect.
 - The service worker (`public/sw.js`) is **network-first for navigation**,
-  **cache-first for hashed `/assets/*`**, and never caches `/api/*`. `CACHE` is
+  **cache-first for hashed `/assets/*`**, and never touches `/api/*` — the data
+  store for offline use belongs to `src/api.js` (see **With no network** above),
+  and the worker only spares that cache (`DADOS`) when it cleans up. `CACHE` is
   the version string to bump (`"tesouro-tracker-v1"`); `SHELL` is the precached
   list. (Same naming as Cana-Tracker, inverse of ETF Tracker.)
 - `src/main.jsx` registers that worker in production, checks hourly, and reloads
@@ -1619,7 +1747,7 @@ data supports.
 
   | Key | Written by | What |
   |---|---|---|
-  | `tesouro-tracker-alertas` | `components/Alertas.jsx` (inline, no module) | rate alerts |
+  | `tesouro-tracker-alertas` | `src/alertas.js` | rate alerts |
   | `tesouro-tracker-destaques` | `src/destaques.js` | which maturities show in the Painel |
 - A broken change fails the Vercel build and the previous deploy stays live;
   `npm run build` locally is still the right pre-push check.

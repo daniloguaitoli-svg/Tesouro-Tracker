@@ -11,13 +11,25 @@
 // leitor de tela só encontra a que está visível. A tira mantém `role="tab"`
 // (o teste de fumaça procura as abas por ele); a barra usa botões simples com
 // `aria-current`, para não haver duas tablists com os mesmos nomes.
+//
+// O AVISO (um número ao lado de uma aba — hoje, os alertas atingidos) é
+// desenhado pelo CSS a partir de `data-aviso`, e não como um <span> com o
+// número dentro do botão. O texto do botão continua sendo só o nome da aba:
+// o teste de fumaça acha as abas por ele, e "Alertas2" não é o nome de aba
+// nenhuma. Para o leitor de tela, o número vai no aria-label.
 import { useEffect, useState } from "react";
 
-export function Tabs({ value, onChange, tabs }) {
+// O que o botão de uma aba leva quando ela tem aviso; nada quando não tem.
+function comAviso(rotulo, n) {
+  if (!n) return {};
+  return { "data-aviso": n > 9 ? "9+" : String(n), "aria-label": `${rotulo}, ${n} ${n === 1 ? "aviso" : "avisos"}` };
+}
+
+export function Tabs({ value, onChange, tabs, avisos = {} }) {
   return (
     <div className="tabs" role="tablist" aria-label="Seções">
       {tabs.map((t) => (
-        <button key={t.id} role="tab" aria-selected={value === t.id} className="tab" onClick={() => onChange(t.id)}>
+        <button key={t.id} role="tab" aria-selected={value === t.id} className="tab" onClick={() => onChange(t.id)} {...comAviso(t.label, avisos[t.id])}>
           {t.label}
         </button>
       ))}
@@ -67,11 +79,14 @@ function Icone({ id }) {
 // de ~78px em 390px, folgados acima dos 44px mínimos de toque.
 const NA_BARRA = 4;
 
-export function BarraInferior({ value, onChange, tabs }) {
+export function BarraInferior({ value, onChange, tabs, avisos = {} }) {
   const [folhaAberta, setFolhaAberta] = useState(false);
   const principais = tabs.slice(0, NA_BARRA);
   const extras = tabs.slice(NA_BARRA);
   const extraAtiva = extras.find((t) => t.id === value);
+  // Os Alertas ficam atrás do "Mais". O aviso deles tem de aparecer no próprio
+  // "Mais", senão ficaria escondido justamente de quem está no celular.
+  const avisosNoMais = extras.reduce((soma, t) => soma + (avisos[t.id] || 0), 0);
 
   // Esc fecha a folha. O ouvinte só existe enquanto ela está aberta.
   useEffect(() => {
@@ -92,7 +107,7 @@ export function BarraInferior({ value, onChange, tabs }) {
         <div className="folha-fundo" onClick={() => setFolhaAberta(false)}>
           <div className="folha" role="dialog" aria-label="Mais seções" onClick={(e) => e.stopPropagation()}>
             {extras.map((t) => (
-              <button key={t.id} className="folha-item" aria-current={value === t.id ? "page" : undefined} onClick={() => ir(t.id)}>
+              <button key={t.id} className="folha-item" aria-current={value === t.id ? "page" : undefined} onClick={() => ir(t.id)} {...comAviso(t.label, avisos[t.id])}>
                 <Icone id={t.id} />
                 {t.label}
               </button>
@@ -103,7 +118,7 @@ export function BarraInferior({ value, onChange, tabs }) {
 
       <nav className="barra-inferior" aria-label="Seções">
         {principais.map((t) => (
-          <button key={t.id} className="barra-item" aria-current={value === t.id ? "page" : undefined} onClick={() => ir(t.id)}>
+          <button key={t.id} className="barra-item" aria-current={value === t.id ? "page" : undefined} onClick={() => ir(t.id)} {...comAviso(t.label, avisos[t.id])}>
             <Icone id={t.id} />
             <span>{t.label}</span>
           </button>
@@ -115,6 +130,7 @@ export function BarraInferior({ value, onChange, tabs }) {
             aria-expanded={folhaAberta}
             aria-haspopup="dialog"
             onClick={() => setFolhaAberta((a) => !a)}
+            {...comAviso(extraAtiva ? extraAtiva.label : "Mais", avisosNoMais)}
           >
             <Icone id={extraAtiva ? extraAtiva.id : "mais"} />
             {/* Numa tela do "Mais", o botão leva o nome dela — senão a pessoa

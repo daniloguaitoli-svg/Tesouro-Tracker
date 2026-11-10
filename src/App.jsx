@@ -9,9 +9,15 @@
 // Calculadora e Alertas leem do mesmo payload. Só Curva e Detalhe buscam os
 // próprios endpoints. Assim, um campo novo em /api/titulos chega a quatro telas
 // de graça — e o app faz uma requisição, não quatro.
-import { useEffect, useMemo, useState } from "react";
-import { getTitulos } from "./api.js";
+//
+// A ROTA (aba e título aberto) vem do endereço — ver src/rota.js e useRota.js.
+// OS ALERTAS também moram aqui desde 11/2026: a aba Alertas os edita, mas quem
+// avisa que um deles foi atingido é o Painel e a navegação.
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { getTitulos, assinarConexao, estadoDaConexao } from "./api.js";
 import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque } from "./destaques.js";
+import { carregarAlertas, salvarAlertas, alertasAtingidos } from "./alertas.js";
+import { useRota } from "./useRota.js";
 import { MarcaIcone } from "./components/MarcaIcone.jsx";
 import { Tabs, BarraInferior } from "./components/Tabs.jsx";
 import { SeloDados } from "./components/SeloDados.jsx";
@@ -37,40 +43,87 @@ const TABS = [
   { id: "alertas", label: "Alertas" },
 ];
 
+const IDS_DAS_ABAS = TABS.map((t) => t.id);
+const NOME_DO_APP = "Tesouro Tracker";
+
 export default function App() {
-  const [tab, setTab] = useState("painel");
-  const [slug, setSlug] = useState(null);
+  const { tab, slug, irParaAba, abrirTitulo, fecharTitulo } = useRota(IDS_DAS_ABAS, "painel");
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
   const [carregando, setCarregando] = useState(true);
   // null = nunca escolheu (cai nos padrões do catálogo); array = escolha feita.
   const [escolha, setEscolha] = useState(carregarDestaques);
+  const [alertas, setAlertas] = useState(carregarAlertas);
+  // null = dados da rede; { salvoEm, motivo } = o aparelho está mostrando o
+  // que guardou, porque a rede ou o servidor falharam (ver src/api.js).
+  const conexao = useSyncExternalStore(assinarConexao, estadoDaConexao, () => null);
+  // Sobe a cada volta da rede, e é a `key` das telas: remonta a que está
+  // aberta para ela buscar de novo. Sem isto, a faixa de aviso sumiria e a
+  // tela continuaria com o dado guardado — a pior combinação possível.
+  const [geracao, setGeracao] = useState(0);
+  const recarregando = useRef(false);
 
   const carregar = () => {
     setCarregando(true);
     setErro(null);
+    recarregando.current = true;
     getTitulos()
       .then(setDados)
       .catch((e) => setErro(e.message))
-      .finally(() => setCarregando(false));
+      .finally(() => {
+        recarregando.current = false;
+        setCarregando(false);
+      });
   };
   useEffect(carregar, []);
+
+  // A REDE VOLTOU. Dois sinais, porque nenhum dos dois basta sozinho: o evento
+  // `online` do navegador (que não dispara se a falha era do servidor), e a
+  // faixa de aviso se apagando porque OUTRA tela conseguiu buscar. Nos dois
+  // casos os títulos — que este componente carrega uma vez só — têm de ser
+  // buscados de novo, e a tela aberta, remontada.
+  const estavaGuardado = useRef(false);
+  useEffect(() => {
+    if (estavaGuardado.current && !conexao) {
+      setGeracao((g) => g + 1);
+      if (!recarregando.current) carregar();
+    }
+    estavaGuardado.current = !!conexao;
+  }, [conexao]);
+  useEffect(() => {
+    const aoVoltar = () => estadoDaConexao() && carregar();
+    window.addEventListener("online", aoVoltar);
+    return () => window.removeEventListener("online", aoVoltar);
+  }, []);
+
+  // O nome da tela na aba do navegador e no histórico: com endereço próprio,
+  // "Tesouro Tracker" repetido em toda entrada não diz para onde se volta. O
+  // Detalhe põe o nome do título quando o dado chega; aqui fica o da aba.
+  useEffect(() => {
+    if (!slug) document.title = `${TABS.find((t) => t.id === tab)?.label} · ${NOME_DO_APP}`;
+  }, [tab, slug]);
 
   const todos = useMemo(() => (dados?.categorias || []).flatMap((c) => c.itens), [dados]);
   const marcados = useMemo(() => resolverDestaques(escolha, todos), [escolha, todos]);
   // Mantém a ordem das categorias (família, depois vencimento) em vez da ordem
   // em que a pessoa foi clicando — o Painel fica estável entre visitas.
   const itensDestaque = useMemo(() => todos.filter((t) => marcados.has(t.slug)), [todos, marcados]);
+  const atingidos = useMemo(() => alertasAtingidos(alertas, todos), [alertas, todos]);
+  // O número que a navegação mostra ao lado de cada aba. Só os alertas têm
+  // um, por enquanto; é um mapa para a navegação não saber o que ele conta.
+  const avisos = useMemo(() => (atingidos.length ? { alertas: atingidos.length } : {}), [atingidos]);
 
   // Trocar de tela pela navegação também fecha o Detalhe (a barra inferior
-  // continua visível sobre ele) e volta ao topo — a tela nova não deve abrir
-  // no meio da rolagem da anterior.
-  const irPara = (id) => {
-    setSlug(null);
-    setTab(id);
-    // Só rola se precisar: além de evitar trabalho à toa, o jsdom do teste de
-    // fumaça não implementa scrollTo e encheria o log de erro.
-    if (window.scrollY > 0) window.scrollTo(0, 0);
+  // continua visível sobre ele) e volta ao topo — quem cuida das duas coisas,
+  // e do endereço, é o useRota.
+  const irPara = irParaAba;
+
+  const mudarAlertas = (transformar) => {
+    setAlertas((atual) => {
+      const proxima = transformar(atual);
+      salvarAlertas(proxima);
+      return proxima;
+    });
   };
 
   const alternar = (slug) => {
@@ -100,17 +153,35 @@ export default function App() {
         </div>
       </header>
 
+      {/* UM AVISO SÓ, no mesmo lugar em todas as telas — o Detalhe inclusive.
+          Âmbar, como o selo de atraso: é a mesma família de notícia ("o que
+          você vê não é de agora"), não um erro. role="status" para o leitor
+          de tela anunciar quando aparece, sem interromper. */}
+      {conexao && (
+        <div className="faixa-guardado" role="status">
+          <span>
+            <b>{conexao.motivo === "servidor" ? "O servidor não respondeu." : "Sem conexão."}</b>{" "}
+            {conexao.salvoEm
+              ? `Mostrando o que este aparelho guardou em ${dataBR(conexao.salvoEm)} às ${horaBR(conexao.salvoEm)}.`
+              : "Mostrando o que este aparelho tinha guardado."}
+          </span>
+          <button className="btn" onClick={() => window.location.reload()}>
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
       {slug ? (
-        <Detalhe slug={slug} onBack={() => setSlug(null)} />
+        <Detalhe key={`${slug}-${geracao}`} slug={slug} onBack={fecharTitulo} nomeDoApp={NOME_DO_APP} />
       ) : (
         <>
-          <Tabs value={tab} onChange={irPara} tabs={TABS} />
+          <Tabs value={tab} onChange={irPara} tabs={TABS} avisos={avisos} />
 
           {carregando && !dados && <Skeletons n={5} />}
           {erro && !dados && <ErroBox erro={erro} onRetry={carregar} />}
 
           {dados && (
-            <main>
+            <main key={geracao}>
               {/* O NOME DA TELA, para quem navega por títulos. Invisível: em
                   tela a aba acesa já diz onde se está, mas um leitor de tela
                   pula de título em título, e sem este a página não tinha
@@ -120,19 +191,21 @@ export default function App() {
                 <Painel
                   dados={dados}
                   itens={itensDestaque}
-                  onOpen={setSlug}
+                  onOpen={abrirTitulo}
                   onIrParaTitulos={() => irPara("titulos")}
                   onIrParaCurva={() => irPara("curva")}
+                  atingidos={atingidos}
+                  onIrParaAlertas={() => irPara("alertas")}
                 />
               )}
               {tab === "titulos" && (
-                <Titulos dados={dados} onOpen={setSlug} marcados={marcados} onAlternar={alternar} />
+                <Titulos dados={dados} onOpen={abrirTitulo} marcados={marcados} onAlternar={alternar} />
               )}
               {tab === "curva" && <Curva marcados={marcados} />}
               {tab === "mercado" && <Mercado />}
               {tab === "noticias" && <Noticias />}
               {tab === "calculadora" && <Calculadora dados={dados} />}
-              {tab === "alertas" && <Alertas dados={dados} />}
+              {tab === "alertas" && <Alertas dados={dados} alertas={alertas} onMudar={mudarAlertas} />}
             </main>
           )}
         </>
@@ -179,7 +252,7 @@ export default function App() {
       </footer>
       )}
 
-      <BarraInferior value={slug ? null : tab} onChange={irPara} tabs={TABS} />
+      <BarraInferior value={slug ? null : tab} onChange={irPara} tabs={TABS} avisos={avisos} />
     </div>
   );
 }
