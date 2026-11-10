@@ -1,54 +1,33 @@
 // components/Alertas.jsx — alertas de taxa, por dispositivo.
 //
-// Guardados em localStorage (chave `tesouro-tracker-alertas`), lidos e escritos
-// aqui mesmo: não há backend de usuário neste app e nada sai do aparelho — o
-// repositório é público, então preferir o armazenamento local não é só
-// simplicidade, é o que mantém posições e metas fora do que é publicado.
+// A lista e a regra do disparo moram em src/alertas.js, e o estado no App:
+// esta tela cria e remove, mas quem avisa que um alerta foi atingido é o
+// Painel e a navegação, que precisam da mesma lista. Continua tudo só neste
+// aparelho (localStorage) — o repositório é público, e uma meta de taxa diz o
+// que a pessoa pretende comprar.
 //
-// O disparo é conferido na abertura da tela, contra a última taxa coletada. Não
-// há notificação push: o app é um painel que se consulta, não um serviço que
-// avisa — e prometer aviso que não chega seria pior que não prometer.
-import { useEffect, useMemo, useState } from "react";
+// Não há notificação push: o app é um painel que se consulta, não um serviço
+// que avisa — e prometer aviso que não chega seria pior que não prometer. O
+// que existe é o aviso DENTRO do app: abrir em qualquer tela já mostra.
+import { useMemo, useState } from "react";
 import { taxa, dataBR, anos, unidadeTaxa } from "../format.js";
+import { alertaAtingido } from "../alertas.js";
 import { AguardandoColeta, Vazio } from "./States.jsx";
 import { Explica } from "./Explica.jsx";
 
-const CHAVE = "tesouro-tracker-alertas";
-
-function carregar() {
-  if (typeof window === "undefined") return [];
-  try {
-    const bruto = JSON.parse(window.localStorage.getItem(CHAVE) || "[]");
-    return Array.isArray(bruto) ? bruto : [];
-  } catch {
-    return []; // storage corrompido não pode derrubar a tela
-  }
-}
-
-function salvar(lista) {
-  try {
-    window.localStorage.setItem(CHAVE, JSON.stringify(lista));
-  } catch {
-    /* modo privativo / cota cheia — o app segue funcionando sem persistir */
-  }
-}
-
-export function Alertas({ dados }) {
+export function Alertas({ dados, alertas, onMudar }) {
   const todos = useMemo(() => (dados.categorias || []).flatMap((c) => c.itens), [dados]);
-  const [alertas, setAlertas] = useState(carregar);
   const [slug, setSlug] = useState(() => (dados.destaques?.[0] || todos[0])?.slug || "");
   const [direcao, setDirecao] = useState("acima");
   const [alvo, setAlvo] = useState("7");
 
-  useEffect(() => salvar(alertas), [alertas]);
-
   const adicionar = () => {
     const n = Number(String(alvo).replace(",", "."));
     if (!slug || !Number.isFinite(n)) return;
-    setAlertas((a) => [...a, { id: `${Date.now()}`, slug, direcao, alvo: n }]);
+    onMudar((a) => [...a, { id: `${Date.now()}`, slug, direcao, alvo: n }]);
   };
 
-  const remover = (id) => setAlertas((a) => a.filter((x) => x.id !== id));
+  const remover = (id) => onMudar((a) => a.filter((x) => x.id !== id));
 
   if (dados.pendente) return <AguardandoColeta />;
 
@@ -64,9 +43,9 @@ export function Alertas({ dados }) {
         <Explica titulo="Como os alertas funcionam">
           <p>
             O alerta marca quando a taxa de um vencimento cruza o alvo. Ele é conferido quando
-            esta tela abre, contra a última taxa coletada: não há notificação em segundo plano —
-            o app é um painel que se consulta, e prometer um aviso que não chega seria pior que
-            não prometer.
+            o app abre, contra a última taxa coletada, e um alerta atingido aparece no Painel e
+            na navegação. Não há notificação em segundo plano: o app é um painel que se
+            consulta, e prometer um aviso que não chega seria pior que não prometer.
           </p>
           <p>
             A taxa coletada tem ao menos um dia útil de defasagem: o alerta compara com o que o
@@ -85,7 +64,7 @@ export function Alertas({ dados }) {
       {/* "Sem notificação" fica NA TELA: é o que muda o uso. Quem cria um
           alerta espera ser avisado, e descobrir o contrário no ⓘ é tarde. */}
       <p className="section-sub">
-        Sem notificação: o alerta é conferido quando esta tela abre. Fica só neste aparelho.
+        Sem notificação: o aviso aparece quando você abre o app. Fica só neste aparelho.
       </p>
 
       <div className="card">
@@ -122,8 +101,7 @@ export function Alertas({ dados }) {
       {alertas.map((a) => {
         const t = todos.find((x) => x.slug === a.slug);
         const atual = t?.taxa ?? null;
-        const disparou =
-          atual != null && (a.direcao === "acima" ? atual >= a.alvo : atual <= a.alvo);
+        const disparou = alertaAtingido(a, atual);
         return (
           <div className="row" key={a.id} style={{ cursor: "default" }}>
             <div className="rowmain">

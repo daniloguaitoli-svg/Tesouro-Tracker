@@ -12,7 +12,7 @@ import { Chip } from "./Chip.jsx";
 import { ErroBox, Loading } from "./States.jsx";
 import { taxa, pct, pp, anos, reais, dataBR, num, sinal, sinalTaxa, unidadeTaxa } from "../format.js";
 
-export function Detalhe({ slug, onBack }) {
+export function Detalhe({ slug, onBack, nomeDoApp = "Tesouro Tracker" }) {
   const [tf, setTf] = useState("1A");
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
@@ -30,6 +30,13 @@ export function Detalhe({ slug, onBack }) {
       vivo = false;
     };
   }, [slug, tf, tentativa]);
+
+  // O nome do título na aba do navegador e no histórico. Só quando o dado
+  // chega: antes disso não se sabe o nome, e o slug não é texto para gente.
+  const nomeDoTitulo = dados?.item?.nome;
+  useEffect(() => {
+    if (nomeDoTitulo) document.title = `${nomeDoTitulo} · ${nomeDoApp}`;
+  }, [nomeDoTitulo, nomeDoApp]);
 
   if (erro && !dados) {
     return (

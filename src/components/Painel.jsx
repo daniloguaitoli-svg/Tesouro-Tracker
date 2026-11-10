@@ -157,7 +157,41 @@ function FaixaMacro({ macro }) {
   );
 }
 
-export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva }) {
+// O aviso de alerta atingido. Fica no TOPO do Painel porque é a primeira coisa
+// que quem criou um alerta quer saber ao abrir o app — e até 11/2026 ele só
+// existia dentro da aba Alertas, que no celular fica atrás do "Mais".
+//
+// É um botão: leva à aba onde o alerta se desfaz. E é azul, não âmbar nem
+// verde: âmbar já quer dizer "dado atrasado" (o selo do topo), e verde ou
+// coral querem dizer que um preço subiu ou caiu. Isto não é nenhum dos dois —
+// é uma condição que a própria pessoa definiu.
+function AvisoDeAlertas({ atingidos, onAbrir }) {
+  if (!atingidos?.length) return null;
+  const [{ alerta, titulo }] = atingidos;
+  return (
+    <button className="aviso-alertas" onClick={onAbrir}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 21h4" />
+      </svg>
+      <span>
+        {atingidos.length === 1 ? (
+          <>
+            <b>Alerta atingido:</b> {titulo.nome} está a <span className="mono">{taxa(titulo.taxa, titulo.tipo === "selic" ? 4 : 2)}</span>,{" "}
+            {alerta.direcao === "acima" ? "acima de" : "abaixo de"} <span className="mono">{taxa(alerta.alvo)}</span>.
+          </>
+        ) : (
+          <>
+            <b>{atingidos.length} alertas atingidos</b> — {titulo.nome} e{" "}
+            {atingidos.length === 2 ? "mais um" : `mais ${atingidos.length - 1}`}.
+          </>
+        )}
+      </span>
+      <span className="aviso-seta" aria-hidden="true">›</span>
+    </button>
+  );
+}
+
+export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, atingidos, onIrParaAlertas }) {
   // Em tela larga a coluna da direita assume a moldura (os seis indicadores) e
   // a tira de quatro some — ver .faixa-macro no CSS. O hook decide a MONTAGEM
   // da lateral, não só a visibilidade: ela busca a curva, e um celular não
@@ -169,6 +203,7 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva })
 
   const principal = (
     <div className="painel-principal">
+      <AvisoDeAlertas atingidos={atingidos} onAbrir={onIrParaAlertas} />
       <FaixaMacro macro={dados.macro} />
 
       {/* O aviso de preço velho saiu daqui: agora é o selo do topo (SeloDados),

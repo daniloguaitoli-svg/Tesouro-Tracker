@@ -24,6 +24,33 @@ const indiceDe = (id) => (id.startsWith("ipca") ? "ipca" : id.startsWith("prefix
 // fica desabilitado quando o índice é Selic: não existe LFT com cupom.
 const temCupom = (id) => id.endsWith("-juros");
 
+// A ORDEM VALE DENTRO DE CADA FAMÍLIA, nunca entre elas. Uma lista só, da
+// maior taxa para a menor, poria um Prefixado a 14% (nominal) acima de um
+// IPCA+ a 7,8% (real) — a comparação que o app inteiro existe para não fazer.
+// Por isso os grupos e os títulos deles ficam; o que muda é a fila em cada um.
+//
+// "Variação" ordena pelo TAMANHO do movimento do dia, não pelo sinal: a
+// pergunta é "o que mais mexeu?", e uma queda de 0,30 p.p. mexeu mais que uma
+// alta de 0,05. Sem dado vai para o fim, em qualquer ordem.
+const ORDENS = [
+  { id: "vencimento", rotulo: "Vencimento" },
+  { id: "taxa", rotulo: "Taxa" },
+  { id: "variacao", rotulo: "Variação" },
+];
+const CHAVE_DA_ORDEM = {
+  taxa: (t) => t.taxa,
+  variacao: (t) => (t.taxaVarPP == null ? null : Math.abs(t.taxaVarPP)),
+};
+function ordenar(itens, ordem) {
+  const chave = CHAVE_DA_ORDEM[ordem];
+  if (!chave) return itens; // "vencimento" é a ordem em que o servidor manda
+  return [...itens].sort((a, b) => {
+    const [x, y] = [chave(a), chave(b)];
+    if (x == null || y == null) return (x == null) - (y == null);
+    return y - x; // maior primeiro
+  });
+}
+
 const INDICES = [
   { id: "todos", rotulo: "Todos" },
   { id: "ipca", rotulo: "IPCA+" },
@@ -70,6 +97,7 @@ export function Titulos({ dados, onOpen, marcados, onAlternar }) {
   const [busca, setBusca] = useState("");
   const [indice, setIndice] = useState("todos");
   const [cupom, setCupom] = useState("todos"); // "todos" | "sem" | "com"
+  const [ordem, setOrdem] = useState("vencimento");
 
   const categorias = dados.categorias || [];
   const filtradas = useMemo(() => {
@@ -79,10 +107,13 @@ export function Titulos({ dados, onOpen, marcados, onAlternar }) {
       .filter((c) => cupom === "todos" || temCupom(c.id) === (cupom === "com"))
       .map((c) => ({
         ...c,
-        itens: c.itens.filter((t) => !q || normalizarBusca(`${t.nome} ${t.vencimento}`).includes(q)),
+        itens: ordenar(
+          c.itens.filter((t) => !q || normalizarBusca(`${t.nome} ${t.vencimento}`).includes(q)),
+          ordem
+        ),
       }))
       .filter((c) => c.itens.length > 0);
-  }, [categorias, busca, indice, cupom]);
+  }, [categorias, busca, indice, cupom, ordem]);
 
   // Trocar para Selic com "Com" escolhido deixaria a lista vazia por uma
   // combinação que não existe — volta para "Todos" em vez de mostrar o vazio.
@@ -116,6 +147,7 @@ export function Titulos({ dados, onOpen, marcados, onAlternar }) {
         valor={cupom}
         onChange={setCupom}
       />
+      <Seletor rotulo="Ordem" opcoes={ORDENS} valor={ordem} onChange={setOrdem} />
 
       <p className="section-sub" style={{ marginTop: "var(--s3)" }}>
         Toque na estrela para acompanhar um vencimento no Painel

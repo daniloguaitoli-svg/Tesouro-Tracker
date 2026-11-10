@@ -213,9 +213,17 @@ async function esperarAssentar(ler, { piso = 40, teto = 5000, passo = 25, repeti
 }
 
 // Conteúdo da aba: o <main>, não o container inteiro (ver o porquê abaixo).
+//
+// SEM <main>, O TEXTO É VAZIO — e não o do container. Até 11/2026 havia aqui
+// um `|| container`, e ele abria um buraco do tamanho do teste: se os dados
+// não carregassem, o App não montava o <main>, o texto medido passava a ser o
+// da moldura (marca, abas, rodapé: ~320 caracteres), e TODAS as abas passavam
+// com o app em branco. Aconteceu de verdade: uma mudança no src/api.js quebrou
+// a leitura da resposta e a fumaça seguiu verde, com sete abas "renderizadas"
+// de 318 caracteres cada. Só o número igual em todas entregou o defeito.
 const textoDaAba = (container) => {
-  const conteudo = container.querySelector("main") || container;
-  return conteudo.textContent.replace(/\s+/g, " ").trim();
+  const conteudo = container.querySelector("main");
+  return conteudo ? conteudo.textContent.replace(/\s+/g, " ").trim() : "";
 };
 
 // ---------- 4. Abrir cada aba, uma montagem limpa por aba ----------
@@ -270,6 +278,10 @@ async function abrirAba(nome) {
     // inteiro: a moldura (marca + tira de abas) sozinha já passa de 70
     // caracteres, então um piso medido no container aprovaria uma aba cujo
     // corpo não renderizou nada.
+    if (!container.querySelector("main")) {
+      const erro = container.querySelector(".errobox, [role=alert]")?.textContent.trim().slice(0, 80);
+      return { ok: false, motivo: `o app não montou o <main> — os dados não carregaram${erro ? ` ("${erro}")` : ""}` };
+    }
     if (texto.length < 40) {
       return { ok: false, motivo: `o corpo da aba renderizou quase nada (${texto.length} chars)` };
     }

@@ -1751,7 +1751,9 @@ conferir(
 conferir(/DIVERGE da leitura crua/.test(sondaSrc), "a sonda reprova se as duas leituras discordarem");
 
 console.log("\nchaves de localStorage");
-const alertasSrc = await ler("src/components/Alertas.jsx");
+// Os alertas saíram de dentro da tela para src/alertas.js em 11/2026, quando o
+// Painel e a navegação passaram a mostrar os atingidos.
+const alertasSrc = await ler("src/alertas.js");
 const destaquesSrc = await ler("src/destaques.js");
 const chaveAlertas = alertasSrc.match(/CHAVE\s*=\s*"([^"]+)"/)?.[1];
 const chaveDestaques = destaquesSrc.match(/CHAVE\s*=\s*"([^"]+)"/)?.[1];
@@ -1760,6 +1762,79 @@ conferir(chaveAlertas !== chaveDestaques, `chaves distintas (${chaveAlertas} != 
 const doc = await ler("CLAUDE.md");
 for (const [nome, chave] of [["alertas", chaveAlertas], ["destaques", chaveDestaques]]) {
   conferir(chave && doc.includes(chave), `CLAUDE.md documenta a chave de ${nome} (${chave})`);
+}
+
+console.log("\nalertas: a regra do disparo");
+// A regra saiu da tela de Alertas e passou a decidir o que o Painel e a
+// navegação anunciam. Um erro aqui deixa de ser uma etiqueta trocada numa aba
+// e vira o app avisando o que não aconteceu — ou calando o que aconteceu.
+{
+  const al = await import("../src/alertas.js");
+  const acima = { slug: "x", direcao: "acima", alvo: 7 };
+  const abaixo = { slug: "x", direcao: "abaixo", alvo: 7 };
+  conferir(al.alertaAtingido(acima, 7.01) && !al.alertaAtingido(acima, 6.99), '"acima de" dispara acima do alvo e só acima');
+  conferir(al.alertaAtingido(abaixo, 6.99) && !al.alertaAtingido(abaixo, 7.01), '"abaixo de" dispara abaixo do alvo e só abaixo');
+  conferir(al.alertaAtingido(acima, 7) && al.alertaAtingido(abaixo, 7), "o alvo exato conta como atingido, nos dois sentidos");
+  // Falta de dado nunca é condição satisfeita: um título sem taxa no arquivo
+  // não pode acender o aviso.
+  conferir(!al.alertaAtingido(acima, null) && !al.alertaAtingido(abaixo, undefined), "sem taxa não há disparo");
+  conferir(!al.alertaAtingido({ direcao: "abaixo", alvo: NaN }, 5), "alvo inválido não dispara");
+  const titulos = [{ slug: "a", taxa: 7.5 }, { slug: "b", taxa: 6 }];
+  const lista = [
+    { id: "1", slug: "a", direcao: "acima", alvo: 7 },
+    { id: "2", slug: "b", direcao: "acima", alvo: 7 },
+    { id: "3", slug: "venceu", direcao: "abaixo", alvo: 99 },
+  ];
+  const at = al.alertasAtingidos(lista, titulos);
+  conferir(at.length === 1 && at[0].alerta.id === "1" && at[0].titulo.slug === "a", "atingidos trazem o alerta e o título dele");
+  conferir(!at.some((x) => x.alerta.slug === "venceu"), "alerta de título que saiu da lista não dispara");
+  conferir(al.alertasAtingidos(null, null).length === 0, "sem alertas nem títulos devolve lista vazia");
+}
+
+console.log("\nrota no endereço");
+// O endereço é lido de fora: link guardado, link digitado, link antigo. A
+// leitura tem de ABRIR O APP em qualquer caso — e nunca mandar para /api um
+// "slug" que não tem cara de slug.
+{
+  const { lerRota, escreverRota } = await import("../src/rota.js");
+  const abas = ["painel", "titulos", "curva"];
+  const ler2 = (h) => lerRota(h, abas, "painel");
+  conferir(ler2("").tab === "painel" && ler2("").slug === null, "sem hash abre a aba padrão");
+  conferir(ler2("#/curva").tab === "curva", "#/curva abre a Curva");
+  conferir(ler2("#/nao-existe").tab === "painel", "aba desconhecida cai na padrão, sem erro");
+  conferir(ler2("#/titulo/tesouro-ipca-2035").slug === "tesouro-ipca-2035", "#/titulo/<slug> abre o título");
+  conferir(ler2("#/titulo/../../etc").slug === null, "o que não tem cara de slug não vira título");
+  conferir(ler2("#/titulo/a%20b").slug === null && ler2("#/titulo/%E0%A4%A").slug === null, "slug com espaço ou % quebrado é recusado");
+  for (const r of [{ tab: "curva", slug: null }, { tab: "painel", slug: "tesouro-selic-2031" }]) {
+    const volta = ler2(escreverRota(r));
+    conferir(volta.slug === r.slug && (r.slug || volta.tab === r.tab), `ida e volta: ${escreverRota(r)}`);
+  }
+  // O gancho tem de EMPILHAR ao abrir um título e SUBSTITUIR ao trocar de aba:
+  // é o que faz o Voltar fechar o título, e não refazer aba por aba.
+  const gancho = await ler("src/useRota.js");
+  const corpoDe = (nome) => gancho.slice(gancho.indexOf(`const ${nome} = useCallback`), gancho.indexOf("}, []);", gancho.indexOf(`const ${nome} = useCallback`)));
+  conferir(/historico\("pushState"/.test(corpoDe("abrirTitulo")), "abrir um título empilha uma entrada no histórico");
+  conferir(/historico\("replaceState"/.test(corpoDe("irParaAba")) && !/pushState/.test(corpoDe("irParaAba")), "trocar de aba substitui a entrada, não empilha");
+}
+
+console.log("\ndados guardados no aparelho");
+// O nome do cache das respostas de /api vive em dois lugares que não se
+// importam: src/api.js escreve nele, e public/sw.js tem de POUPÁ-LO quando
+// limpa os caches velhos. Se os nomes divergirem não há erro nenhum — só o
+// app esquecendo, a cada atualização, tudo o que guardou para mostrar offline.
+{
+  const apiSrc = await ler("src/api.js");
+  const swSrc = await ler("public/sw.js");
+  const noApi = apiSrc.match(/CACHE_DADOS\s*=\s*"([^"]+)"/)?.[1];
+  const noSw = swSrc.match(/const DADOS\s*=\s*"([^"]+)"/)?.[1];
+  conferir(!!noApi && noApi === noSw, `mesmo nome de cache em api.js e sw.js (${noApi} / ${noSw})`);
+  conferir(/k !== CACHE && k !== DADOS/.test(swSrc), "a ativação do worker poupa o cache de dados");
+  // A ordem é rede primeiro. O guardado só pode aparecer DEPOIS de o fetch
+  // falhar — nunca como atalho.
+  const corpo = apiSrc.slice(apiSrc.indexOf("async function getJSON"));
+  conferir(corpo.indexOf("await fetch(url)") < corpo.indexOf("doAparelho(url)"), "a rede vem antes do guardado");
+  conferir(/r\.status >= 500/.test(corpo), "só erro do servidor (5xx) recorre ao guardado; 4xx continua erro");
+  conferir(/mudarConexao\(\{ salvoEm/.test(corpo), "servir do aparelho sempre avisa a tela, com a hora");
 }
 
 // Casas decimais fixas por tipo de número. Um zero à direita que some não dá
