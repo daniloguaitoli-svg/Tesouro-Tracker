@@ -11,10 +11,12 @@
 // duration e o "±1 p.p.". Só a taxa não diz o que uma mudança de juros faz com
 // a posição — é a duration que responde isso, e é ela que interessa em um
 // horizonte longo.
-import { taxa, pct, pp, anos, reais, dataBR, sinal, sinalTaxa, num, unidadeTaxa } from "../format.js";
+import { taxa, pct, anos, dataBR, sinal, num, unidadeTaxa } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
 import { PainelLateral } from "./PainelLateral.jsx";
-import { Chip } from "./Chip.jsx";
+import { ChipsDeVariacao, PERIODOS } from "./Chip.jsx";
+import { Seletor } from "./Seletor.jsx";
+import { Explica } from "./Explica.jsx";
 import { useTelaLarga } from "../telaLarga.js";
 
 // Um vencimento acompanhado, em três faixas de leitura: identidade à esquerda
@@ -23,7 +25,7 @@ import { useTelaLarga } from "../telaLarga.js";
 // A taxa à direita existe para a COMPARAÇÃO: empilhados, os números grandes
 // caem todos na mesma coluna e a diferença entre dois vencimentos se lê de
 // relance. No layout anterior cada taxa começava onde o nome acabava.
-function CartaoTitulo({ t, onOpen }) {
+function CartaoTitulo({ t, onOpen, periodo }) {
   const mac = t.duration?.macaulay ?? null;
   // "pós-fixado" em vez de "sem cupom" para a LFT: ela não tem cupom, mas
   // dizer isso sugere que o que importa nela é o mesmo que numa NTN-B curta.
@@ -45,11 +47,7 @@ function CartaoTitulo({ t, onOpen }) {
         </span>
       </span>
 
-      <span className="chips">
-        <Chip rotulo="taxa" valor={pp(t.taxaVarPP)} dir={sinalTaxa(t.taxaVarPP)} />
-        <Chip rotulo="preço" valor={pct(t.puVarPct)} dir={sinal(t.puVarPct)} />
-        <Chip rotulo="PU" valor={reais(t.pu)} />
-      </span>
+      <ChipsDeVariacao t={t} periodo={periodo} />
 
       {mac != null ? (
         <span className="ct-dur">
@@ -191,7 +189,7 @@ function AvisoDeAlertas({ atingidos, onAbrir }) {
   );
 }
 
-export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, atingidos, onIrParaAlertas }) {
+export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, atingidos, onIrParaAlertas, periodo, onPeriodo }) {
   // Em tela larga a coluna da direita assume a moldura (os seis indicadores) e
   // a tira de quatro some — ver .faixa-macro no CSS. O hook decide a MONTAGEM
   // da lateral, não só a visibilidade: ela busca a curva, e um celular não
@@ -225,11 +223,46 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, a
       ) : (
         // Uma coluna, não duas: o cartão compacto tem chips e escala, e em 390px
         // dois por linha espremem as três faixas até nenhuma se ler.
-        <div className="lista-cartoes">
-          {destaques.map((t) => (
-            <CartaoTitulo key={t.slug} t={t} onOpen={onOpen} />
-          ))}
-        </div>
+        <>
+          {/* UM SELETOR PARA TODOS OS CARTÕES, e não um por cartão: a leitura
+              desta lista é comparar os títulos entre si, e isso só vale com
+              todos na mesma janela. O ⓘ mora na linha dele porque é dele que
+              fala — inclusive do "— cupom", que só aparece por causa dele. */}
+          <Seletor rotulo="Período" opcoes={PERIODOS} valor={periodo} onChange={onPeriodo}>
+            <Explica titulo="Variação no período">
+              <p>
+                Os chips “taxa” e “preço” de cada cartão mostram quanto os dois mudaram no
+                período escolhido. A taxa varia em pontos percentuais e o preço em %, em sentidos
+                opostos: taxa que sobe é título que vale menos hoje.
+              </p>
+              <p>
+                “1 dia” compara o último preço com o do pregão anterior. “1 semana” e “1 mês”
+                comparam com o preço de 7 e de 30 dias antes — ou com o último publicado antes
+                dessa data, quando ela cai em fim de semana ou feriado.
+              </p>
+              <p>
+                <strong>“— cupom” no lugar do preço:</strong> quando um título paga juros dentro
+                do período, o preço dele cai o valor do pagamento sem que ninguém tenha perdido
+                nada — o dinheiro foi para a conta. Mostrar essa queda como perda seria errado,
+                então o preço fica de fora nesse período. A taxa continua valendo.
+              </p>
+              <p>
+                Em períodos longos o preço também sobe sozinho, só por render juros: parado, um
+                título a 14% ao ano sobe cerca de 1% num mês. Por isso a variação do preço em
+                “1 mês” não é só o efeito da taxa.
+              </p>
+              <p>
+                Um traço (—) quer dizer que o histórico do título não alcança a data: ele não
+                tinha preço publicado naquela época.
+              </p>
+            </Explica>
+          </Seletor>
+          <div className="lista-cartoes">
+            {destaques.map((t) => (
+              <CartaoTitulo key={t.slug} t={t} onOpen={onOpen} periodo={periodo} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

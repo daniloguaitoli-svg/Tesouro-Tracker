@@ -8,11 +8,70 @@
 import { useEffect, useState } from "react";
 import { getDetalhe } from "../api.js";
 import { GraficoTaxa } from "./GraficoTaxa.jsx";
-import { Chip } from "./Chip.jsx";
+import { ChipsDeVariacao, PERIODO_PADRAO } from "./Chip.jsx";
+import { Explica } from "./Explica.jsx";
 import { ErroBox, Loading } from "./States.jsx";
-import { taxa, pct, pp, anos, reais, dataBR, num, sinal, sinalTaxa, unidadeTaxa } from "../format.js";
+import { taxa, pct, anos, dataBR, num, sinal, unidadeTaxa } from "../format.js";
 
-export function Detalhe({ slug, onBack, nomeDoApp = "Tesouro Tracker" }) {
+// Onde a taxa de hoje cai dentro do período escolhido. Mínima, média e máxima
+// dão as bordas; isto diz se hoje é um extremo ou um dia qualquer — "7,87%
+// contra uma média de 7,56%" não revela que só um quarto dos dias pagou mais.
+//
+// O marcador anda pela POSIÇÃO entre os dias (o percentil), não pelo valor
+// entre a mínima e a máxima: um único dia de pânico estica a faixa de valores
+// e empurraria todos os outros dias para um canto.
+function Percentil({ estatisticas }) {
+  const p = estatisticas?.percentil;
+  if (p == null) return null;
+  const outros = estatisticas.pontos - 1;
+  return (
+    <div className="percentil">
+      <div className="percentil-frase">
+        <span>
+          {p >= 100 ? (
+            <>A taxa de hoje é a <b>maior</b> do período</>
+          ) : p <= 0 ? (
+            <>Nenhum dia do período teve taxa <b>menor</b> que a de hoje</>
+          ) : (
+            <>
+              A taxa de hoje está acima da de <b className="mono">{num(p, 0)}%</b> dos dias do período
+            </>
+          )}
+        </span>
+        <Explica titulo="A taxa de hoje no período">
+          <p>
+            Conta em quantos dos outros {outros} dias do período escolhido a taxa esteve abaixo
+            da de hoje. Troque o período acima do gráfico e a comparação muda junto: uma taxa
+            pode ser alta para o último mês e comum para os últimos cinco anos.
+          </p>
+          <p>
+            Taxa alta é preço baixo. Perto de 100%, o título está pagando mais do que pagou em
+            quase todo o período; perto de 0%, menos.
+          </p>
+          <p>
+            <strong>Não diz para onde a taxa vai.</strong> Uma taxa no topo do período pode
+            subir mais, e uma no fundo pode cair mais.
+          </p>
+          <p>
+            O título de hoje também não é o mesmo de um ano atrás: ele fica mais curto a cada
+            dia, e a taxa de um título curto não se compara direto com a de um longo. Parte da
+            diferença para o passado é o prazo encolhendo, não o mercado mudando.
+          </p>
+          <p>Dias com taxa igual à de hoje não contam como abaixo.</p>
+        </Explica>
+      </div>
+      <div className="percentil-trilho" aria-hidden="true">
+        <i style={{ left: `${Math.min(100, Math.max(0, p))}%` }} />
+      </div>
+      <div className="percentil-escala" aria-hidden="true">
+        <span>menor do período</span>
+        <span>maior</span>
+      </div>
+    </div>
+  );
+}
+
+export function Detalhe({ slug, onBack, nomeDoApp = "Tesouro Tracker", periodo = PERIODO_PADRAO }) {
   const [tf, setTf] = useState("1A");
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
@@ -76,12 +135,10 @@ export function Detalhe({ slug, onBack, nomeDoApp = "Tesouro Tracker" }) {
 
         {/* Os mesmos três chips do cartão do Painel, na mesma ordem: quem
             chegou aqui tocando num cartão reencontra os números onde os
-            deixou, em vez de ter de procurá-los noutro arranjo. */}
-        <div className="chips">
-          <Chip rotulo="taxa" valor={pp(t.taxaVarPP)} dir={sinalTaxa(t.taxaVarPP)} />
-          <Chip rotulo="preço" valor={pct(t.puVarPct)} dir={sinal(t.puVarPct)} />
-          <Chip rotulo="PU" valor={reais(t.pu)} />
-        </div>
+            deixou, em vez de ter de procurá-los noutro arranjo. Na MESMA
+            janela escolhida no Painel, e com ela escrita ao lado: aqui não há
+            seletor por perto para dizer de que período os números são. */}
+        <ChipsDeVariacao t={t} periodo={periodo} comFrase />
 
         <div className="det-sub">
           {t.tipo === "selic" ? "Pós-fixado (Selic)" : t.comCupom ? "Juros semestrais" : "Sem cupom"} · vence{" "}
@@ -123,6 +180,8 @@ export function Detalhe({ slug, onBack, nomeDoApp = "Tesouro Tracker" }) {
           </div>
         </div>
       )}
+
+      <Percentil estatisticas={dados.estatisticas} />
 
       {t.tipo === "selic" && (
         <div className="note">

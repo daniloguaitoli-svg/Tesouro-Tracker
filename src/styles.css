@@ -336,6 +336,13 @@ body {
 .seletor-pecas button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* Dentro do cartão do gráfico: a peça ocupa só o que precisa, sem esticar até
    a borda — ali ela é um detalhe do desenho, não o controle da seção. */
+/* O seletor de período do Painel: em tela larga não estica pela coluna
+   inteira — três posições curtas numa peça de 800px separam as opções mais do
+   que o olho junta. */
+@media (min-width: 720px) { .painel-principal > .seletor { max-width: 440px; } }
+/* "PERÍODO" pede 60px e a coluna de rótulo tem 48 — a largura fixa existe
+   para alinhar duas peças empilhadas (Índice e Cupom), e aqui há uma só. */
+.painel-principal > .seletor .seletor-rotulo { width: auto; }
 .seletor.compacto { margin-bottom: var(--s2); gap: var(--s2); }
 .seletor.compacto .seletor-rotulo { width: auto; }
 .seletor.compacto .seletor-pecas { flex: none; }
@@ -459,6 +466,15 @@ body {
 .campo { display: block; margin-bottom: var(--s3); }
 .campo > span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .campo > .input, .campo > .select { width: 100%; }
+
+/* ---------- Calculadora: depois do imposto ---------- */
+.card.liquido { margin-top: var(--s3); }
+.liquido-titulo { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+/* O campo da inflação fica DENTRO do cartão do líquido, acima do número: é
+   uma suposição daquele número e de nenhum outro da tela. Estreito de
+   propósito — cabe "4,5", não um parágrafo. */
+.campo-inflacao { margin: var(--s3) 0 var(--s2); max-width: 300px; }
+.liquido-nota { margin-top: var(--s3); }
 
 /* ---------- Grade do Mercado ---------- */
 /* Sete colunas não cabem em 390px, então a tabela rola dentro de .rolagem — e
@@ -592,6 +608,12 @@ body {
 .explica-corpo { font-size: 14px; line-height: 1.55; color: var(--text); }
 .explica-corpo p { margin: 0 0 var(--s3); }
 .explica-corpo p:last-child { margin-bottom: 0; }
+/* A tabela do imposto: uma lista, com os números em coluna de largura fixa. */
+.explica-corpo ul { margin: 0 0 var(--s3); padding-left: var(--s5); }
+.explica-corpo li { margin-bottom: var(--s1); }
+/* A fonte de uma regra (lei, página oficial, data em que foi conferida):
+   menor e apagada, porque é para quem quer conferir, não para quem quer ler. */
+.explica-corpo .explica-fonte { font-size: 12px; color: var(--muted); }
 
 .backlink {
   appearance: none; border: 0; background: transparent; cursor: pointer;
@@ -635,6 +657,39 @@ body {
 .det-taxa { font-size: 40px; font-weight: 600; line-height: 1; letter-spacing: -0.03em; }
 .det-unidade { font-size: 14px; color: var(--muted); }
 .det-sub { font-size: 12px; color: var(--muted); }
+/* A janela das variações, escrita sob os chips do Detalhe. Linha própria de
+   propósito: ao lado, ela cabia em tela larga e quebrava sozinha no celular,
+   e uma legenda que muda de lugar com a largura não parece legenda. A margem
+   negativa desconta o vão de linha dos chips, para ela ler como deles. */
+.chips-frase { flex-basis: 100%; margin-top: calc(-1 * var(--s2)); font-size: 12px; color: var(--muted); }
+
+/* ---------- Detalhe: a taxa de hoje dentro do período ----------
+   Mesmo cartão das três estatísticas logo acima, numa linha só: é a quarta
+   estatística, e a única que precisa de frase. O marcador é um ponto sobre um
+   trilho, não uma barra cheia — uma barra de 76% leria como "76% de alguma
+   coisa", e isto é uma posição entre dois extremos. */
+.percentil {
+  margin-top: var(--s2); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: var(--s3);
+}
+.percentil-frase {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  font-size: 13px; color: var(--muted);
+}
+.percentil-frase b { font-weight: 600; color: var(--text); }
+.percentil-trilho {
+  position: relative; height: 4px; border-radius: 999px;
+  background: var(--surface-2); margin: var(--s3) 5px 0;
+}
+.percentil-trilho i {
+  position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 999px;
+  background: var(--accent); transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.percentil-escala {
+  display: flex; justify-content: space-between; margin-top: var(--s2);
+  font-size: 12px; color: var(--muted);
+}
 
 /* Quatro cenários numa tira só, mesmo desenho da faixa macro do Painel: a
    borda é o fundo da grade e o gap de 1px a revela entre as células. */

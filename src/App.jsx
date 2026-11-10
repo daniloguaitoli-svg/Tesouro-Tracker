@@ -14,7 +14,7 @@
 // OS ALERTAS também moram aqui desde 11/2026: a aba Alertas os edita, mas quem
 // avisa que um deles foi atingido é o Painel e a navegação.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { getTitulos, assinarConexao, estadoDaConexao } from "./api.js";
+import { getTitulos, assinarConexao, estadoDaConexao, assinarVolta, soltarGuardados, veioDoAparelho, URL_TITULOS } from "./api.js";
 import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque } from "./destaques.js";
 import { carregarAlertas, salvarAlertas, alertasAtingidos } from "./alertas.js";
 import { useRota } from "./useRota.js";
@@ -30,6 +30,7 @@ import { Noticias } from "./components/Noticias.jsx";
 import { Calculadora } from "./components/Calculadora.jsx";
 import { Alertas } from "./components/Alertas.jsx";
 import { Detalhe } from "./components/Detalhe.jsx";
+import { PERIODO_PADRAO } from "./components/Chip.jsx";
 import { ErroBox, Skeletons } from "./components/States.jsx";
 import { dataBR, horaBR } from "./format.js";
 
@@ -61,6 +62,11 @@ export default function App() {
   // aberta para ela buscar de novo. Sem isto, a faixa de aviso sumiria e a
   // tela continuaria com o dado guardado — a pior combinação possível.
   const [geracao, setGeracao] = useState(0);
+  // A janela das variações (1 dia, 1 semana, 1 mês). Mora aqui, e não no
+  // Painel, por dois motivos: o Painel desmonta a cada troca de aba e a
+  // escolha voltaria ao padrão; e o Detalhe aberto a partir de um cartão tem
+  // de mostrar os MESMOS números que o cartão mostrava.
+  const [periodo, setPeriodo] = useState(PERIODO_PADRAO);
   const recarregando = useRef(false);
 
   const carregar = () => {
@@ -78,18 +84,42 @@ export default function App() {
   useEffect(carregar, []);
 
   // A REDE VOLTOU. Dois sinais, porque nenhum dos dois basta sozinho: o evento
-  // `online` do navegador (que não dispara se a falha era do servidor), e a
-  // faixa de aviso se apagando porque OUTRA tela conseguiu buscar. Nos dois
-  // casos os títulos — que este componente carrega uma vez só — têm de ser
-  // buscados de novo, e a tela aberta, remontada.
-  const estavaGuardado = useRef(false);
+  // `online` do navegador (que não dispara se a falha era do servidor), e uma
+  // busca dando certo enquanto outras telas ainda mostravam dado guardado por
+  // falta de conexão (assinarVolta, em api.js). Nos dois casos os títulos —
+  // que este componente carrega uma vez só — têm de ser buscados de novo, e a
+  // tela aberta, remontada.
+  //
+  // O sinal já NÃO é "a faixa de aviso se apagou": ela também se apaga quando
+  // a pessoa troca de tela, e remontar por isso buscava tudo duas vezes — e,
+  // com uma fonte fora do ar entre duas da mesma tela, sem parar.
+  useEffect(
+    () =>
+      assinarVolta(() => {
+        setGeracao((g) => g + 1);
+        if (!recarregando.current) carregar();
+      }),
+    []
+  );
+  // A TELA MUDOU: o aviso deixa de falar do que a tela anterior mostrava por
+  // erro do servidor — aquilo já não está à vista. Duas coisas ficam:
+  //   - os títulos, que seguem na tela através de todas as abas;
+  //   - a FALTA DE CONEXÃO. Sem rede, o aviso vale para o app inteiro: a aba
+  //     Títulos mostra o que foi carregado antes de a rede cair, e apagar o
+  //     aviso ali diria que está tudo em dia.
+  // E, nos dois casos, cada troca de tela é uma nova tentativa de buscar os
+  // títulos — um pedido por navegação, sem laço. Se a rede voltou, é essa
+  // busca que descobre (e dispara o assinarVolta acima).
+  const primeiraTela = useRef(true);
   useEffect(() => {
-    if (estavaGuardado.current && !conexao) {
-      setGeracao((g) => g + 1);
-      if (!recarregando.current) carregar();
+    if (primeiraTela.current) {
+      primeiraTela.current = false;
+      return;
     }
-    estavaGuardado.current = !!conexao;
-  }, [conexao]);
+    const semRede = estadoDaConexao()?.motivo === "conexao";
+    soltarGuardados((url, entrada) => url === URL_TITULOS || (semRede && entrada.motivo === "conexao"));
+    if ((semRede || veioDoAparelho(URL_TITULOS)) && !recarregando.current) carregar();
+  }, [tab, slug]);
   useEffect(() => {
     const aoVoltar = () => estadoDaConexao() && carregar();
     window.addEventListener("online", aoVoltar);
@@ -172,7 +202,7 @@ export default function App() {
       )}
 
       {slug ? (
-        <Detalhe key={`${slug}-${geracao}`} slug={slug} onBack={fecharTitulo} nomeDoApp={NOME_DO_APP} />
+        <Detalhe key={`${slug}-${geracao}`} slug={slug} onBack={fecharTitulo} nomeDoApp={NOME_DO_APP} periodo={periodo} />
       ) : (
         <>
           <Tabs value={tab} onChange={irPara} tabs={TABS} avisos={avisos} />
@@ -196,6 +226,8 @@ export default function App() {
                   onIrParaCurva={() => irPara("curva")}
                   atingidos={atingidos}
                   onIrParaAlertas={() => irPara("alertas")}
+                  periodo={periodo}
+                  onPeriodo={setPeriodo}
                 />
               )}
               {tab === "titulos" && (

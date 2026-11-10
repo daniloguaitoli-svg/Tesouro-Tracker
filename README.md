@@ -165,7 +165,12 @@ por ponto percentual de taxa) e o efeito concreto de ±1 p.p., já com o termo d
 convexidade — que é o que torna a subida e a descida assimétricas.
 
 A tela **Calculadora** aplica isso a um valor: quanto uma mudança de taxa tira
-(ou põe) na posição hoje, e o que ela entrega até o vencimento.
+(ou põe) na posição hoje, e o que ela entrega até o vencimento — bruto e, para
+os títulos sem cupom, depois do imposto de renda.
+
+No **Painel**, um seletor escolhe o período das variações de cada cartão
+(1 dia, 1 semana ou 1 mês). Na tela de um título, uma linha diz onde a taxa de
+hoje está dentro do período do gráfico: acima da de quantos % dos dias.
 
 ---
 
@@ -251,7 +256,23 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   oferta deixam de publicar os campos de venda e seguem publicando os de compra
   — por isso a taxa de referência do app é a de compra. Os dois vêm preservados
   no JSON, com o nome de origem, para quem consumir decidir.
-- **Bruto de custos.** Nada aqui desconta imposto de renda nem taxa de custódia.
+- **Bruto de custos, com uma exceção.** Nada aqui desconta imposto de renda nem
+  taxa de custódia, salvo o cartão "Depois do imposto de renda" da Calculadora.
+  Ele vale para título **sem cupom**, comprado hoje e levado ao vencimento, pela
+  tabela regressiva da Lei 11.033/2004 (22,5% até 180 dias corridos, 20% até
+  360, 17,5% até 720, 15% acima), conferida em 10/11/2026. Não desconta a taxa
+  de custódia da B3 (0,20% ao ano), não cobre IOF (resgate em menos de 30 dias)
+  e não é calculado para títulos com juros semestrais, em que o imposto é
+  cobrado a cada cupom. Num IPCA+ o imposto incide também sobre a correção pela
+  inflação, então o líquido depende de uma **inflação suposta**, que é um campo
+  da tela. Regra de imposto muda por lei: confira antes de decidir por ela.
+- **A variação do preço some quando há cupom no período.** No pregão anterior à
+  data de um cupom o preço do título cai o valor do pagamento, sem perda para
+  quem o tem. O app não mostra essa queda como variação: o chip traz
+  "— cupom". A variação da taxa continua valendo.
+- **O percentil da taxa não é previsão.** Ele compara a taxa de hoje com a do
+  próprio título no período escolhido — e o título fica mais curto a cada dia,
+  então parte da diferença para o passado é o prazo encolhendo.
 - **Valor no vencimento em poder de compra de hoje.** A correção pelo IPCA vem
   por cima; projetar em reais nominais exigiria adivinhar a inflação futura.
 - **Alertas são por dispositivo** (`localStorage`), conferidos quando o app
