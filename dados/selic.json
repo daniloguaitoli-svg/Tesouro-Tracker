@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-11-11T00:43:25.821Z",
+ "atualizadoEm": "2026-11-11T18:44:56.097Z",
  "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -16,14 +16,14 @@
    "vencimento": "2027-03-01",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-11-09",
+   "data": "2026-11-10",
    "anosAteVencer": 0.29,
    "taxa": 0.02,
    "taxaCompra": 0.02,
    "taxaVenda": 0.03,
-   "pu": 20261.33,
-   "puCompra": 20261.33,
-   "puVenda": 20250.35,
+   "pu": 20271.62,
+   "puCompra": 20271.62,
+   "puVenda": 20260.66,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -31,7 +31,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 1435
+   "pontosNaSerie": 1436
   },
   {
    "slug": "selic-2028-03-01",
@@ -40,14 +40,14 @@
    "vencimento": "2028-03-01",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-11-09",
+   "data": "2026-11-10",
    "anosAteVencer": 1.294,
    "taxa": 0.03,
    "taxaCompra": 0.03,
    "taxaVenda": 0.04,
-   "pu": 20255.36,
-   "puCompra": 20255.36,
-   "puVenda": 20242.35,
+   "pu": 20265.2,
+   "puCompra": 20265.2,
+   "puVenda": 20252.19,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -55,7 +55,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 441
+   "pontosNaSerie": 442
   },
   {
    "slug": "selic-2029-03-01",
@@ -64,14 +64,14 @@
    "vencimento": "2029-03-01",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-11-09",
+   "data": "2026-11-10",
    "anosAteVencer": 2.278,
    "taxa": 0.05,
    "taxaCompra": 0.05,
    "taxaVenda": 0.06,
-   "pu": 20237.79,
-   "puCompra": 20237.79,
-   "puVenda": 20222.79,
+   "pu": 20248.13,
+   "puCompra": 20248.13,
+   "puVenda": 20233.12,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -79,7 +79,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 957
+   "pontosNaSerie": 958
   },
   {
    "slug": "selic-2031-03-01",
@@ -88,14 +88,14 @@
    "vencimento": "2031-03-01",
    "comCupom": false,
    "destaque": true,
-   "data": "2026-11-09",
+   "data": "2026-11-10",
    "anosAteVencer": 4.262,
    "taxa": 0.11,
    "taxaCompra": 0.11,
    "taxaVenda": 0.12,
-   "pu": 20170.68,
-   "puCompra": 20170.68,
-   "puVenda": 20151.68,
+   "pu": 20180.58,
+   "puCompra": 20180.58,
+   "puVenda": 20161.59,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -103,7 +103,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 441
+   "pontosNaSerie": 442
   }
  ]
 }
