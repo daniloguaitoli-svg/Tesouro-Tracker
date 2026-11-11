@@ -36,6 +36,7 @@ resultado em **dois arquivos pequenos, versionados neste repositório**:
 | [`dados/selic.json`](dados/selic.json) | LFT: ágio/deságio sobre a Selic (sem duration, por construção) |
 | [`dados/global.json`](dados/global.json) | Fed e BCE: taxa vigente e última decisão |
 | [`dados/historico.json`](dados/historico.json) | a série diária por vencimento, todas as famílias — o que o app usa |
+| [`dados/resumo.json`](dados/resumo.json) | o resumo do dia, **escrito por um modelo de IA** a partir dos números acima — texto, não dado (ver abaixo) |
 
 O `ntnb.json` mantém o formato de sempre: cada família nova ganhou um arquivo
 **irmão**, nunca uma mudança no que já era consumido.
@@ -92,6 +93,10 @@ não uma tela. As taxas são **reais** (ao ano, acima do IPCA).
 | **ANBIMA** (mercado secundário) | taxa indicativa e bid/ask do secundário | **fora do ar hoje**: o caminho público responde 404 (ver abaixo). Sempre foi enriquecimento, nunca requisito — o app funciona inteiro sem ela, e por isso a ANBIMA não é creditada no rodapé |
 
 **Nenhuma chave de API é necessária.** Todas as fontes são gratuitas e abertas.
+A única chave que o repositório conhece é **opcional** e não é de fonte de
+dados: `ANTHROPIC_API_KEY`, um segredo do GitHub Actions que liga o resumo do
+dia (ver **O resumo do dia** abaixo). Sem ela o app funciona inteiro, só sem
+aquele cartão.
 
 Duas variáveis opcionais, nenhuma delas segredo:
 
@@ -162,11 +167,57 @@ por título e no total:
 - **quanto você recebe se levar ao vencimento**: em reais nominais num
   prefixado, a preços de hoje num IPCA+.
 
+E, para a carteira inteira:
+
+- **contra o CDI** — quanto o mesmo dinheiro, nas mesmas datas, teria rendido
+  no CDI, e que fração disso a carteira fez;
+- **risco de juros** — a duration da carteira, o que 1 ponto percentual a mais
+  ou a menos em todas as taxas faz com o valor de hoje, e a repartição por
+  indexador e por ano de vencimento;
+- **o que ainda entra, ano a ano** — cupons e vencimentos se nada for vendido.
+
 **Fica só no aparelho.** As compras são guardadas no `localStorage` e as contas
 são feitas no navegador: nenhuma quantidade, valor ou data de compra é enviada
-a servidor nenhum — o app não tem conta, e o código é público. A outra face
-disso: trocar de aparelho ou limpar os dados do navegador apaga a lista. O
-extrato da corretora continua sendo o registro oficial.
+a servidor nenhum — o app não tem conta, e o código é público. Para comparar
+com o CDI o app baixa a série inteira do CDI, igual para todo mundo, e faz a
+conta no aparelho; o pedido não leva nada seu.
+
+**Cópia e importação.** "Exportar cópia" gera um arquivo com as compras, e
+"Restaurar de arquivo" acrescenta as de um arquivo desses às que já existem
+(nunca apaga). É a única cópia fora do aparelho: trocar de aparelho ou limpar
+os dados do navegador sem ela apaga a lista. "Importar de planilha" lê linhas
+copiadas do extrato da B3 (Área do Investidor) ou da corretora — acha as
+colunas pelo nome, fica só com as compras e mostra uma prévia, com o que ficou
+de fora e por quê, antes de gravar. O extrato da corretora continua sendo o
+registro oficial.
+
+## O que o mercado embute para a Selic (aba Mercado)
+
+A partir dos contratos de DI futuro que o coletor já lê da B3, a aba Mercado
+mostra quanto de alta ou de corte os preços põem em cada uma das próximas
+quatro reuniões do Copom, e a meta que isso implica. É a leitura de preços, não
+uma previsão — ver as ressalvas.
+
+## O resumo do dia (IA, opcional)
+
+Quando há preço novo, o job de coleta pode enviar a um modelo de linguagem
+(Claude, pela API da Anthropic) os números que o app já calcula — o que cada
+título fez no dia, quem mais mexeu por família, o que o DI embute para o Copom
+— e as manchetes do Brasil, e versionar o parágrafo que volta em
+`dados/resumo.json`. O Painel o mostra marcado como **gerado por IA**.
+
+- **Só dado público vai no pedido.** Carteira, alertas e estrelas ficam no
+  aparelho e o servidor nem os conhece; o resumo é o mesmo para todo mundo.
+- **O texto é conferido antes de publicar**: um número que não esteja entre os
+  enviados, linguagem de recomendação ou formatação derrubam o resumo inteiro,
+  e o dia fica sem ele.
+- **É opcional e desligado por padrão.** Só roda se o repositório tiver o
+  segredo `ANTHROPIC_API_KEY` (Settings → Secrets and variables → Actions). A
+  chave nunca entra no código, no app nem nas funções da Vercel — só no job. É
+  uma chamada por dia de preço novo; a coleta nunca falha por causa dela.
+
+Para ver o que seria enviado, sem chamar a API:
+`node .github/scripts/gerar-resumo.mjs --dry-run`.
 
 ## Tela larga e tema
 
@@ -313,6 +364,27 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   mesmo valor, e são aproximados; os de uma compra anterior a 2019 o app não
   conhece, e avisa. O valor no vencimento de títulos diferentes **não é
   somado**: reais nominais e reais de hoje não são a mesma moeda.
+- **A comparação com o CDI é bruta contra bruta.** Nem o resultado da carteira
+  nem o CDI têm imposto descontado, e o CDI é uma régua, não um produto: um CDB
+  ou um fundo rende uma parte dele. Ficar abaixo do CDI por um tempo não diz que
+  a compra foi ruim — o preço de um título longo cai quando o juro sobe, e
+  levado ao vencimento ele paga a taxa contratada do mesmo jeito.
+- **O risco da carteira é um cenário.** "Todas as taxas, 1 ponto, ao mesmo
+  tempo" não é como o mercado se move: o juro real e o nominal não andam juntos
+  nem do mesmo tamanho. É a mesma aproximação de duration + convexidade do
+  resto do app, somada título a título.
+- **A importação de planilha foi escrita sem um extrato real da B3 em mãos**, a
+  partir dos nomes de coluna usuais (produto, data, movimentação, quantidade,
+  valor da operação). Por isso nada é gravado sem a prévia: confira as linhas
+  antes de confirmar. Vendas e resgates não são lidos.
+- **A Selic implícita no DI não é previsão.** A taxa a termo carrega prêmio de
+  risco, então a curva costuma embutir mais alta (ou menos corte) do que o que
+  acontece. A conta supõe que o juro só muda em reunião do Copom e para em
+  quatro reuniões: adiante os vencimentos mensais quase não negociam. As datas
+  das reuniões vêm do calendário divulgado pelo Banco Central, que pode mudar.
+- **O resumo do dia é texto de um modelo de IA.** Os números são conferidos
+  contra os do app, a leitura não: ele pode ligar um movimento a uma notícia
+  que não o causou. Descreve, não recomenda.
 - **Alertas são por dispositivo** (`localStorage`), conferidos quando o app
   abre: um alerta atingido aparece no Painel e na navegação. Não há
   notificação em segundo plano.

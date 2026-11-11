@@ -14,7 +14,7 @@
 // OS ALERTAS também moram aqui desde 11/2026: a aba Alertas os edita, mas quem
 // avisa que um deles foi atingido é o Painel e a navegação.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { getTitulos, assinarConexao, estadoDaConexao, assinarVolta, soltarGuardados, veioDoAparelho, URL_TITULOS } from "./api.js";
+import { getCdi, getTitulos, assinarConexao, estadoDaConexao, assinarVolta, soltarGuardados, veioDoAparelho, URL_TITULOS } from "./api.js";
 import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque } from "./destaques.js";
 import { carregarAlertas, salvarAlertas, alertasAtingidos } from "./alertas.js";
 import { carregarPosicoes, salvarPosicoes, resumirCarteira } from "./posicoes.js";
@@ -170,6 +170,30 @@ export default function App() {
   // e do endereço, é o useRota.
   const irPara = irParaAba;
 
+  // O CDI ACUMULADO, para a Carteira comparar cada compra com ele. É buscado
+  // AQUI, e não na tela da Carteira, de propósito: aquela tela não fala com a
+  // rede (o verificar.mjs confere), para que nada do que a pessoa registrou
+  // tenha por onde sair. O pedido não leva parâmetro nenhum — a série é a
+  // mesma para todo mundo.
+  //
+  // O GATILHO É ABRIR A ABA, não "ter uma compra". Com o gatilho na lista de
+  // compras, registrar a primeira disparava um pedido: sem dado nenhum dentro,
+  // mas o próprio pedido diria ao servidor "este aparelho acaba de registrar
+  // algo". Assim, registrar, apagar, restaurar e importar não fazem pedido
+  // nenhum — e quem nunca abre a Carteira não paga pela série.
+  const [cdi, setCdi] = useState(null);
+  const naCarteira = tab === "carteira" && !slug;
+  useEffect(() => {
+    if (!naCarteira) return undefined;
+    let vivo = true;
+    getCdi()
+      .then((d) => vivo && setCdi(d))
+      .catch((e) => vivo && setCdi((antes) => (antes?.pontos ? antes : { erro: e.message })));
+    return () => {
+      vivo = false;
+    };
+  }, [naCarteira, geracao]);
+
   const totalDaCarteira = useMemo(
     () => (posicoes.length ? resumirCarteira(posicoes, todos, { desde: dados?.historicoDesde }).total : null),
     [posicoes, todos, dados]
@@ -274,7 +298,7 @@ export default function App() {
               {tab === "mercado" && <Mercado />}
               {tab === "noticias" && <Noticias />}
               {tab === "carteira" && (
-                <Carteira dados={dados} posicoes={posicoes} onMudar={mudarPosicoes} onOpen={abrirTitulo} falhouAoGuardar={falhouAoGuardar} />
+                <Carteira dados={dados} posicoes={posicoes} onMudar={mudarPosicoes} onOpen={abrirTitulo} falhouAoGuardar={falhouAoGuardar} cdi={cdi} />
               )}
               {tab === "calculadora" && <Calculadora dados={dados} />}
               {tab === "alertas" && <Alertas dados={dados} alertas={alertas} onMudar={mudarAlertas} />}

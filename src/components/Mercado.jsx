@@ -198,6 +198,85 @@ function Grade({ grupo }) {
   );
 }
 
+// O que o DI futuro embute para as próximas reuniões do Copom (a conta está
+// em server/selic.js). Fica logo abaixo dos cartões de política monetária: é
+// a continuação natural de "a Selic está em X" — "e o mercado põe quanto na
+// próxima reunião?".
+//
+// "NÃO É PREVISÃO" FICA NA TELA, pela mesma regra da inflação implícita: é a
+// ressalva que muda a leitura do número. Quem lê "+0,29 p.p. em abril" sem
+// ela sai achando que o Copom vai subir o juro.
+function SelicImplicita({ s }) {
+  if (!s?.reunioes?.length) return null;
+  // TRÊS COLUNAS, não quatro: o acumulado e a meta implícita dizem a mesma
+  // coisa (a meta é a de hoje mais o acumulado), e as quatro não cabem em
+  // 360px sem rolar. Mostra-se a meta, que é o número que se lê de cabeça;
+  // sem a meta de hoje (Banco Central fora do ar) a coluna vira o acumulado,
+  // em vez de uma fileira de travessões.
+  const comMeta = s.metaHoje != null;
+  return (
+    <>
+      <h2 className="section-title">
+        O que o mercado embute para a Selic
+        <Explica titulo="O que o mercado embute para a Selic">
+          <p>
+            O preço de cada contrato de DI futuro é o CDI acumulado até o vencimento dele, e o CDI
+            anda colado na Selic — que só muda em reunião do Copom. Comparando dois vencimentos
+            vizinhos, sobra quanto de alta ou de corte os preços põem na reunião que fica entre
+            eles.
+          </p>
+          <p>
+            <strong>Não é previsão.</strong> Quem trava juro por mais tempo cobra um prêmio por
+            isso, então a curva costuma embutir mais alta (ou menos corte) do que acaba
+            acontecendo. É o que está no preço hoje, não o que o Copom vai decidir.
+          </p>
+          <p>
+            A conta supõe que o juro só muda em reunião, e do tamanho da decisão. A tabela para em{" "}
+            {s.reunioes.length} reuniões: mais adiante os contratos mensais quase não negociam, e
+            o resultado passa a refletir a interpolação da bolsa, não o mercado.
+          </p>
+          <p>
+            A meta implícita é a meta de hoje mais a soma do que os preços põem em cada reunião até
+            ali. Datas das reuniões pelo calendário
+            do Banco Central, que vai até {dataBR(s.calendarioAte)} e pode mudar (conferido em{" "}
+            {dataBR(s.calendarioConferidoEm)}).
+          </p>
+          <p className="explica-fonte">
+            {s.fonte}. Preços de ajuste de {dataBR(s.dataRef)}, em dias úteis/252.
+          </p>
+        </Explica>
+      </h2>
+      <p className="section-sub">
+        Pelos preços do DI futuro de {dataBR(s.dataRef)}
+        {comMeta && <>, com a meta hoje em <span className="mono">{num(s.metaHoje)}%</span></>}.{" "}
+        <strong>Não é previsão</strong>: inclui prêmio de risco.
+      </p>
+      <div className="rolagem">
+        <table className="tbl selic-implicita">
+          <thead>
+            <tr>
+              <th>Reunião</th>
+              <th className="rt">Na reunião</th>
+              <th className="rt">{comMeta ? "Meta implícita" : "Acumulado"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {s.reunioes.map((r) => (
+              <tr key={r.data}>
+                <td className="mono">{dataBR(r.data)}</td>
+                {/* Juro que sobe não é "bom" nem "ruim" aqui: sem cor de alta
+                    ou baixa, que neste app querem dizer ganho e perda. */}
+                <td className="mono rt">{pp(r.variacaoPP)}</td>
+                <td className="mono rt">{comMeta ? `${num(r.metaImplicita)}%` : pp(r.acumuladoPP)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 export function Mercado() {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
@@ -247,6 +326,8 @@ export function Mercado() {
           </div>
         )}
       </div>
+
+      <SelicImplicita s={dados.selicImplicita} />
 
       {(dados.grupos || []).map((g) => (
         <Grade key={g.id} grupo={g} />

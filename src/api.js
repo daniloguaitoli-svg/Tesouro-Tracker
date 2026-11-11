@@ -199,5 +199,9 @@ export const getFuturos = () => getJSON("/api/futuros");
 export const getMacro = () => getJSON("/api/macro");
 export const getMercado = () => getJSON("/api/mercado");
 export const getNoticias = () => getJSON("/api/noticias");
+// O CDI acumulado como índice, sem parâmetro nenhum: a Carteira o compara com
+// cada compra NO APARELHO. A data da compra não entra no endereço — e não
+// pode entrar: é dado da pessoa, e um endereço fica em log de servidor.
+export const getCdi = () => getJSON("/api/cdi");
 export const getDetalhe = (slug, tf = "1A") =>
   getJSON(`/api/detalhe?slug=${encodeURIComponent(slug)}&tf=${encodeURIComponent(tf)}`);

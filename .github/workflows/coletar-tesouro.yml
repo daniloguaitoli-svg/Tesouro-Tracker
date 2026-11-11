@@ -66,6 +66,10 @@ concurrency:
 jobs:
   coletar:
     runs-on: ubuntu-latest
+    # Se a chave do resumo existe. No nível do JOB porque é daqui que o `if`
+    # de um passo consegue ler — e só a resposta sim/não, nunca o valor.
+    env:
+      TEM_CHAVE: ${{ secrets.ANTHROPIC_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -105,11 +109,45 @@ jobs:
         if: github.event_name == 'push' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
         run: node .github/scripts/coletar-tesouro.mjs --dry-run
 
+      # O RESUMO DO DIA, escrito por um modelo de IA a partir dos números que a
+      # coleta acabou de gravar (server/resumo.js explica o que entra e o que é
+      # conferido antes de publicar).
+      #
+      # Dois passos, e os dois com continue-on-error: o resumo é um enfeite
+      # sobre os dados, e nada nele pode impedir o commit dos dados do dia.
+      #
+      # Só rodam COM a chave configurada (segredo ANTHROPIC_API_KEY). Um
+      # segredo não pode ser lido direto num `if`, então a presença dele vira
+      # a variável TEM_CHAVE, declarada no topo do job.
+      # Sem a chave o coletor segue como sempre foi: sem dependência nenhuma
+      # para instalar.
+      #
+      # É um processo À PARTE do coletor de propósito: server/cache.js lê
+      # dados/ na carga do módulo, e o coletor o carregou antes de gravar.
+      - name: Instalar o SDK do resumo
+        if: env.TEM_CHAVE == 'true' && inputs.somente_sonda != true && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+        continue-on-error: true
+        run: npm ci --no-audit --no-fund
+
+      - name: Escrever o resumo do dia (IA)
+        if: env.TEM_CHAVE == 'true' && inputs.somente_sonda != true && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node .github/scripts/gerar-resumo.mjs
+
+      # Na branch de trabalho: só os fatos e o pedido, sem chamar a API — é
+      # como se confere, com rede de verdade, o que o modelo receberia.
+      - name: Conferir os fatos do resumo (dry-run)
+        if: github.event_name == 'push' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
+        continue-on-error: true
+        run: node .github/scripts/gerar-resumo.mjs --dry-run
+
       - name: Fazer commit dos dados atualizados
         if: inputs.somente_sonda != true && (github.event_name != 'push' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dados/historico.json dados/ntnb.json dados/ntnb.md dados/prefixado.json dados/selic.json dados/global.json dados/painel.json dados/painel.md dados/futuros.json
+          git add dados/historico.json dados/ntnb.json dados/ntnb.md dados/prefixado.json dados/selic.json dados/global.json dados/painel.json dados/painel.md dados/futuros.json dados/resumo.json
           git diff --staged --quiet || git commit -m "Dados: coleta automatica das NTN-B"
           git push

@@ -64,6 +64,7 @@ const ROTAS = {
   "/api/mercado": datalayer.getMercado,
   "/api/noticias": datalayer.getNoticias,
   "/api/macro": datalayer.getMacro,
+  "/api/cdi": datalayer.getCdi,
 };
 
 // Guarda { ok, corpo } e não só o corpo, porque a FORMA DA FALHA importa.

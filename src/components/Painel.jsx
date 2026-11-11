@@ -208,6 +208,51 @@ function ResumoDaCarteira({ total, onAbrir }) {
   );
 }
 
+// O RESUMO DO DIA, escrito por um modelo de IA no coletor (server/resumo.js).
+//
+// "Gerado por IA" fica NA TELA, junto do texto, e não só no ⓘ: é o único
+// lugar do app em que uma frase não saiu de uma conta, e quem lê precisa
+// saber disso antes de ler. O servidor só manda o resumo quando ele é dos
+// mesmos preços que estão na tela — sem resumo, o cartão simplesmente não
+// existe.
+function ResumoDoDia({ resumo }) {
+  if (!resumo?.texto) return null;
+  return (
+    <div className="card resumo-dia">
+      <div className="label resumo-dia-titulo">
+        <span>
+          Resumo de {dataBR(resumo.dataDosPrecos)} · <span className="resumo-selo">gerado por IA</span>
+        </span>
+        <Explica titulo="Como este resumo é escrito">
+          <p>
+            Uma vez por dia de preço novo, os números que o app já calcula — o que cada título
+            fez, quem mais mexeu, o que o DI embute para o Copom — e as manchetes do dia são
+            enviados a um modelo de linguagem, que escreve o parágrafo.
+          </p>
+          <p>
+            <strong>Os números são do app, a frase é do modelo.</strong> Antes de publicar, um
+            programa confere se todo número do texto está entre os que foram enviados; um que não
+            esteja derruba o resumo inteiro, e o dia fica sem ele.
+          </p>
+          <p>
+            A leitura ainda pode estar errada com os números certos — ligar um movimento a uma
+            notícia que não o causou, por exemplo. Confira nas telas de cada título. E o texto
+            descreve; não é recomendação.
+          </p>
+          <p>
+            Nada do que é seu entra nisso: carteira, alertas e estrelas ficam no aparelho, e o
+            resumo é o mesmo para todo mundo.
+          </p>
+          {resumo.geradoPor && <p className="explica-fonte">Escrito por {resumo.geradoPor}.</p>}
+        </Explica>
+      </div>
+      {resumo.texto.split(/\n{2,}/).map((paragrafo, i) => (
+        <p key={i}>{paragrafo}</p>
+      ))}
+    </div>
+  );
+}
+
 export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, atingidos, onIrParaAlertas, periodo, onPeriodo, carteira, onIrParaCarteira }) {
   // Em tela larga a coluna da direita assume a moldura (os seis indicadores) e
   // a tira de quatro some — ver .faixa-macro no CSS. O hook decide a MONTAGEM
@@ -222,6 +267,7 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, a
     <div className="painel-principal">
       <AvisoDeAlertas atingidos={atingidos} onAbrir={onIrParaAlertas} />
       <ResumoDaCarteira total={carteira} onAbrir={onIrParaCarteira} />
+      <ResumoDoDia resumo={dados.resumo} />
       <FaixaMacro macro={dados.macro} />
 
       {/* O aviso de preço velho saiu daqui: agora é o selo do topo (SeloDados),
