@@ -58,6 +58,12 @@ const ICONES = {
   ),
   noticias: <path d="M5 4h11v16H6a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1zM16 8h3a1 1 0 0 1 1 1v9a2 2 0 0 1-4 0M8 8h5M8 12h5M8 16h3" />,
   alertas: <path d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 21h4" />,
+  carteira: (
+    <>
+      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17a1 1 0 0 1 1 1v2M4 7.5V17a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H6.5A2.5 2.5 0 0 1 4 7.5z" />
+      <path d="M16 13.5h.01" />
+    </>
+  ),
   mais: (
     <>
       <circle cx="5" cy="12" r="1.3" />

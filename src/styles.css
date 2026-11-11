@@ -29,6 +29,16 @@
   --warn-bg: #2a1f10;
   --warn-line: #6b4a1e;
 
+  /* Três cores que eram escritas à mão nas regras e que um tema claro
+     obriga a nomear: o clarão do topo do fundo, a sombra das folhas e balões,
+     e o véu que escurece a página atrás de uma folha. */
+  --bg-topo: #101a2e;
+  --sombra: rgba(0, 0, 0, 0.45);
+  --veu: rgba(4, 6, 12, 0.55);
+  /* Diz ao navegador para desenhar no escuro o que é dele: a seta do select,
+     o calendário do campo de data, a barra de rolagem. */
+  color-scheme: dark;
+
   /* Uma família de texto e a mono irmã dela. --display continua existindo
      como papel (marca e títulos de seção) mesmo apontando para a mesma fonte
      de --ui: o peso e o tamanho é que separam os dois, e manter o nome deixa
@@ -45,12 +55,68 @@
   --maxw: 620px;
 }
 
+/* ---------- Tema claro ----------
+   "Caderneta do Tesouro" de dia: papel quase branco, tinta azul-marinho no
+   texto e o mesmo azul-centáurea no acento, escurecido até dar contraste
+   sobre branco. Não é o tema escuro invertido — verde, coral, âmbar e azul
+   foram reescolhidos um a um, porque os tons que brilham sobre tinta escura
+   somem sobre papel (o jade #5fcf9e dá 1,9:1 em branco). O verificar.mjs
+   mede o contraste de cada par texto/fundo nos dois temas.
+
+   O BLOCO APARECE DUAS VEZES, e tem de ser idêntico nas duas: uma para quem
+   deixou em "auto" e tem o aparelho no claro (a media query), outra para quem
+   escolheu "claro" à mão (o atributo, posto por src/tema.js). CSS puro não
+   tem como dizer "este bloco, nestas duas condições" sem repetir; o
+   verificar.mjs compara os dois e reprova se um mudar sem o outro. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema="escuro"]) {
+    --bg: #f3f5fa;
+    --surface: #ffffff;
+    --surface-2: #e8ecf5;
+    --line: #d2d9e7;
+    --text: #131b2e;
+    --muted: #55607a;
+    --up: #0b7a50;
+    --down: #c0392b;
+    --accent: #1f4ec4;
+    --accent-2: #6a88cc;
+    --on-accent: #ffffff;
+    --warn: #8a5a00;
+    --warn-bg: #fdf2d8;
+    --warn-line: #e3c684;
+    --bg-topo: #ffffff;
+    --sombra: rgba(19, 27, 46, 0.16);
+    --veu: rgba(19, 27, 46, 0.32);
+    color-scheme: light;
+  }
+}
+:root[data-tema="claro"] {
+  --bg: #f3f5fa;
+  --surface: #ffffff;
+  --surface-2: #e8ecf5;
+  --line: #d2d9e7;
+  --text: #131b2e;
+  --muted: #55607a;
+  --up: #0b7a50;
+  --down: #c0392b;
+  --accent: #1f4ec4;
+  --accent-2: #6a88cc;
+  --on-accent: #ffffff;
+  --warn: #8a5a00;
+  --warn-bg: #fdf2d8;
+  --warn-line: #e3c684;
+  --bg-topo: #ffffff;
+  --sombra: rgba(19, 27, 46, 0.16);
+  --veu: rgba(19, 27, 46, 0.32);
+  color-scheme: light;
+}
+
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 50% -10%, #101a2e 0%, var(--bg) 60%);
+  background: radial-gradient(1200px 600px at 50% -10%, var(--bg-topo) 0%, var(--bg) 60%);
   color: var(--text);
   font-family: var(--ui);
   font-size: 15px;
@@ -583,14 +649,14 @@ body {
    texto passa da altura — a folha nunca empurra a página. */
 .explica-fundo {
   position: fixed; inset: 0; z-index: 50;
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  background: var(--veu);
   display: flex; align-items: flex-end; justify-content: center;
   padding: 0 var(--s3) var(--s5);
 }
 .explica {
   width: 100%; max-width: var(--maxw); max-height: 70vh; overflow-y: auto;
   background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
-  box-shadow: 0 -8px 32px color-mix(in srgb, var(--bg) 80%, transparent);
+  box-shadow: 0 -8px 32px var(--sombra);
   padding: var(--s2) var(--s4) var(--s4);
 }
 .explica-cabeca { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
@@ -642,7 +708,7 @@ body {
   width: min(300px, calc(100vw - 2 * var(--s4)));
   background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px;
   padding: var(--s3) var(--s4); font-size: 13px; line-height: 1.5;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 12px 32px var(--sombra);
 }
 .selo-balao b { color: var(--warn); }
 .selo-balao ul { margin: 6px 0; padding-left: 18px; }
@@ -848,14 +914,14 @@ body {
 
   .folha-fundo {
     display: block; position: fixed; inset: 0; z-index: 35;
-    background: rgba(4, 6, 12, 0.55);
+    background: var(--veu);
   }
   .folha {
     position: absolute; left: var(--s3); right: var(--s3);
     bottom: calc(68px + env(safe-area-inset-bottom));
     background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
     padding: var(--s2); display: flex; flex-direction: column;
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 -8px 32px var(--sombra);
   }
   .folha-item {
     appearance: none; border: 0; background: transparent; cursor: pointer;
@@ -869,3 +935,165 @@ body {
   /* A folha do ⓘ sobe acima da barra inferior, como a do "Mais". */
   .explica-fundo { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
+
+/* ============================================================
+   Carteira — as compras registradas no aparelho
+   ============================================================ */
+
+/* O resumo no topo do Painel: uma linha que leva à aba. Cartão comum, sem a
+   cor do aviso de alerta — nada aconteceu, é só o número. O rótulo ocupa a
+   linha de cima; valor e resultado dividem a de baixo, com a seta à direita
+   das duas. */
+.resumo-carteira {
+  appearance: none; cursor: pointer; width: 100%; text-align: left;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: baseline;
+  column-gap: var(--s3); row-gap: 2px;
+  min-height: 44px; margin: 0 0 var(--s3); padding: var(--s3) var(--s4);
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--text); font: inherit;
+}
+.resumo-carteira:hover { border-color: var(--accent-2); }
+.resumo-carteira:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rc-rotulo { grid-column: 1 / 3; font-size: 12px; color: var(--muted); }
+.rc-valor { font-size: 18px; font-weight: 600; }
+.rc-resultado { font-size: 13px; }
+.resumo-carteira .aviso-seta { grid-column: 3; grid-row: 1 / 3; align-self: center; color: var(--muted); font-size: 20px; line-height: 1; }
+
+.carteira-lista { display: grid; gap: var(--s3); }
+.carteira-total-titulo { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.carteira-ressalva { margin: var(--s2) 0 0; }
+
+.posicao-topo { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+/* O nome abre o detalhe do título. É um botão com cara de título: sublinhado
+   só no foco e no ponteiro, e 44px de alvo pelo ::after. */
+.posicao-nome {
+  position: relative; appearance: none; border: 0; background: transparent; padding: 0;
+  font: inherit; font-weight: 600; color: var(--text); text-align: left; cursor: pointer;
+}
+button.posicao-nome::after { content: ""; position: absolute; inset: -12px 0; }
+button.posicao-nome:hover { color: var(--accent); }
+button.posicao-nome:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.posicao-qtd { flex: none; font-size: 12px; color: var(--muted); }
+
+.posicao-numeros { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin-top: var(--s3); }
+.posicao-valor { font-size: 20px; font-weight: 600; margin: 2px 0; }
+.posicao-linha { margin: var(--s3) 0 0; font-size: 12px; color: var(--muted); }
+.posicao-linha.aviso { color: var(--warn); }
+
+/* As duas saídas: o rótulo numa coluna fixa, para "vender" e "levar" caírem
+   um embaixo do outro em todos os cartões, e a frase com o número ao lado. */
+.posicao-saidas { margin: var(--s3) 0 0; padding-top: var(--s3); border-top: 1px solid var(--line); display: grid; gap: var(--s2); }
+.posicao-saidas > div { display: grid; grid-template-columns: 160px 1fr; gap: var(--s3); }
+.posicao-saidas dt { font-size: 12px; color: var(--muted); padding-top: 2px; }
+.posicao-saidas dd { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.posicao-saidas dd b { font-weight: 600; color: var(--text); font-size: 14px; }
+@media (max-width: 400px) { .posicao-saidas > div { grid-template-columns: 1fr; gap: 0; } }
+
+.posicao-lotes { margin-top: var(--s2); }
+.posicao-lotes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+.posicao-lotes li { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font-size: 13px; color: var(--muted); }
+.posicao-lotes li .btn { flex: none; }
+
+.carteira-form { margin-top: var(--s5); }
+.carteira.vazia .carteira-form { margin-top: var(--s4); }
+/* O erro do formulário: uma linha acima do botão, na cor de baixa — é a
+   única cor de "algo deu errado" que o app tem. */
+.form-erro { margin: 0 0 var(--s3); font-size: 13px; color: var(--down); }
+
+/* ============================================================
+   Títulos em tela larga — a lista como tabela
+   ============================================================
+   Só existe acima de 960px, o corte em que a moldura passa a 1.200px (ver
+   LARGURA_LATERAL em src/telaLarga.js): é o Titulos.jsx que decide montar a
+   tabela, estas regras só a desenham. */
+
+/* Os controles numa linha, cada um do tamanho do que contém. */
+@media (min-width: 960px) {
+  .titulos-controles { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3) var(--s5); margin: var(--s4) 0 var(--s2); }
+  .titulos-controles .controls { flex: 0 1 300px; margin: 0; }
+  .titulos-controles .seletor { margin: 0; }
+}
+
+/* Larguras FIXAS por coluna: são várias tabelas (uma por família) que têm de
+   se alinhar como uma só, e com layout automático cada uma escolheria as suas
+   conforme o texto das próprias linhas. */
+.tabela-titulos { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: var(--s2); }
+.tabela-titulos .col-estrela { width: 44px; }
+/* O nome fica com o que sobra — em 1.200px, uns 320px, que é o que
+   "Tesouro Prefixado 2037 (juros semestrais)" pede sem ser cortado. */
+.tabela-titulos .col-vencimento { width: 104px; }
+.tabela-titulos .col-taxa { width: 88px; }
+.tabela-titulos .col-dia, .tabela-titulos .col-mes { width: 100px; }
+.tabela-titulos .col-pu { width: 120px; }
+.tabela-titulos .col-duration { width: 84px; }
+.tabela-titulos .col-sens { width: 84px; }
+.tabela-titulos .col-spark { width: 88px; }
+
+.tabela-titulos th, .tabela-titulos td {
+  padding: 0 var(--s2); height: 44px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 400;
+}
+.tabela-titulos td.mono { font-variant-numeric: tabular-nums; }
+.tabela-titulos .col-nome { text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.tabela-titulos .col-estrela { padding: 0; text-align: center; }
+.tabela-titulos .col-spark { text-align: right; }
+/* 44px também no cabeçalho: uma tela larga pode ser um tablet deitado, e o
+   botão de ordenar ocupa a célula inteira. */
+.tabela-titulos thead th { font-size: 12px; color: var(--muted); height: 44px; }
+.tabela-titulos .tt-forte { font-weight: 600; }
+.tabela-titulos .estrela { margin: 0; }
+.tabela-titulos .stale { margin-left: var(--s2); }
+
+.tabela-titulos tbody tr { cursor: pointer; }
+.tabela-titulos tbody tr:hover { background: var(--surface); }
+.tabela-titulos tbody tr.marcado .estrela { color: var(--accent); }
+
+/* O cabeçalho que ordena: o botão ocupa a célula inteira, para o alvo ser a
+   coluna e não só a palavra. A seta tem largura reservada mesmo vazia —
+   senão o rótulo andaria para o lado ao ordenar. */
+.th-ordenar {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  width: 100%; height: 100%; padding: 0; font: inherit; color: inherit;
+  display: inline-flex; align-items: center; justify-content: flex-end; gap: 2px;
+}
+.th-ordenar:hover { color: var(--text); }
+.th-ordenar:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+.th-seta { display: inline-block; width: 12px; text-align: center; }
+.tabela-titulos th[aria-sort="ascending"], .tabela-titulos th[aria-sort="descending"] { color: var(--accent); }
+
+.tt-nome {
+  position: relative;
+  appearance: none; border: 0; background: transparent; padding: 0; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--text); text-align: left;
+}
+/* O alvo é a altura da linha, não a do texto. */
+.tt-nome::after { content: ""; position: absolute; inset: -12px 0; }
+.tt-nome:hover { color: var(--accent); }
+.tt-nome:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* ============================================================
+   Duas colunas em tela larga — formulário de um lado, conteúdo do outro
+   ============================================================
+   Calculadora, Alertas e Carteira têm um formulário e o que ele produz. Em
+   1.200px, empilhados, cada campo ia de uma ponta à outra da tela: um select
+   de 1.100px para escolher um título, um campo do mesmo tamanho para seis
+   dígitos. Lado a lado, o formulário fica com 360px — a largura em que um
+   campo se lê de relance — e fica à vista enquanto o resultado muda.
+
+   Abaixo de 960px nada disto existe: as "colunas" são <div> comuns, uma
+   depois da outra, na ordem do JSX. */
+@media (min-width: 960px) {
+  .duas-colunas { display: grid; grid-template-columns: 360px minmax(0, 1fr); column-gap: var(--s6); align-items: start; }
+  .duas-colunas.form-a-direita { grid-template-columns: minmax(0, 1fr) 360px; }
+  /* O formulário acompanha a rolagem: numa carteira longa, ou numa lista de
+     alertas, ele continua ao alcance sem voltar ao topo. */
+  .duas-colunas > .coluna-form { position: sticky; top: var(--s3); }
+  .duas-colunas > .carteira-form { margin-top: 0; }
+  /* Sem compras ainda, a Carteira é só o convite e o formulário: uma coluna,
+     com a largura de um formulário, em vez de um cartão de 1.200px. */
+  .carteira.vazia { max-width: 480px; }
+}
+
+/* O seletor de tema, no rodapé: um respiro acima, e nada de margem embaixo —
+   ele é a última coisa da página. */
+.footer .seletor { margin: var(--s3) 0 0; }

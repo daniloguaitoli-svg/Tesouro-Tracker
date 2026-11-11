@@ -36,8 +36,11 @@ export function Alertas({ dados, alertas, onMudar }) {
   // Selic), o mesmo erro que a Calculadora já cometeu e corrigiu.
   const escolhido = todos.find((t) => t.slug === slug) || null;
 
+  // Duas colunas em tela larga, como na Calculadora: o formulário com a
+  // largura de um formulário, a lista ao lado.
   return (
-    <div>
+    <div className="duas-colunas">
+      <div className="coluna-form">
       <h2 className="section-title">
         Novo alerta
         <Explica titulo="Como os alertas funcionam">
@@ -95,7 +98,9 @@ export function Alertas({ dados, alertas, onMudar }) {
           Criar alerta
         </button>
       </div>
+      </div>
 
+      <div className="coluna-conteudo">
       <h2 className="section-title">Alertas ({alertas.length})</h2>
       {alertas.length === 0 && <Vazio texto="Nenhum alerta ainda." />}
       {alertas.map((a) => {
@@ -122,7 +127,7 @@ export function Alertas({ dados, alertas, onMudar }) {
           </div>
         );
       })}
-
+      </div>
     </div>
   );
 }

@@ -149,6 +149,34 @@ O aviso de "cotações desatualizadas" e o ⭐ da aba Curva seguem a mesma escol
 Já o ⭐ do arquivo `dados/ntnb.json` continua vindo do catálogo — aquele arquivo
 é público e não carrega preferência pessoal.
 
+## Registrando o que você tem (aba Carteira)
+
+Na aba **Carteira** você registra cada compra com os quatro números do extrato
+do Tesouro Direto — título, data, quantidade e valor investido — e o app mostra,
+por título e no total:
+
+- **quanto vale hoje**, pelo preço de recompra do Tesouro, e o resultado sobre o
+  que você investiu (contando os cupons já recebidos);
+- **quanto sobra se vender hoje**, depois do imposto de renda (títulos sem
+  cupom);
+- **quanto você recebe se levar ao vencimento**: em reais nominais num
+  prefixado, a preços de hoje num IPCA+.
+
+**Fica só no aparelho.** As compras são guardadas no `localStorage` e as contas
+são feitas no navegador: nenhuma quantidade, valor ou data de compra é enviada
+a servidor nenhum — o app não tem conta, e o código é público. A outra face
+disso: trocar de aparelho ou limpar os dados do navegador apaga a lista. O
+extrato da corretora continua sendo o registro oficial.
+
+## Tela larga e tema
+
+Num computador (ou tablet deitado), a aba **Títulos** vira uma tabela por
+família, e clicar no nome de uma coluna ordena por ela; Calculadora, Alertas e
+Carteira passam a ter o formulário ao lado do resultado.
+
+O app tem tema **claro** e **escuro**. Por padrão segue o do aparelho; o seletor
+"Tema", no rodapé, fixa um dos dois naquele aparelho.
+
 ## Duration: por que ela está aqui
 
 Duas NTN-B com a mesma taxa não são o mesmo investimento. A **duration** é o
@@ -275,6 +303,16 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   então parte da diferença para o passado é o prazo encolhendo.
 - **Valor no vencimento em poder de compra de hoje.** A correção pelo IPCA vem
   por cima; projetar em reais nominais exigiria adivinhar a inflação futura.
+- **A Carteira é uma estimativa, não um extrato.** O valor de hoje usa o preço
+  de recompra com ao menos um dia útil de atraso. O resultado é bruto; o "se
+  vender hoje" desconta só o imposto de renda, não a taxa de custódia, e não
+  existe para títulos com cupom nem para compras com menos de 30 dias (IOF). O
+  valor de face de um IPCA+ (o VNA) não é publicado no arquivo do Tesouro: o
+  app o tira do preço e da taxa do dia — a conta fecha com 0,03% de diferença
+  entre todos os vencimentos. Os cupons já recebidos de uma NTN-B saem desse
+  mesmo valor, e são aproximados; os de uma compra anterior a 2019 o app não
+  conhece, e avisa. O valor no vencimento de títulos diferentes **não é
+  somado**: reais nominais e reais de hoje não são a mesma moeda.
 - **Alertas são por dispositivo** (`localStorage`), conferidos quando o app
   abre: um alerta atingido aparece no Painel e na navegação. Não há
   notificação em segundo plano.

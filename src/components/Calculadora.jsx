@@ -135,8 +135,13 @@ export function Calculadora({ dados }) {
   // Um rótulo só, derivado do tipo, para os quatro pontos não voltarem a divergir.
   const rotuloTaxa = ehPrefixado ? "taxa nominal" : "taxa real";
 
+  // DUAS COLUNAS em tela larga (.duas-colunas): o formulário à esquerda, com
+  // a largura de um formulário, e os resultados à direita. Num quadro de
+  // 1.200px o campo "Valor investido" ia de uma ponta à outra para receber
+  // seis dígitos. No celular as duas colunas voltam a ser uma, nesta ordem.
   return (
-    <div>
+    <div className="duas-colunas">
+      <div className="coluna-form">
       <h2 className="section-title">Sensibilidade a juros</h2>
       <p className="section-sub">
         Quanto uma mudança na {rotuloTaxa} mexe na posição hoje, e o que ela entrega até o
@@ -175,7 +180,9 @@ export function Calculadora({ dados }) {
           ))}
         </div>
       </div>
+      </div>
 
+      <div className="coluna-conteudo">
       {!conta ? (
         <div className="note">Este vencimento está sem taxa no arquivo — escolha outro.</div>
       ) : (
@@ -391,6 +398,7 @@ export function Calculadora({ dados }) {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

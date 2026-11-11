@@ -42,6 +42,7 @@ const ABAS_ESPERADAS = [
   "Títulos",
   "Curva",
   "Mercado",
+  "Carteira",
   "Calculadora",
   "Notícias",
   "Alertas",
@@ -105,6 +106,26 @@ for (const chave of [
   });
 }
 globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+
+// A CARTEIRA COM POSIÇÕES. Ela lê do localStorage, e vazia mostra só o
+// formulário — o cartão de cada título, que é onde mora a conta, não
+// renderizaria, e o teste aprovaria a aba sem ter montado o que ela existe
+// para mostrar. É o mesmo motivo de este teste montar o app COM dados.
+// Uma compra de cada tipo, para cada ramo da tela rodar: sem cupom nas duas
+// indexações, com cupom, Selic, e um título que já não está na lista.
+const semeados = [];
+{
+  const itens = payloads["/api/titulos"]?.ok ? payloads["/api/titulos"].corpo.categorias.flatMap((c) => c.itens) : [];
+  const achar = (tipo) => itens.find((t) => t.tipo === tipo);
+  const escolhidos = ["ipca", "prefixado", "ipca-juros", "prefixado-juros", "selic"].map(achar).filter(Boolean);
+  for (const [i, t] of escolhidos.entries()) {
+    semeados.push({ id: `fumaca${i}`, slug: t.slug, data: "2024-03-15", quantidade: 1.5, valor: 1.5 * (t.pu ?? 1000) * 0.9 });
+  }
+  if (semeados.length) {
+    semeados.push({ id: "fumaca-vencido", slug: "ipca-2019-05-15", data: "2019-01-10", quantidade: 1, valor: 3000 });
+    dom.window.localStorage.setItem("tesouro-tracker-posicoes", JSON.stringify(semeados));
+  }
+}
 
 globalThis.fetch = async (url) => {
   const caminho = String(url).split("?")[0];
@@ -284,6 +305,15 @@ async function abrirAba(nome) {
     }
     if (texto.length < 40) {
       return { ok: false, motivo: `o corpo da aba renderizou quase nada (${texto.length} chars)` };
+    }
+
+    // Com compras semeadas, a Carteira tem de mostrar a conta — não só o
+    // formulário, que renderiza até com a lista vazia.
+    if (nome === "Carteira" && semeados.length && !/Vale hoje/.test(texto)) {
+      return { ok: false, motivo: "a Carteira não mostrou as posições semeadas" };
+    }
+    if (nome === "Painel" && semeados.length && !/Minha carteira/.test(texto)) {
+      return { ok: false, motivo: "o Painel não mostrou o resumo da carteira semeada" };
     }
 
     return { ok: true, chars: texto.length };

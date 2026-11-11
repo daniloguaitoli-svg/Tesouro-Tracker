@@ -21,7 +21,8 @@ identifiers, commit messages. Keep writing in Portuguese here. (This file is in
 English only because it's assistant-facing.)
 
 **Design voice:** "caderneta do Tesouro" — deep ink-navy with a cornflower-blue
-accent, every number in tabular monospace.
+accent, every number in tabular monospace. There is a light theme too (paper,
+navy ink, the same blue darkened); see **Light theme** below.
 
 ## The point of this repo: the bridge
 
@@ -154,13 +155,16 @@ If you add a tab to `TABS` in `App.jsx`, add its label to `ABAS_ESPERADAS` in
 index.html            entry, fonts, PWA tags (lang="pt-BR")
 src/
   main.jsx            mounts React + service worker (PROD only, auto-reload on update)
-  App.jsx             frame: topbar (brand + selo de data), 7 abas, full-screen Detalhe
+  App.jsx             frame: topbar (brand + selo de data), 8 abas, full-screen Detalhe
   api.js              the only data import for the UI — fetch wrappers over /api, plus
                       the last-good-answer store used when the network fails
   format.js           pt-BR formatting (num, taxa, pct, pp, anos, reais, dataBR, …)
   destaques.js        which maturities the user follows (localStorage, per device)
   alertas.js          rate alerts: storage and the trigger rule (pure, no imports)
   impostos.js         income tax at maturity: the sourced table and the sum (pure, no imports)
+  posicoes.js         the purchases the user recorded and what they are worth (pure; device only)
+  ordem.js            the bond list's columns and sort rule (pure, no imports)
+  tema.js             light / dark / follow the device (pure, no imports)
   rota.js             where you are, written in the URL hash (pure, no imports)
   useRota.js          the hook that ties rota.js to the browser history
   larguraMedida.js    the measured width charts draw at
@@ -262,13 +266,16 @@ either way. The LFT has no duration by construction (see **Family semantics**),
 so it gets a sentence in place of the rule — an empty bar read as missing data
 rather than as a quantity that does not exist.
 
-The seven tabs in `App.jsx` are `Painel · Títulos · Curva · Mercado ·
-Calculadora · Notícias · Alertas`, and `Detalhe` replaces the whole frame when
-a slug is selected.
+The eight tabs in `App.jsx` are `Painel · Títulos · Curva · Mercado ·
+Carteira · Calculadora · Notícias · Alertas`, and `Detalhe` replaces the whole
+frame when a slug is selected. On a phone the bottom bar takes the first four
+and "Mais" the rest, so **the order of `TABS` is a layout decision**: Carteira
+is first in "Mais", and it did not displace one of the four because the Painel
+shows its summary at the top, one tap away.
 `App.jsx` loads `getTitulos()` **once** and passes `dados` down to Painel /
-Títulos / Calculadora / Alertas; `Curva` and `Detalhe` fetch their own
-endpoints. So a new field on the `getTitulos` payload reaches four screens for
-free.
+Títulos / Carteira / Calculadora / Alertas; `Curva` and `Detalhe` fetch their
+own endpoints. So a new field on the `getTitulos` payload reaches five screens
+for free.
 
 ### The one data path
 
@@ -1190,6 +1197,9 @@ changed in both places**:
 | periodicity labels | `ROTULO_PERIODICIDADE` in `server/util.js` | `PERIODICIDADE` in `src/format.js` |
 | variation window ids | `JANELAS_DO_TITULO` in `server/util.js` | `PERIODOS` in `src/components/Chip.jsx` |
 
+Two more are duplicated between `src/tema.js` and `index.html` / `styles.css`
+(the theme's storage key and each theme's `--bg`) — see **Light theme**.
+
 `verificar.mjs` compares both sides.
 
 ### The Mercado grid: one scale for everything
@@ -1490,12 +1500,47 @@ a fake cache, in both arrival orders. Detail answers are capped at
 
 ### Sorting on Títulos stays inside each family
 
-The "Ordem" selector (Vencimento · Taxa · Variação) reorders the rows **within
-each family**, and the family groups stay. One flat list from highest rate to
+The rule lives in `src/ordem.js` (pure, exercised by `verificar.mjs`). On a
+phone the "Ordem" selector (Vencimento · Taxa · Variação) reorders the rows
+**within each family**, and the family groups stay. One flat list from highest rate to
 lowest would put a 14% nominal Prefixado above a 7.8% real IPCA+ — the
 comparison this whole app exists not to make. "Variação" sorts by the **size**
 of the day's move, not its sign: the question is "what moved most", and a
-−0.30 p.p. fall moved more than a +0.05 rise. Missing values go last.
+−0.30 p.p. fall moved more than a +0.05 rise. Missing values go last — **in
+both directions**: reversing a sort must not bring to the top the rows that
+lack the number being sorted by.
+
+### Wide screens: a table, and forms the width of a form
+
+Above 960px (`useTelaLarga`, the same cut as the Painel's side column) three
+things change, all for the same reason — in a 1,200px frame the phone layout
+stretched everything from edge to edge.
+
+- **Títulos is a table per family** (`Tabela` in `Titulos.jsx`), with a column
+  per quantity: maturity, rate, the day's and the month's change, PU, duration,
+  +1 p.p. and the sparkline. **Each header sorts by its column**; a second click
+  reverses. The "Ordem" selector is not rendered there. Three decisions in it:
+  - **One table per family, not one table.** A single "Taxa" column would line
+    up a real rate, a nominal one and a spread as if they were one quantity.
+    Column widths are fixed and identical (`table-layout: fixed`), so the
+    tables align on screen as one — with automatic layout each picks its own.
+  - **The table mounts only when wide**; it is not hidden with CSS. The phone
+    keeps the card list, which is the layout ten columns do not fit.
+  - **The whole row opens the bond with a pointer, but the name is a real
+    button**: a `<tr onClick>` alone cannot be reached by Tab. Headers carry
+    `aria-sort`.
+- **The filter controls sit in one row**, each as wide as its content
+  (`.titulos-controles`): stretched, three positions of a selector were a
+  hand apart.
+- **Calculadora, Alertas and Carteira are two columns** (`.duas-colunas`): the
+  form at 360px, sticky, beside what it produces. Stacked, a 1,100px select
+  chose one bond and a field of the same width took six digits. Carteira is
+  the mirror image (`.form-a-direita`): what is read every day is the
+  positions; recording a purchase is occasional. Below 960px the "columns" are
+  plain blocks in JSX order.
+
+Touch targets stay 44px there too (a wide screen can be a tablet on its side):
+the header button fills its cell and the name's target is the row's height.
 
 ### A triggered alert shows where you land, not only in its tab
 
@@ -1521,6 +1566,116 @@ the navigation announce.
   does. An alert on a bond that left the list (matured) simply does not fire.
 - There is still no push notification, and the screen still says so: the alert
   is checked when the app opens.
+
+## Carteira: what the person holds, kept on the device
+
+The Carteira tab records purchases and answers the two questions the rest of
+the app left to mental arithmetic: **what is it worth today, and what if I do
+not sell?** They sit side by side on each bond because they are the decision —
+today's price moves with the rate, what is received at maturity does not.
+
+**Nothing about a position ever reaches the network.** The repo is public and
+the app has no account: a purchase lives in `localStorage`
+(`tesouro-tracker-posicoes`) and all the arithmetic runs in the browser
+(`src/posicoes.js`, pure). The server sends what belongs to the **bond** —
+price, face value, coupons paid per unit — and the multiplication by quantity
+happens on the device. `verificar.mjs` checks that neither `posicoes.js` nor
+`Carteira.jsx` imports `api.js` or calls `fetch`, and that `api.js` does not
+know positions exist. Do not add an endpoint that takes a quantity, an amount
+or a purchase date.
+
+**A purchase is four numbers, all from the broker's statement**: bond, date,
+quantity and amount paid. Quantity is asked for, not derived from the amount:
+the purchase price carries a spread over the buyback price the app tracks, and
+dividing one by the other gives a wrong quantity that looks right.
+
+Three answers per bond, and they are not the same question:
+
+| | How | When it is `null` |
+|---|---|---|
+| **Vale hoje** | quantity × PU — the Treasury's buyback price, which is exactly what the app tracks | no price |
+| **Se vender hoje** | that, minus income tax on the gain at the rate for the days since each purchase (`impostos.js`) | coupon bonds; a purchase under 30 days old (IOF) |
+| **Se levar ao vencimento** | what the bonds still pay: principal plus one coupon per remaining payment | LFT — it earns whatever the Selic turns out to be |
+
+**"At maturity" needs the face value, and the IPCA+ face is not in the
+Treasury file.** A prefixado's is R$ 1,000 by definition. An IPCA+'s is the
+VNA, and `valorDeFace` derives it from the two numbers that *are* published:
+`VNA = PU ÷ precoPor100 × 100`. What shows the derivation is right is not that
+it closes with itself but that **every maturity gives the same VNA**: measured
+2026-11-06, the 15 live IPCA+ bonds, with and without coupon, 2029 to 2060,
+agree within 0.03% (4,774.39 to 4,775.83), and the same formula returns 1,000
+on the prefixados within 0.01% — the control. `verificar.mjs` repeats both on
+every run. Older dates are looser (0.3% in 2020–22), which only matters for
+the coupons below.
+
+**The unit travels with the number, always.** A prefixado's maturity value is
+in reais *of the maturity date*; an IPCA+'s is in *today's* reais, with
+inflation coming on top. The screen writes the unit beside each figure, and
+**the total does not sum maturity values at all** — `resumirCarteira` returns
+no such field, and `verificar.mjs` pins that. Invested, today's value and
+result are all today's reais and are summed.
+
+**Coupons already received count in the result**, or it would understate every
+coupon bond. `cuponsPagos` lists each past payment per unit with its `ex`
+date; a purchase receives a coupon if it was made **before** that date (see
+`dataExCupom`). The amount is exact for an NTN-F (R$ 1,000 × the half-year
+rate) and, for an NTN-B, comes from the VNA implied by the last price that
+still carried the coupon. When that cannot be known — no price near the eve,
+or a purchase older than the history (`historicoDesde`) — the coupons are
+**unknown, not zero**: the card says the real gain is larger than shown.
+
+Two more properties worth keeping:
+
+- **A save that fails is announced.** `salvarPosicoes` returns `false` in
+  private mode or with storage full, and the form says the purchase will
+  vanish on closing — a record that silently disappears is worse than an
+  error.
+- **A corrupt record drops out alone.** `carregarPosicoes` filters item by
+  item; one bad entry must not take the typed list with it.
+
+The Painel shows the total as a neutral card linking to the tab (not blue like
+the alert notice: nothing happened, it is just the number the person came for).
+The smoke test seeds one purchase of each kind before mounting, because an
+empty Carteira renders only the form and would pass without running the cards.
+
+There is no export or sync, and the screen says so: changing device or clearing
+browser data erases the list. The broker's statement stays the record.
+
+## Light theme
+
+Three positions — **Auto · Claro · Escuro** — on a selector in the footer
+(`src/tema.js`). Auto is the default and follows the device.
+
+- **The palette was rechosen, not inverted.** Tones that glow on ink vanish on
+  paper: the dark theme's jade `#5fcf9e` gives 1.9:1 on white. Green, coral,
+  amber and blue each have a light value picked for contrast, and
+  `verificar.mjs` computes WCAG contrast for every text/background pair **in
+  both themes** (≥ 4.5:1), including the derived tints (the number on its chip,
+  the active chip). A colour that looks fine on the author's monitor is exactly
+  what that check is for.
+- **The light block exists twice in `styles.css` and must be identical**: once
+  under `@media (prefers-color-scheme: light)` for Auto, once under
+  `:root[data-tema="claro"]` for the explicit choice. Plain CSS cannot say
+  "this block under either condition" without repeating it; `verificar.mjs`
+  compares the two and fails if one changes alone, and also fails if a colour
+  token of the dark theme has no light counterpart.
+- **No literal colour outside the token blocks** — now enforced, not just
+  asked. Three values that were written into rules became tokens for the light
+  theme to override: `--bg-topo` (the glow at the top of the page),
+  `--sombra` and `--veu` (shadow and backdrop of sheets).
+- **`index.html` applies an explicit choice before first paint**, in a
+  three-line inline script that reads the same `localStorage` key. Without it
+  the app would open in the system theme and switch when the bundle ran:
+  whoever chose light would see a dark flash on every open. The key is
+  therefore duplicated (`CHAVE` in `tema.js`), as is each theme's `--bg` for
+  the browser bar (`COR_DA_BARRA`, and the two `<meta name="theme-color">`);
+  `verificar.mjs` compares all of them.
+- **`color-scheme` is set per theme**, so what the browser draws itself — the
+  select's arrow, the date field's calendar, scrollbars — matches.
+
+The selector is in the footer because it is chosen once; in the header it would
+compete with the brand and the date badge for 390px. `index.html` is precached,
+so this change bumped `CACHE` in `public/sw.js` to `tesouro-tracker-v3`.
 
 ## After income tax: sourced, zero-coupon only
 
@@ -1767,6 +1922,8 @@ existing bridge file.
   - text `--text` `--muted`
   - semantics `--up` `--down` `--accent` `--accent-2`, and `--on-accent` for
     text on an accent fill (the wide-screen tab bar's active tab, `.btn-primary`)
+  - `--bg-topo` `--sombra` `--veu` for the page glow, shadows and backdrops —
+    every colour token has a value in each theme (see **Light theme**)
   - type `--display` and `--ui` (both **IBM Plex Sans**) `--mono` (IBM Plex
     Mono). One text family and its mono sibling, since the 2026-10 redesign:
     three unrelated faces on one screen (Space Grotesk heading, Inter body,
@@ -1834,7 +1991,9 @@ duration+convexity is a second-order approximation, not a repricing;
 "compra"/"venda" are from the Treasury's point of view; everything is gross of
 tax and custody fees except the Calculadora's one net-of-income-tax card (and
 that one still leaves the custody fee out, and needs an assumed inflation for
-an IPCA+); terminal values are in today's purchasing power. Every
+an IPCA+) and the Carteira's "se vender hoje" line; terminal values are in
+today's purchasing power; the Carteira's IPCA+ face value is derived, not
+published, and its positions exist only on the device. Every
 screen carries the footer disclaimer: public sources, delayed, informational
 only — **not investment advice**. If you add a feature with a similar caveat,
 state it in the UI and the README instead of implying more precision than free
@@ -1889,13 +2048,15 @@ data supports.
 - `src/main.jsx` registers that worker in production, checks hourly, and reloads
   **once** when a new version installs over an existing controller.
 - **Per-device user state lives in `localStorage`, never in the repo** — it is
-  public, and what someone tracks reveals what they hold. Two keys, and they
+  public, and what someone tracks reveals what they hold. Four keys, and they
   must stay distinct (`verificar.mjs` checks that):
 
   | Key | Written by | What |
   |---|---|---|
   | `tesouro-tracker-alertas` | `src/alertas.js` | rate alerts |
   | `tesouro-tracker-destaques` | `src/destaques.js` | which maturities show in the Painel |
+  | `tesouro-tracker-posicoes` | `src/posicoes.js` | recorded purchases — the most sensitive of the four |
+  | `tesouro-tracker-tema` | `src/tema.js` (and read by `index.html`) | light / dark choice |
 - A broken change fails the Vercel build and the previous deploy stays live;
   `npm run build` locally is still the right pre-push check.
 
