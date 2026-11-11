@@ -1686,7 +1686,7 @@ query nor body, and that the client URL has no query string.
 purchase**. It was first written as "fetch when there are positions": recording
 the first purchase then fired a request — empty, but the request itself told
 the server "this device just recorded something". Now recording, deleting,
-restoring and importing make no request at all, and a browser test pins that.
+restoring and importing make no request at all. `verificar.mjs` pins the trigger (the effect depends on the tab, not on the list); the absence of requests itself was measured in a browser session, not by a test in this repo.
 
 ### Backup and spreadsheet import
 
