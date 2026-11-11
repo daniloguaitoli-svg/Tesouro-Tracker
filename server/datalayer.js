@@ -21,6 +21,7 @@ import * as bcglobais from "./providers/globais.js";
 import { ibovespa, todosIndices } from "./providers/yahoo.js";
 import { todasInflacoes } from "./providers/inflacao.js";
 import { REGIOES, manchetes } from "./providers/noticias.js";
+import { caminhoDaSelic, CALENDARIO_ATE, CALENDARIO_CONFERIDO_EM } from "./selic.js";
 import {
   variacaoPeriodo,
   variacaoNoAno,
@@ -100,6 +101,15 @@ function cuponsDoTitulo(slug, meta, serie) {
     cuponsGuardados.set(chave, cuponsPagos({ tipo: meta.tipo, vencimentoISO: meta.vencimento, cupomAnual: meta.cupomAnual, serie }));
   }
   return cuponsGuardados.get(chave);
+}
+
+// O resumo gerado pelo coletor, só se for da MESMA data dos preços em tela.
+function resumoDoDia(itens) {
+  const r = cache.resumo();
+  if (!r?.texto || !r.dataDosPrecos) return null;
+  const dataDosPrecos = itens.reduce((m, t) => (t.data && t.data > m ? t.data : m), "");
+  if (r.dataDosPrecos !== dataDosPrecos) return null;
+  return { texto: r.texto, dataDosPrecos: r.dataDosPrecos, geradoEm: r.geradoEm, geradoPor: r.geradoPor, aviso: r.aviso };
 }
 
 // Monta um item completo (metadados + taxa + PU + duration) a partir do slug.
@@ -236,6 +246,9 @@ export async function getTitulos() {
     // Desde quando há preço no arquivo. A Carteira usa para não somar cupons
     // de uma compra mais antiga que o histórico — os de antes ela não conhece.
     historicoDesde: cache.historico().desde ?? null,
+    // O resumo do dia, quando há um E ele é dos preços que estão na tela. Um
+    // resumo de anteontem ao lado de preços de ontem descreveria outro dia.
+    resumo: resumoDoDia(todos),
     // Vazio antes da primeira coleta — a UI usa isto para explicar a espera em
     // vez de mostrar uma tela quebrada.
     pendente: todos.length === 0,
@@ -245,6 +258,94 @@ export async function getTitulos() {
     macro,
     catalogo: { total: CATALOGO.length, destaques: DESTAQUES.length, conhecidos: todos.filter((t) => t.noCatalogo).length },
     aviso: AVISO,
+  };
+}
+
+// ---------- O que o DI embute para o Copom ----------
+
+// Quantas reuniões à frente a tela mostra. A conta vai mais longe, mas a
+// partir daí os vencimentos mensais do DI quase não negociam — o preço deles
+// é interpolado pela bolsa entre os vencimentos líquidos, e a escada que sai
+// disso oscila (+39, −62, +85 pontos-base em reuniões seguidas, medido em
+// 10/11/2026) por artefato da interpolação, não por opinião de mercado.
+// Quatro reuniões são uns seis meses, onde a leitura é estável.
+const REUNIOES_A_MOSTRAR = 4;
+
+// Uma variação maior que isto numa reunião só não é leitura de mercado: é a
+// conta amplificando ruído. A lista para ali.
+const MAX_VARIACAO_PLAUSIVEL_PP = 1.5;
+
+// PURA sobre o arquivo de futuros, para o verificar.mjs e o coletor (que a
+// usa nos fatos do resumo) chamarem sem rede. `cdiHoje` e `metaHoje` em %.
+export function selicImplicitaDe(futuros, { cdiHoje = null, metaHoje = null } = {}) {
+  const di = Object.values(futuros?.contratos || {}).filter((c) => c.ativo === "DI1" && c.serie);
+  const dataRef = di.reduce((m, c) => {
+    const ult = Object.keys(c.serie).sort().pop();
+    return ult && ult > m ? ult : m;
+  }, "");
+  if (!dataRef) return null;
+  const vertices = di
+    .map((c) => ({ vencimento: c.vencimento, taxa: c.serie[dataRef]?.[0] ?? null }))
+    .filter((v) => v.taxa != null);
+  const caminho = caminhoDaSelic({ dataRef, vertices, cdiHoje });
+
+  const reunioes = [];
+  for (const r of caminho.reunioes.slice(0, REUNIOES_A_MOSTRAR)) {
+    if (Math.abs(r.variacaoPP) > MAX_VARIACAO_PLAUSIVEL_PP) break;
+    reunioes.push({
+      data: r.data,
+      variacaoPP: r.variacaoPP,
+      acumuladoPP: r.acumuladoPP,
+      // O NÍVEL sai da meta de hoje mais o que os preços embutem, e não do
+      // CDI implícito: o CDI anda uns 0,10 p.p. abaixo da meta, e mostrar
+      // "13,69%" ao lado de uma meta de 13,75% leria como corte.
+      metaImplicita: metaHoje != null ? metaHoje + r.acumuladoPP : null,
+    });
+  }
+  return {
+    dataRef,
+    metaHoje,
+    cdiDePartida: caminho.cdiDePartida,
+    reunioes,
+    calendarioAte: CALENDARIO_ATE,
+    calendarioConferidoEm: CALENDARIO_CONFERIDO_EM,
+    fonte: "B3 — ajustes do DI1 (arquivo público UP2DATA)",
+  };
+}
+
+// ---------- /api/cdi ----------
+
+// O CDI acumulado, dia a dia, como um ÍNDICE que começa em 1.
+//
+// PARA QUE: a Carteira compara cada compra com o que o mesmo dinheiro teria
+// rendido no CDI desde a data da compra. A data da compra é da pessoa e NÃO
+// vem para cá — o servidor manda a série inteira, igual para todo mundo, e o
+// aparelho divide dois pontos dela. É por isso que este endpoint não aceita
+// parâmetro nenhum, e não pode passar a aceitar.
+//
+// Série 12 do SGS (taxa DI em % ao dia). O índice num dia é o produto de
+// (1 + taxa) de todos os dias até ele, inclusive.
+const DIAS_DO_CDI = 3000; // cobre o histórico do app (2019) com folga
+
+export async function getCdi() {
+  const serie = JUROS_DIARIOS.find((j) => j.id === "cdi").serie;
+  const pontos = await bcb.serie(serie, { dias: DIAS_DO_CDI });
+  if (!pontos.length) {
+    const erro = new Error("CDI indisponível no Banco Central agora");
+    erro.status = 502;
+    throw erro;
+  }
+  let indice = 1;
+  const acumulado = pontos.map((p) => {
+    indice *= 1 + p.close / 100;
+    return [p.date, Number(indice.toFixed(8))];
+  });
+  return {
+    fetchedAt: new Date().toISOString(),
+    fonte: `BCB / SGS (série ${serie})`,
+    desde: acumulado[0][0],
+    ate: acumulado[acumulado.length - 1][0],
+    pontos: acumulado,
   };
 }
 
@@ -995,6 +1096,10 @@ export async function getMercado() {
   return {
     fetchedAt: new Date().toISOString(),
     decisoes: { copom, fed: g.fed, bce: g.bce },
+    // O que o DI futuro embute para as próximas reuniões do Copom. Sai do
+    // arquivo versionado de futuros, então existe mesmo com o BCB fora do ar —
+    // só o nível (meta implícita) depende da meta de hoje.
+    selicImplicita: selicImplicitaDe(cache.futuros(), { cdiHoje: ind.cdi?.valor ?? null, metaHoje: ind.selic?.valor ?? null }),
     globaisAtualizadosEm: g.atualizadoEm,
     grupos: [
       // `mostrarBase`: a cotação que entrou na conta aparece embaixo do

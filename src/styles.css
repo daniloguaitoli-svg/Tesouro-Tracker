@@ -1097,3 +1097,59 @@ button.posicao-nome:focus-visible { outline: 2px solid var(--accent); outline-of
 /* O seletor de tema, no rodapé: um respiro acima, e nada de margem embaixo —
    ele é a última coisa da página. */
 .footer .seletor { margin: var(--s3) 0 0; }
+
+/* ============================================================
+   Carteira — risco, CDI, calendário, cópia e importação
+   ============================================================ */
+.carteira-cdi { margin-top: var(--s2); line-height: 1.5; }
+.carteira-cdi b { font-weight: 600; color: var(--text); }
+.carteira-lista > .section-title { margin-bottom: 0; }
+
+/* Três números lado a lado; em tela estreita o primeiro (duration) ocupa a
+   linha e os dois cenários dividem a de baixo. */
+.risco-numeros { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); }
+@media (max-width: 460px) {
+  .risco-numeros { grid-template-columns: 1fr 1fr; }
+  .risco-numeros > :first-child { grid-column: 1 / -1; }
+}
+
+/* Uma repartição: rótulo, barra, percentual, valor. As colunas têm largura
+   fixa para as barras de duas repartições começarem no mesmo lugar. */
+.reparticao { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); display: grid; gap: var(--s2); }
+.reparticao-linha { display: grid; grid-template-columns: 72px 1fr 40px 104px; align-items: center; gap: var(--s2); font-size: 13px; }
+.reparticao-linha > :nth-child(3), .reparticao-linha > :nth-child(4) { text-align: right; }
+.reparticao-trilho { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.reparticao-trilho i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+@media (max-width: 400px) {
+  .reparticao-linha { grid-template-columns: 64px 1fr 40px; }
+  .reparticao-linha > :nth-child(4) { display: none; }
+}
+
+.copia { margin-top: var(--s5); }
+.copia-botoes { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.copia-aviso { margin: var(--s3) 0 0; }
+/* A caixa de colar: fonte de 16px como todo campo (zoom do iOS), sem
+   quebra de linha — uma linha de planilha é uma linha, e quebrada não dá
+   para ver se o cabeçalho veio. */
+.copia-texto { width: 100%; min-height: 120px; resize: vertical; white-space: pre; overflow: auto; font-family: var(--mono); margin-bottom: var(--s2); }
+.copia-previa { margin-top: var(--s3); }
+.copia-lista { list-style: none; margin: 0 0 var(--s3); padding: 0; display: grid; gap: var(--s1); font-size: 13px; color: var(--muted); }
+
+/* ============================================================
+   Painel — o resumo do dia
+   ============================================================ */
+.resumo-dia { margin: 0 0 var(--s3); }
+.resumo-dia-titulo { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.resumo-dia p { margin: var(--s2) 0 0; font-size: 14px; line-height: 1.55; }
+/* O selo: contorno e não fundo cheio — tem de ser lido, não tem de gritar. */
+.resumo-selo { border: 1px solid var(--line); border-radius: 999px; padding: 1px var(--s2); white-space: nowrap; }
+
+/* Mercado — a tabela do que o DI embute para o Copom. */
+.selic-implicita td { white-space: nowrap; }
+/* No telefone o respiro lateral de 16px por célula custa 96px em três
+   colunas, e a tabela passava dos 326px úteis de uma tela de 360. */
+@media (max-width: 520px) {
+  .selic-implicita th, .selic-implicita td { padding-left: var(--s2); padding-right: var(--s2); }
+  .selic-implicita th:first-child, .selic-implicita td:first-child { padding-left: var(--s3); }
+  .selic-implicita th:last-child, .selic-implicita td:last-child { padding-right: var(--s3); }
+}

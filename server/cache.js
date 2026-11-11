@@ -67,6 +67,20 @@ try {
   FUTUROS = { atualizadoEm: null, contratos: {} };
 }
 
+// O resumo do dia, escrito pelo coletor com um modelo de IA (server/resumo.js).
+// Nasce vazio: sem a chave da API configurada o coletor não o gera, e o app
+// simplesmente não mostra o cartão.
+let RESUMO;
+try {
+  RESUMO = require("../dados/resumo.json");
+} catch {
+  RESUMO = { geradoEm: null, dataDosPrecos: null, texto: null };
+}
+
+export function resumo() {
+  return RESUMO;
+}
+
 export function historico() {
   return HISTORICO;
 }

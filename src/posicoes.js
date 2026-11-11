@@ -152,6 +152,9 @@ export function avaliarLote(lote, titulo, { desde = null } = {}) {
 
   return {
     lote,
+    // A data do preço usado: é até ela que o resultado vale, e até ela que a
+    // comparação com o CDI tem de ir.
+    dataDoPreco: titulo.data ?? null,
     valorHoje,
     cupons,
     cuponsDesconhecidos,
@@ -240,4 +243,230 @@ export function resumirCarteira(lotes, titulos, opcoes = {}) {
         }
       : null,
   };
+}
+
+// ---------- O risco da carteira ----------
+
+const FAMILIAS = [
+  { id: "ipca", rotulo: "IPCA+" },
+  { id: "prefixado", rotulo: "Prefixado" },
+  { id: "selic", rotulo: "Selic" },
+];
+const familiaDe = (tipo) => (String(tipo).startsWith("ipca") ? "ipca" : String(tipo).startsWith("prefixado") ? "prefixado" : "selic");
+
+// Como a carteira está repartida e o que um movimento de juros faz com ela.
+// `grupos` é o de resumirCarteira(); só entram os que têm título e preço.
+//
+// O CHOQUE É "TODAS AS TAXAS, 1 PONTO, AO MESMO TEMPO": cada título reage pela
+// própria sensibilidade (a mesma duration + convexidade que o Detalhe mostra,
+// vinda do servidor) e os efeitos se somam. É um cenário, não uma previsão —
+// juro real e juro nominal não andam juntos nem do mesmo tamanho, e a tela
+// diz isso. A LFT entra com efeito ZERO: pós-fixada, o preço dela quase não
+// reage a juro de mercado. Não é dado faltando; é o que ela é.
+//
+// A DURATION DA CARTEIRA é a média das durations pesada pelo valor de hoje,
+// com a LFT contando zero pelo mesmo motivo.
+export function riscoDaCarteira(grupos) {
+  const validos = (grupos || []).filter((g) => !g.semTitulo && g.valorHoje != null && g.valorHoje > 0);
+  const total = validos.reduce((s, g) => s + g.valorHoje, 0);
+  if (!(total > 0)) return null;
+
+  const porFamilia = FAMILIAS.map((f) => {
+    const valor = validos.filter((g) => familiaDe(g.titulo.tipo) === f.id).reduce((s, g) => s + g.valorHoje, 0);
+    return { ...f, valor, pct: (valor / total) * 100 };
+  }).filter((f) => f.valor > 0);
+
+  const anos = new Map();
+  for (const g of validos) {
+    const ano = g.titulo.vencimento.slice(0, 4);
+    anos.set(ano, (anos.get(ano) || 0) + g.valorHoje);
+  }
+  const porAno = [...anos.entries()].sort().map(([ano, valor]) => ({ ano, valor, pct: (valor / total) * 100 }));
+
+  // Um título com duration mas sem o cenário calculado (taxa ausente) deixa
+  // a soma sem um pedaço: aí o choque inteiro sai null, em vez de menor.
+  const efeito = (campo) => {
+    let soma = 0;
+    for (const g of validos) {
+      if (familiaDe(g.titulo.tipo) === "selic") continue;
+      const pct = g.titulo.duration?.[campo];
+      if (pct == null) return null;
+      soma += g.valorHoje * (pct / 100);
+    }
+    return { valor: soma, pct: (soma / total) * 100 };
+  };
+  let duration = 0;
+  for (const g of validos) {
+    if (familiaDe(g.titulo.tipo) === "selic") continue;
+    const mac = g.titulo.duration?.macaulay;
+    if (mac == null) {
+      duration = null;
+      break;
+    }
+    duration += (g.valorHoje / total) * mac;
+  }
+
+  return { total, porFamilia, porAno, duration, mais1pp: efeito("variacaoPor1pp"), menos1pp: efeito("variacaoMenos1pp") };
+}
+
+// ---------- O calendário do que ainda entra ----------
+
+// As datas de pagamento que faltam de um título: o vencimento e, com cupom,
+// de seis em seis meses para trás até passar de hoje — a mesma caminhada que
+// o servidor faz em fluxosNTNB.
+function datasDePagamento(vencimentoISO, comCupom, hojeISO) {
+  if (!comCupom) return vencimentoISO > hojeISO ? [vencimentoISO] : [];
+  const datas = [];
+  const [a, m, d] = vencimentoISO.split("-").map(Number);
+  for (let k = 0; ; k++) {
+    const data = new Date(Date.UTC(a, m - 1 - 6 * k, d)).toISOString().slice(0, 10);
+    if (data <= hojeISO) break;
+    datas.push(data);
+  }
+  return datas.reverse();
+}
+
+// O que a carteira ainda recebe, ano a ano, se nada for vendido.
+//
+// DUAS COLUNAS QUE NÃO SE SOMAM: `nominal` (prefixados, em reais da data do
+// pagamento) e `hoje` (IPCA+, a preços de hoje — a inflação vem por cima). É
+// a mesma regra do total da carteira. A LFT fica fora do calendário e é
+// devolvida em `semValor`: ela paga no vencimento, mas quanto, depende da
+// Selic até lá.
+export function calendarioDeRecebimentos(grupos, hojeISO) {
+  const anos = new Map();
+  const semValor = [];
+  for (const g of grupos || []) {
+    if (g.semTitulo) continue;
+    const t = g.titulo;
+    const r = t.recebimentos;
+    if (!r) {
+      if (t.vencimento > hojeISO) semValor.push({ nome: t.nome, vencimento: t.vencimento });
+      continue;
+    }
+    for (const data of datasDePagamento(t.vencimento, t.comCupom, hojeISO)) {
+      const noVencimento = data === t.vencimento;
+      const valor = g.quantidade * ((t.comCupom ? r.cupom : 0) + (noVencimento ? r.principal : 0));
+      const ano = data.slice(0, 4);
+      if (!anos.has(ano)) anos.set(ano, { ano, nominal: 0, hoje: 0, pagamentos: [] });
+      const linha = anos.get(ano);
+      linha[r.unidade === "nominal" ? "nominal" : "hoje"] += valor;
+      linha.pagamentos.push({ data, nome: t.nome, valor, unidade: r.unidade, principal: noVencimento });
+    }
+  }
+  const linhas = [...anos.values()].sort((a, b) => (a.ano < b.ano ? -1 : 1));
+  for (const l of linhas) l.pagamentos.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0));
+  return { linhas, semValor };
+}
+
+// ---------- Contra o CDI ----------
+
+// Quanto o CDI rendeu entre duas datas, como fator (1,10 = 10%).
+// `indice` é a série de /api/cdi: [[data, índice acumulado]], crescente.
+//
+// O dinheiro aplicado no dia D rende o CDI de D em diante e, até o dia A, o
+// de A−1: por isso as duas pontas usam o índice do último dia ANTES de cada
+// data. Fora do alcance da série devolve null — nunca o período que der.
+export function fatorDoCdi(indice, deISO, ateISO) {
+  if (!Array.isArray(indice) || indice.length < 2 || !deISO || !ateISO || ateISO <= deISO) return null;
+  const antesDe = (iso) => {
+    // Busca binária pelo último ponto com data < iso.
+    let lo = 0;
+    let hi = indice.length - 1;
+    let achado = -1;
+    while (lo <= hi) {
+      const meio = (lo + hi) >> 1;
+      if (indice[meio][0] < iso) {
+        achado = meio;
+        lo = meio + 1;
+      } else hi = meio - 1;
+    }
+    return achado;
+  };
+  const primeiro = indice[0][0];
+  if (deISO < primeiro) return null; // compra anterior à série
+  const iDe = antesDe(deISO);
+  const iAte = antesDe(ateISO);
+  if (iAte < 0) return null;
+  // Compra exatamente no primeiro dia da série: nada rendeu antes dela.
+  const base = iDe < 0 ? 1 : indice[iDe][1];
+  return indice[iAte][1] / base;
+}
+
+// O que o MESMO dinheiro, nas MESMAS datas, teria rendido no CDI — lote a
+// lote, porque cada compra começou a render num dia diferente.
+//
+// Devolve { rendimento, pct, pctDoCdi } ou null se algum lote ficar fora do
+// alcance da série (um total com um lote a menos compararia a carteira
+// inteira com o CDI de parte dela).
+//
+// É bruto contra bruto: nem o resultado da carteira nem o CDI têm imposto
+// descontado. E o CDI é a régua, não um investimento que se compre — um CDB
+// ou um fundo rende uma fração dele.
+export function compararComCdi(lotesAvaliados, indice) {
+  let investido = 0;
+  let rendimento = 0;
+  let resultado = 0;
+  for (const a of lotesAvaliados || []) {
+    if (a.semTitulo || a.resultado == null) return null;
+    const ate = a.dataDoPreco;
+    const fator = fatorDoCdi(indice, a.lote.data, ate);
+    if (fator == null) return null;
+    investido += a.lote.valor;
+    rendimento += a.lote.valor * (fator - 1);
+    resultado += a.resultado;
+  }
+  if (!(investido > 0)) return null;
+  return {
+    rendimento,
+    pct: (rendimento / investido) * 100,
+    // "x% do CDI" só faz sentido com o CDI positivo e algum tempo decorrido.
+    pctDoCdi: rendimento > 0 ? (resultado / rendimento) * 100 : null,
+  };
+}
+
+// ---------- Cópia de segurança ----------
+
+export const VERSAO_DO_BACKUP = 1;
+const mesmaCompra = (a, b) => a.slug === b.slug && a.data === b.data && a.quantidade === b.quantidade && a.valor === b.valor;
+
+// O texto do arquivo de cópia. Só as compras — nada de preço nem de conta,
+// que o app refaz. `app` e `versao` deixam o arquivo dizer o que é.
+export function exportarPosicoes(lista, agora = new Date().toISOString()) {
+  return JSON.stringify({ app: "tesouro-tracker", versao: VERSAO_DO_BACKUP, exportadoEm: agora, posicoes: lista }, null, 2);
+}
+
+// Lê um arquivo de cópia e devolve o que ACRESCENTAR à lista atual.
+//
+// RESTAURAR SOMA, NÃO SUBSTITUI: quem restaura num aparelho que já tem
+// compras registradas não espera perdê-las, e uma cópia antiga apagaria as
+// mais novas. Compra igual a uma que já existe (mesmo título, data,
+// quantidade e valor) é contada em `repetidas` e não entra duas vezes.
+export function lerBackup(texto, atuais = []) {
+  let bruto;
+  try {
+    bruto = JSON.parse(texto);
+  } catch {
+    return { erro: "Este arquivo não é uma cópia do Tesouro Tracker (não é JSON)." };
+  }
+  const lista = Array.isArray(bruto) ? bruto : bruto?.posicoes;
+  if (!Array.isArray(lista)) return { erro: "Este arquivo não traz uma lista de compras." };
+  const novas = [];
+  let repetidas = 0;
+  let invalidas = 0;
+  for (const l of lista) {
+    if (!ehLote(l)) {
+      invalidas++;
+      continue;
+    }
+    if ([...atuais, ...novas].some((x) => mesmaCompra(x, l))) {
+      repetidas++;
+      continue;
+    }
+    // Id novo se o do arquivo já estiver em uso: dois lotes com o mesmo id
+    // fariam "Apagar" tirar os dois.
+    const emUso = [...atuais, ...novas].some((x) => x.id === l.id);
+    novas.push({ id: emUso ? `${l.id}-${novas.length}` : l.id, slug: l.slug, data: l.data, quantidade: l.quantidade, valor: l.valor });
+  }
+  return { novas, repetidas, invalidas };
 }

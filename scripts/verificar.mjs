@@ -42,7 +42,7 @@ const cat = await import("../server/catalogo.js");
 const tesouro = await import("../server/providers/tesouro.js");
 const anbima = await import("../server/providers/anbima.js");
 
-const ROTAS = ["getTitulos", "getDetalhe", "getCurva", "getFuturos", "getMacro", "getMercado", "getNoticias"];
+const ROTAS = ["getTitulos", "getDetalhe", "getCurva", "getFuturos", "getMacro", "getMercado", "getNoticias", "getCdi"];
 for (const nome of ROTAS) conferir(typeof datalayer[nome] === "function", `datalayer exporta ${nome}()`);
 for (const rel of ["tesouro", "anbima", "bcb", "globais", "noticias", "yahoo"]) {
   await import(`../server/providers/${rel}.js`);
@@ -2317,6 +2317,280 @@ console.log("\ncarteira: registrar e avaliar");
   const appFonte = await ler("src/App.jsx");
   conferir(/id: "carteira"/.test(appFonte) && /"Carteira"/.test(await ler("scripts/fumaca.mjs")), "a aba Carteira está no App e no teste de fumaça");
   conferir(/tesouro-tracker-posicoes/.test(await ler("scripts/fumaca.mjs")), "o teste de fumaça abre a Carteira COM posições");
+}
+
+// O RISCO, O CALENDÁRIO, O CDI, A CÓPIA E A PLANILHA — o que a Carteira
+// ganhou em 11/2026. Tudo conta feita no aparelho, com fixtures.
+console.log("\ncarteira: risco, calendário, CDI, cópia e planilha");
+{
+  const pos = await import("../src/posicoes.js");
+  const plan = await import("../src/planilha.js");
+  const d = (mac, mais, menos) => ({ macaulay: mac, variacaoPor1pp: mais, variacaoMenos1pp: menos });
+  const ltn = {
+    slug: "prefixado-2029-01-01", nome: "Prefixado 2029", tipo: "prefixado", vencimento: "2029-01-01", comCupom: false, data: "2026-11-06", pu: 750,
+    duration: d(2, -1.8, 1.9), recebimentos: { principal: 1000, cupom: 0, pagamentos: 0, total: 1000, unidade: "nominal" },
+  };
+  const ntnb = {
+    slug: "ipca-juros-2030-08-15", nome: "IPCA+ com juros 2030", tipo: "ipca-juros", vencimento: "2030-08-15", comCupom: true, data: "2026-11-06", pu: 4000,
+    duration: d(3.5, -3.2, 3.4), recebimentos: { principal: 4775, cupom: 141.16, pagamentos: 8, total: 5904.28, unidade: "hoje" }, cuponsPagos: [],
+  };
+  const lft = { slug: "selic-2031-03-01", nome: "Selic 2031", tipo: "selic", vencimento: "2031-03-01", comCupom: false, data: "2026-11-06", pu: 20000, duration: null, recebimentos: null };
+  const lotes = [
+    { id: "a", slug: ltn.slug, data: "2025-02-03", quantidade: 4, valor: 2600 }, // vale 3.000
+    { id: "b", slug: ntnb.slug, data: "2026-09-01", quantidade: 1, valor: 3900 }, // vale 4.000
+    { id: "c", slug: lft.slug, data: "2026-01-12", quantidade: 0.15, valor: 2800 }, // vale 3.000
+  ];
+  const carteira = pos.resumirCarteira(lotes, [ltn, ntnb, lft], { desde: "2019-01-01" });
+
+  const r = pos.riscoDaCarteira(carteira.grupos);
+  conferir(r.total === 10000 && perto(r.porFamilia.reduce((s, f) => s + f.pct, 0), 100), "risco: as fatias por indexador somam 100% do valor de hoje");
+  conferir(r.porFamilia.map((f) => `${f.id}:${f.pct}`).join() === "ipca:40,prefixado:30,selic:30", "risco: cada título na sua família");
+  conferir(r.porAno.map((a) => a.ano).join() === "2029,2030,2031" && perto(r.porAno.reduce((s, a) => s + a.pct, 0), 100), "risco: por ano de vencimento, em ordem");
+  // 30% × 2 + 40% × 3,5 + 30% × 0 (a LFT conta, com zero).
+  conferir(perto(r.duration, 0.3 * 2 + 0.4 * 3.5), "risco: duration pesada pelo valor de hoje, com a LFT entrando como zero");
+  conferir(perto(r.mais1pp.valor, 3000 * -0.018 + 4000 * -0.032) && perto(r.mais1pp.pct, (r.mais1pp.valor / 10000) * 100), "risco: +1 p.p. soma o efeito de cada título, sem mexer na LFT");
+  conferir(r.menos1pp.valor > -r.mais1pp.valor, "risco: a queda de 1 p.p. ganha mais do que a alta perde (convexidade preservada)");
+  const semCenario = pos.resumirCarteira(lotes, [{ ...ltn, duration: null }, ntnb, lft], {});
+  conferir(pos.riscoDaCarteira(semCenario.grupos).mais1pp === null && pos.riscoDaCarteira(semCenario.grupos).duration === null, "risco: título sem cenário deixa o choque null — não uma soma com um pedaço a menos");
+  conferir(pos.riscoDaCarteira([]) === null, "risco: carteira vazia não tem risco a mostrar");
+
+  const cal = pos.calendarioDeRecebimentos(carteira.grupos, "2026-11-10");
+  const anoDe = (a) => cal.linhas.find((l) => l.ano === a);
+  conferir(cal.linhas.map((l) => l.ano).join() === "2027,2028,2029,2030", "calendário: um ano por linha, do primeiro pagamento ao último");
+  conferir(anoDe("2029").nominal === 4000 && perto(anoDe("2029").hoje, 2 * 141.16), "calendário: o principal do prefixado em reais nominais, os cupons do IPCA+ a preços de hoje, sem somar um no outro");
+  conferir(perto(anoDe("2030").hoje, 2 * 141.16 + 4775) && anoDe("2030").pagamentos.at(-1).principal === true, "calendário: no ano do vencimento, cupons mais o principal");
+  conferir(cal.linhas.reduce((s, l) => s + l.pagamentos.filter((p) => p.unidade === "hoje").length, 0) === ntnb.recebimentos.pagamentos, "calendário: tantas datas de cupom quantas o servidor contou");
+  conferir(cal.semValor.length === 1 && cal.semValor[0].nome === "Selic 2031", "calendário: a LFT fica fora, nomeada — o valor dela depende da Selic");
+
+  // Um índice que rende 0,05% por dia útil, de 02/01/2025 em diante.
+  const indice = [];
+  {
+    const { ehDiaUtil } = await import("../server/feriados.js");
+    let v = 1;
+    for (let t = Date.parse("2025-01-02T00:00Z"); t <= Date.parse("2026-11-09T00:00Z"); t += 86400000) {
+      const dia = new Date(t);
+      if (!ehDiaUtil(dia)) continue;
+      v *= 1.0005;
+      indice.push([dia.toISOString().slice(0, 10), v]);
+    }
+  }
+  const { diasUteis } = await import("../server/feriados.js");
+  // Compra em 03/02 rende de 03/02 em diante e, avaliada com o preço de 06/11,
+  // até o dia 05/11: os dias úteis de [03/02, 05/11].
+  const n = diasUteis("2025-02-02", "2026-11-05");
+  conferir(perto(pos.fatorDoCdi(indice, "2025-02-03", "2026-11-06"), Math.pow(1.0005, n), 1e-9), `CDI: o fator entre duas datas é o produto dos dias do intervalo (${n} dias úteis)`);
+  conferir(pos.fatorDoCdi(indice, "2024-06-01", "2026-11-06") === null, "CDI: compra anterior à série devolve null, não o período que der");
+  conferir(pos.fatorDoCdi(indice, "2026-11-06", "2026-11-06") === null, "CDI: sem tempo decorrido não há comparação");
+  const grupoLtn = carteira.grupos.find((g) => g.slug === ltn.slug);
+  const c = pos.compararComCdi(grupoLtn.lotes, indice);
+  conferir(perto(c.rendimento, 2600 * (Math.pow(1.0005, n) - 1), 1e-6) && perto(c.pctDoCdi, (400 / c.rendimento) * 100, 1e-6), "CDI: o mesmo dinheiro, das mesmas datas; e o resultado como fração dele");
+  const todos = carteira.grupos.flatMap((g) => g.lotes);
+  conferir(pos.compararComCdi(todos, indice) != null && pos.compararComCdi([...todos, { ...todos[0], lote: { ...todos[0].lote, data: "2020-01-10" } }], indice) === null, "CDI: um lote fora do alcance derruba a comparação inteira, em vez de comparar com parte da carteira");
+
+  // A cópia de segurança.
+  const texto = pos.exportarPosicoes(lotes, "2026-11-11T12:00:00.000Z");
+  const lido = JSON.parse(texto);
+  conferir(lido.app === "tesouro-tracker" && lido.versao === pos.VERSAO_DO_BACKUP && lido.posicoes.length === 3, "cópia: o arquivo diz o que é e traz só as compras");
+  conferir(Object.keys(lido.posicoes[0]).sort().join() === "data,id,quantidade,slug,valor", "cópia: nada além dos campos da compra (nem preço, nem conta)");
+  const volta = pos.lerBackup(texto, []);
+  conferir(volta.novas.length === 3 && volta.repetidas === 0 && volta.invalidas === 0, "cópia: exportar e restaurar devolve a mesma lista");
+  const soma = pos.lerBackup(texto, [lotes[0], { id: "z", slug: ltn.slug, data: "2026-03-03", quantidade: 1, valor: 700 }]);
+  conferir(soma.novas.length === 2 && soma.repetidas === 1, "cópia: restaurar SOMA ao que existe e não repete compra igual");
+  const idEmUso = pos.lerBackup(texto, [{ id: "b", slug: ltn.slug, data: "2026-03-03", quantidade: 1, valor: 700 }]);
+  conferir(new Set(["b", ...idEmUso.novas.map((x) => x.id)]).size === 4, "cópia: id que já existe ganha outro (senão Apagar tiraria as duas)");
+  const sujo = pos.lerBackup(JSON.stringify({ posicoes: [lotes[0], { slug: "x" }, null, "texto"] }), []);
+  conferir(sujo.novas.length === 1 && sujo.invalidas === 3, "cópia: item ilegível é contado e pulado, sem levar os outros junto");
+  conferir(typeof pos.lerBackup("não é json", []).erro === "string" && typeof pos.lerBackup("{}", []).erro === "string", "cópia: arquivo que não é cópia é recusado com mensagem");
+
+  // A planilha colada.
+  conferir(plan.numeroDaPlanilha("R$ 1.234,56") === 1234.56 && plan.numeroDaPlanilha("1,234.56") === 1234.56 && plan.numeroDaPlanilha("0,25") === 0.25 && plan.numeroDaPlanilha("1.000") === 1000 && plan.numeroDaPlanilha("12.5") === 12.5 && plan.numeroDaPlanilha("-") === null, "planilha: números à brasileira e à americana; traço é vazio");
+  conferir(plan.dataDaPlanilha("03/02/2025") === "2025-02-03" && plan.dataDaPlanilha("3/2/25") === "2025-02-03" && plan.dataDaPlanilha("2025-02-03") === "2025-02-03" && plan.dataDaPlanilha("31/02/2025") === null, "planilha: datas nos três formatos; data que não existe é recusada");
+  const lista = [ltn, ntnb, lft, { slug: "ipca-2030-08-15", nome: "IPCA+ 2030", tipo: "ipca", vencimento: "2030-08-15" }];
+  conferir(plan.tituloDoNome("Tesouro Prefixado 2029", lista).titulo === ltn && plan.tituloDoNome("Tesouro IPCA+ com Juros Semestrais 2030", lista).titulo === ntnb && plan.tituloDoNome("Tesouro IPCA+ 2030", lista).titulo.slug === "ipca-2030-08-15" && plan.tituloDoNome("Tesouro Selic 2031", lista).titulo === lft, "planilha: o nome do produto acha o título — e 'com juros' não se confunde com o sem cupom do mesmo ano");
+  conferir(!plan.tituloDoNome("Tesouro RendA+ 2040", lista).titulo && !plan.tituloDoNome("Tesouro Prefixado 2025", lista).titulo && !plan.tituloDoNome("CDB Banco X", lista).titulo, "planilha: RendA+, título vencido e o que não é Tesouro ficam de fora, com motivo");
+  const colado = [
+    "Extrato de movimentação",
+    "Data\tMovimentação\tProduto\tQuantidade\tPreço unitário\tValor da Operação",
+    "03/02/2025\tCompra\tTesouro Prefixado 2029\t4\tR$ 650,00\tR$ 2.600,00",
+    "01/09/2026\tCompra\tTesouro IPCA+ com Juros Semestrais 2030\t1\tR$ 3.900,00\tR$ 3.900,00",
+    "15/08/2026\tJuros\tTesouro IPCA+ com Juros Semestrais 2030\t1\t-\tR$ 141,16",
+    "10/10/2026\tVenda\tTesouro Prefixado 2029\t1\tR$ 740,00\tR$ 740,00",
+    "12/01/2026\tCompra\tTesouro RendA+ 2040\t2\tR$ 1.000,00\tR$ 2.000,00",
+    "40/01/2026\tCompra\tTesouro Selic 2031\t0,15\tR$ 18.666,67\tR$ 2.800,00",
+  ].join("\n");
+  const p = plan.lerPlanilha(colado, lista, "2026-11-10");
+  conferir(p.lotes.length === 2 && p.lotes[0].slug === ltn.slug && p.lotes[0].quantidade === 4 && p.lotes[0].valor === 2600 && p.lotes[0].data === "2025-02-03", "planilha: as compras entram com o VALOR DA OPERAÇÃO, não o preço unitário");
+  conferir(p.ignoradas.length === 4 && p.ignoradas.every((i) => i.motivo && i.linha > 2), "planilha: cupom, venda, RendA+ e data ilegível ficam de fora, cada um com o motivo e a linha");
+  conferir(p.colunas.valor === "Valor da Operação" && p.colunas.produto === "Produto", "planilha: a prévia diz quais colunas foram lidas");
+  const csv = plan.lerPlanilha('Produto;Data da Negociação;Quantidade;Valor Total\n"Tesouro Prefixado 2029";03/02/2025;4;"2.600,00"', lista, "2026-11-10");
+  conferir(csv.lotes?.length === 1 && csv.lotes[0].valor === 2600, "planilha: ponto e vírgula, aspas e outra ordem de colunas também");
+  conferir(typeof plan.lerPlanilha("uma linha só", lista, "2026-11-10").erro === "string" && typeof plan.lerPlanilha("a\tb\n1\t2", lista, "2026-11-10").erro === "string", "planilha: sem cabeçalho reconhecível, recusa com mensagem em vez de adivinhar");
+  const planFonte = (await ler("src/planilha.js")).replace(/\/\/.*$/gm, "");
+  conferir(!/import |fetch\(|XMLHttpRequest|sendBeacon/.test(planFonte), "planilha.js é puro: sem imports, sem rede");
+  // A prévia é o que segura um leitor escrito sem um arquivo real da B3.
+  const cart = await ler("src/components/Carteira.jsx");
+  conferir(/setPrevia\(/.test(cart) && /confirmar/.test(cart) && /previa\.ignoradas/.test(cart), "a importação mostra a prévia (e o que ficou de fora) antes de gravar");
+}
+
+// O CDI DA CARTEIRA. A série é a mesma para todo mundo: o servidor não pode
+// passar a receber a data de uma compra para "fazer a conta lá".
+console.log("\n/api/cdi não recebe nada de ninguém");
+{
+  conferir(datalayer.getCdi.length === 0, "getCdi() não aceita parâmetro");
+  const rota = (await ler("api/cdi.js")).replace(/\/\/.*$/gm, "");
+  conferir(!/req\.(query|body)/.test(rota), "api/cdi.js não lê query nem corpo");
+  conferir(/getCdi = \(\) => getJSON\("\/api\/cdi"\)/.test(await ler("src/api.js")), "o cliente pede /api/cdi sem parâmetro");
+  const app = await ler("src/App.jsx");
+  conferir(/getCdi\(\)/.test(app) && !/getCdi\([^)]/.test(app), "o App pede o CDI sem argumento — e é ele, não a Carteira, quem fala com a rede");
+  // O gatilho é abrir a aba. Se fosse a lista de compras, registrar a
+  // primeira dispararia um pedido — vazio, mas que diria "este aparelho
+  // acaba de registrar algo".
+  const efeito = app.slice(app.indexOf("const naCarteira"), app.indexOf("[naCarteira, geracao]") + 22);
+  conferir(/\[naCarteira, geracao\]/.test(efeito) && !/posicoes/.test(efeito.replace(/\/\/.*$/gm, "")), "o pedido do CDI depende de abrir a Carteira, não de haver compras");
+}
+
+// O QUE O DI EMBUTE PARA O COPOM. A conta é conferida contra um caminho
+// CONHECIDO: monta-se a curva que uma escada de CDI produziria, dia a dia, e
+// a função tem de devolver a escada.
+console.log("\nSelic implícita no DI");
+{
+  const selic = await import("../server/selic.js");
+  const { ehDiaUtil, diasUteis } = await import("../server/feriados.js");
+  const ref = "2026-11-10";
+  const passos = { "2026-12-09": 13.4, "2027-01-27": 13.15, "2027-03-17": 13.15, "2027-04-28": 12.65 };
+  const vencs = ["2026-12-01", "2027-01-04", "2027-02-01", "2027-03-01", "2027-04-01", "2027-05-03", "2027-06-01", "2027-07-01"];
+  const prox = (iso) => {
+    let dia = new Date(Date.parse(`${iso}T00:00Z`) + 864e5);
+    while (!ehDiaUtil(dia)) dia = new Date(dia.getTime() + 864e5);
+    return dia.toISOString().slice(0, 10);
+  };
+  // A taxa do pernoite que TERMINA em `fim`: a nova vale a partir do dia útil
+  // seguinte à decisão.
+  const taxaNoDia = (fim) => {
+    let x = 13.65;
+    for (const [m, v] of Object.entries(passos)) if (prox(m) < fim) x = v;
+    return x;
+  };
+  const fatorAte = (venc) => {
+    let fator = 1;
+    for (let t = Date.parse(`${ref}T00:00Z`) + 864e5; t <= Date.parse(`${venc}T00:00Z`); t += 864e5) {
+      const dia = new Date(t);
+      if (ehDiaUtil(dia)) fator *= Math.pow(1 + taxaNoDia(dia.toISOString().slice(0, 10)) / 100, 1 / 252);
+    }
+    return fator;
+  };
+  const vertices = vencs.map((v) => ({ vencimento: v, taxa: (Math.pow(fatorAte(v), 252 / diasUteis(ref, v)) - 1) * 100 }));
+  const r = selic.caminhoDaSelic({ dataRef: ref, vertices, cdiHoje: 99 });
+  conferir(r.origemDaPartida === "curva" && perto(r.cdiDePartida, 13.65, 1e-6), "a partida sai da própria curva quando o primeiro vencimento chega antes da reunião (e ignora o CDI publicado)");
+  // A curva sintética alcança também a reunião de junho/2027, que não está em
+  // `passos`: nela nada muda, e a conta tem de dizer isso (a última taxa).
+  conferir(r.reunioes.length === 5 && r.reunioes.every((m) => perto(m.cdiDepois, passos[m.data] ?? 12.65, 1e-6)), `recupera a escada conhecida, reunião a reunião (${r.reunioes.map((m) => m.cdiDepois.toFixed(2)).join(" · ")})`);
+  conferir(perto(r.reunioes[2].variacaoPP, 0, 1e-6) && perto(r.reunioes[4].variacaoPP, 0, 1e-6) && perto(r.reunioes.at(-1).acumuladoPP, -1, 1e-6), "reunião sem mudança dá zero; o acumulado é a soma dos degraus");
+  // Dois vencimentos com duas reuniões no meio: não dá para separar.
+  const ralo = selic.caminhoDaSelic({ dataRef: ref, vertices: vertices.filter((v) => ["2026-12-01", "2027-04-01"].includes(v.vencimento)), cdiHoje: 13.65 });
+  conferir(ralo.reunioes.length === 0 && ralo.parouEm === "2026-12-09" && /duas reuniões/.test(ralo.motivoDaParada), "duas reuniões entre dois vencimentos: a conta PARA, não reparte no chute");
+  const semPartida = selic.caminhoDaSelic({ dataRef: ref, vertices: vertices.slice(1), cdiHoje: null });
+  conferir(semPartida.reunioes.length === 0 && /partida/.test(semPartida.motivoDaParada), "sem vencimento antes da reunião e sem CDI publicado, não há partida — e não se inventa uma");
+  conferir(selic.caminhoDaSelic({ dataRef: null, vertices: [] }).reunioes.length === 0, "sem dados, lista vazia");
+
+  // O calendário: de fonte, em ordem, em dia útil, oito por ano.
+  const cal = selic.REUNIOES_COPOM;
+  conferir(cal.every((m, i) => i === 0 || m > cal[i - 1]) && cal.every((m) => ehDiaUtil(new Date(`${m}T00:00:00Z`)) && new Date(`${m}T00:00:00Z`).getUTCDay() === 3), "reuniões do Copom em ordem, todas numa quarta-feira útil");
+  const porAno = cal.reduce((o, m) => ({ ...o, [m.slice(0, 4)]: (o[m.slice(0, 4)] || 0) + 1 }), {});
+  conferir(Object.values(porAno).every((q) => q === 8), `oito reuniões por ano (${Object.keys(porAno).join(", ")})`);
+  conferir(selic.CALENDARIO_ATE === cal.at(-1) && /^\d{4}-\d{2}-\d{2}$/.test(selic.CALENDARIO_CONFERIDO_EM), "o calendário diz até onde vai e quando foi conferido");
+  // Envelhece sozinho: avisa quando faltar pouco, sem derrubar o CI.
+  const faltam = cal.filter((m) => m > new Date().toISOString().slice(0, 10)).length;
+  if (faltam < 4) avisar(`só ${faltam} reunião(ões) do Copom à frente no calendário de server/selic.js — acrescente o do ano seguinte`);
+  else ok(`${faltam} reuniões do Copom à frente no calendário`);
+
+  // O que vai para a tela: poucas reuniões, e o nível a partir da META.
+  const contratos = Object.fromEntries(vertices.map((v, i) => [`DI1X${i}`, { ativo: "DI1", vencimento: v.vencimento, serie: { [ref]: [v.taxa, 0] } }]));
+  const tela = datalayer.selicImplicitaDe({ contratos }, { cdiHoje: 13.65, metaHoje: 13.75 });
+  conferir(tela.dataRef === ref && tela.reunioes.length === 4 && perto(tela.reunioes[0].metaImplicita, 13.75 - 0.25, 1e-6), "selicImplicitaDe: o nível mostrado é a meta de hoje mais o que os preços embutem");
+  conferir(tela.calendarioAte === selic.CALENDARIO_ATE && typeof tela.fonte === "string", "o payload leva a fonte e até onde vai o calendário");
+  const absurdo = { ...contratos, DI1X1: { ...contratos.DI1X1, serie: { [ref]: [20, 0] } } };
+  conferir(datalayer.selicImplicitaDe({ contratos: absurdo }, { cdiHoje: 13.65, metaHoje: 13.75 }).reunioes.length === 0, "um degrau implausível (vértice sem liquidez) corta a lista ali, em vez de ir para a tela");
+  conferir(datalayer.selicImplicitaDe({ contratos: {} }, {}) === null && datalayer.selicImplicitaDe(null, {}) === null, "sem DI coletado não há seção");
+  const merc = await ler("src/components/Mercado.jsx");
+  conferir(/[Nn]ão é previsão/.test(merc), "a tela diz que a Selic implícita não é previsão");
+}
+
+// O RESUMO DO DIA, escrito por um modelo. O que protege a tela não é o
+// pedido: é a conferência do que volta.
+console.log("\nresumo do dia (IA)");
+{
+  const res = await import("../server/resumo.js");
+  const item = (nome, tipo, taxa, pp, extra = {}) => ({ nome, tipo, taxa, data: "2026-11-10", variacoes: { "1D": { taxaPP: pp, puPct: -pp * 3 }, "1M": { taxaPP: 0.31 } }, ...extra });
+  const titulos = {
+    categorias: [
+      { nome: "IPCA+", itens: [item("IPCA+ 2035", "ipca", 7.62, 0.04, { destaque: true }), item("IPCA+ 2045", "ipca", 7.4, -0.02)] },
+      { nome: "Prefixado", itens: [item("Prefixado 2029", "prefixado", 13.91, 0.12, { destaque: true })] },
+    ],
+    macro: { indicadores: { selic: { valor: 13.75 }, ipca: { acumulado12m: 4.68 }, usdbrl: { valor: 5.4321, changePct: 0.35 } } },
+  };
+  const fatos = res.montarFatos({
+    titulos,
+    selicImplicita: { dataRef: "2026-11-10", reunioes: [{ data: "2026-12-09", variacaoPP: -0.25, acumuladoPP: -0.25 }] },
+    manchetes: [{ titulo: "Dólar sobe com exterior" }],
+  });
+  const tudo = fatos.linhas.join("\n");
+  conferir(fatos.dataDosPrecos === "2026-11-10" && /7,62%/.test(tudo) && /\+0,12 p\.p\./.test(tudo) && /−0,25 p\.p\./.test(tudo) && /Dólar sobe/.test(tudo), "os fatos levam os números já como o app os escreve");
+  conferir(/taxa real/.test(tudo) && /nominal/.test(tudo), "cada taxa vai com a sua unidade — real e nominal não chegam ao modelo como a mesma coisa");
+  conferir(res.montarFatos({ titulos: { categorias: [] } }) === null, "sem títulos não há fatos");
+  const parado = { categorias: [{ nome: "IPCA+", itens: [{ nome: "IPCA+ 2035", tipo: "ipca", taxa: 7.6, data: "2026-11-10", variacoes: {} }] }] };
+  conferir(res.montarFatos({ titulos: parado }) === null, "sem variação do dia não há resumo do dia");
+  // NADA DA PESSOA vai no pedido: os fatos saem do payload público.
+  conferir(!/posic|carteira|alerta/i.test(tudo) && !/posicoes|localStorage/.test((await ler("server/resumo.js")).replace(/\/\/.*$/gm, "")), "nada de carteira, alerta ou aparelho entra nos fatos");
+
+  const pedido = res.montarPedido(fatos);
+  conferir(pedido.model === res.MODELO && pedido.thinking?.type === "adaptive" && pedido.output_config?.effort === res.ESFORCO && pedido.max_tokens === res.MAX_TOKENS, "o pedido leva modelo, raciocínio adaptativo e esforço explícitos");
+  conferir(!("temperature" in pedido) && !("budget_tokens" in (pedido.thinking || {})), "sem temperature nem budget_tokens, que este modelo recusa");
+  conferir(pedido.messages.length === 1 && pedido.messages[0].content.includes(tudo) && pedido.system === res.INSTRUCAO, "os fatos vão inteiros na mensagem; a instrução, no system");
+
+  const bom = "As taxas subiram nesta sessão. O Prefixado 2029 foi a 13,91%, alta de 0,12 p.p., e o IPCA+ 2035 fechou em 7,62%.\n\nOs preços do DI embutem queda de 0,25 p.p. na reunião de 09/12.";
+  conferir(res.validarResumo(bom, fatos).ok === true, "um resumo só com números dos fatos passa");
+  const recusa = (t) => res.validarResumo(t, fatos);
+  conferir(!recusa("O Prefixado 2029 foi a 13,95%.").ok && /13\.95/.test(recusa("O Prefixado 2029 foi a 13,95%.").motivo), "um número que não está nos fatos derruba o resumo, e o motivo diz qual");
+  conferir(!recusa("A taxa subiu 0,16 p.p. somando os dois dias.").ok, "número DERIVADO (uma soma que o modelo fez) também é recusado");
+  conferir(!recusa("O IPCA+ 2035 a 7,62% é uma oportunidade.").ok && !recusa("É hora de comprar o Prefixado 2029.").ok, "linguagem de recomendação é recusada");
+  conferir(!recusa("**Resumo**: taxas em alta.").ok && !recusa("- taxas em alta").ok, "formatação é recusada");
+  conferir(!recusa("").ok && !recusa(Array(res.MAX_PALAVRAS + 5).fill("taxa").join(" ")).ok, "vazio e longo demais são recusados");
+  conferir(res.numerosDe("caiu −0,12 p.p. no 2.035 e 13,75%.").join() === "0.12,2035,13.75", "os números são comparados sem sinal e sem ponto de milhar");
+
+  const arq = res.montarArquivo({ texto: bom, fatos, modelo: "modelo-x", agora: "2026-11-11T12:00:00.000Z" });
+  conferir(arq.dataDosPrecos === "2026-11-10" && /IA/.test(arq.geradoPor) && arq.texto === bom && Array.isArray(arq.fatos), "o arquivo diz de que preços é, que foi um modelo que escreveu, e guarda os fatos usados");
+  const semente = JSON.parse(await ler("dados/resumo.json"));
+  conferir(Object.keys(arq).every((k) => k in semente), "dados/resumo.json tem os campos que o coletor escreve");
+
+  // Só chega à tela o resumo DOS PREÇOS QUE ESTÃO NA TELA.
+  const dl = (await ler("server/datalayer.js")).replace(/\/\/.*$/gm, "");
+  conferir(/dataDosPrecos\s*!==?\s*\w+|dataDosPrecos\s*===?\s*\w+/.test(dl.slice(dl.indexOf("function resumoDoDia"), dl.indexOf("function resumoDoDia") + 900)), "getTitulos só devolve o resumo se for da mesma data dos preços");
+  const painel = await ler("src/components/Painel.jsx");
+  conferir(/gerado por IA/.test(painel) && /resumo\?\.texto/.test(painel), "o Painel marca o resumo como gerado por IA, na tela, e some sem resumo");
+
+  // O SDK é do coletor. Nada em src/, server/ ou api/ pode importá-lo: iria
+  // para o pacote do app ou para uma função da Vercel, e com ele a ideia de
+  // que a chave poderia morar ali.
+  const fontes = [];
+  for (const dir of ["src", "src/components", "server", "server/providers", "api"]) {
+    for (const f of await readdir(join(RAIZ, dir))) if (/\.(js|jsx|mjs)$/.test(f)) fontes.push(`${dir}/${f}`);
+  }
+  const comSdk = [];
+  for (const f of fontes) if (/@anthropic-ai\/sdk|ANTHROPIC_API_KEY/.test(await ler(f))) comSdk.push(f);
+  conferir(comSdk.length === 0, `o SDK e a chave só aparecem no coletor${comSdk.length ? ` (achados em ${comSdk.join(", ")})` : ""}`);
+  const pkg = JSON.parse(await ler("package.json"));
+  conferir(!!pkg.devDependencies["@anthropic-ai/sdk"] && Object.keys(pkg.dependencies).sort().join() === "react,react-dom", "o SDK é devDependency; em runtime continuam só react e react-dom");
+
+  const wf = await ler(".github/workflows/coletar-tesouro.yml");
+  conferir(/git add[^\n]*dados\/resumo\.json/.test(wf), "o workflow versiona dados/resumo.json");
+  conferir(/TEM_CHAVE: \$\{\{ secrets\.ANTHROPIC_API_KEY != '' \}\}/.test(wf) && (wf.match(/env\.TEM_CHAVE == 'true'/g) || []).length >= 2, "os passos do resumo só rodam com a chave configurada");
+  const passo = wf.slice(wf.indexOf("Escrever o resumo do dia"), wf.indexOf("Escrever o resumo do dia") + 500);
+  conferir(/continue-on-error: true/.test(passo), "o resumo nunca derruba a coleta (continue-on-error)");
+  conferir(wf.indexOf("gerar-resumo.mjs") > wf.indexOf("coletar-tesouro.mjs"), "o resumo roda DEPOIS da coleta, em outro processo");
+  const gerador = await ler(".github/scripts/gerar-resumo.mjs");
+  conferir(/stop_reason === "refusal"/.test(gerador) && /validarResumo/.test(gerador) && !/console\.log\([^)]*ANTHROPIC_API_KEY\]/.test(gerador), "o coletor confere por que o modelo parou e passa o texto pela conferência antes de gravar");
+  conferir(/require\("\.\.\/dados\/resumo\.json"\)/.test(await ler("server/cache.js")), "cache.js carrega dados/resumo.json com caminho literal");
 }
 
 console.log("\nordem da lista de títulos");

@@ -40,6 +40,7 @@ dados/painel.json     the Painel tab as one object: highlights + macro frame (th
 dados/painel.md       the same, as tables
 dados/historico.json  the daily series per maturity, all families — what the app reads
 dados/futuros.json    B3 futures: DI1, the clean FX coupon and the IPCA coupon, accumulated daily
+dados/resumo.json     the day's brief, written by an AI model from the numbers above — prose, not data
 ```
 
 `ntnb.json` keeps its original shape forever; each family got a **sibling**
@@ -88,11 +89,11 @@ Never hand-edit `dados/` — the bot owns it. Expect frequent
 | Language | **Plain JavaScript (ESM)** + JSX. **No TypeScript** — do not add it. |
 | UI | React 18, function components + hooks only. |
 | Build | Vite 5 (`"type": "module"`) |
-| Dependencies | **react + react-dom only** at runtime. No UI kit, no chart library, no CSV parser, no state manager. Charts are hand-rolled SVG (`Sparkline`, `GraficoTaxa`, `CurvaChart`); CSV parsing is hand-rolled and streaming. Keep it that way unless asked. In devDependencies there is one addition beyond vite: **jsdom**, used only by `scripts/fumaca.mjs` — nothing in `src/` or `server/` may import it. It is **pinned to `^26`, and that pin is load-bearing**: jsdom 27+ requires Node ≥20.19 and jsdom 30 requires Node ≥22.22, while this project (and the CI runner) is on Node 18+/20. Upgrading it makes `npm run fumaca` die on the runner with `webidl.util.markAsUncloneable is not a function` — from the bundled `undici`, not from any code here. jsdom 26 declares `engines.node: ">=18"` and does not depend on undici at all. |
+| Dependencies | **react + react-dom only** at runtime (a second devDependency, `@anthropic-ai/sdk`, is used only by `.github/scripts/gerar-resumo.mjs` — see **The daily brief** — and nothing in `src/`, `server/` or `api/` may import it; `verificar.mjs` checks). No UI kit, no chart library, no CSV parser, no state manager. Charts are hand-rolled SVG (`Sparkline`, `GraficoTaxa`, `CurvaChart`); CSV parsing is hand-rolled and streaming. Keep it that way unless asked. In devDependencies there is one addition beyond vite: **jsdom**, used only by `scripts/fumaca.mjs` — nothing in `src/` or `server/` may import it. It is **pinned to `^26`, and that pin is load-bearing**: jsdom 27+ requires Node ≥20.19 and jsdom 30 requires Node ≥22.22, while this project (and the CI runner) is on Node 18+/20. Upgrading it makes `npm run fumaca` die on the runner with `webidl.util.markAsUncloneable is not a function` — from the bundled `undici`, not from any code here. jsdom 26 declares `engines.node: ">=18"` and does not depend on undici at all. |
 | Styling | One global stylesheet, `src/styles.css`. No CSS modules, no Tailwind. |
 | Tests / lint | **No test runner, no ESLint, no Prettier** — don't invent an `npm test`. What exists is three plain scripts: `npm run build`, `npm run verificar` (`scripts/verificar.mjs`, dependency-free) and `npm run fumaca` (`scripts/fumaca.mjs`, mounts the app in jsdom). CI runs all three on every PR. |
 | Node | 18+ |
-| Secrets | **None.** Every source is free and key-less. Don't add one without asking. |
+| Secrets | **None required.** Every data source is free and key-less. There is exactly one **optional** secret, added with the owner's go-ahead in 11/2026: `ANTHROPIC_API_KEY`, a GitHub Actions secret read only by the daily-brief step of the collector. Without it that step is skipped and the app is whole. Don't add another without asking, and never put a key in Vercel env, in `src/` or in a workflow file. |
 
 `.npmrc` sets `legacy-peer-deps=true` so Vercel's strict install doesn't fail on
 peer-dependency drift. Don't remove it.
@@ -109,6 +110,7 @@ npm run preview
 
 node .github/scripts/coletar-tesouro.mjs --dry-run   # collect and report only
 TESOURO_DESDE=2015-01-01 node .github/scripts/coletar-tesouro.mjs --dry-run
+node .github/scripts/gerar-resumo.mjs --dry-run      # the brief's facts and request; never calls the API
 ```
 
 **Run all three — no two of them overlap.** `vite build` only bundles `src/`,
@@ -162,7 +164,9 @@ src/
   destaques.js        which maturities the user follows (localStorage, per device)
   alertas.js          rate alerts: storage and the trigger rule (pure, no imports)
   impostos.js         income tax at maturity: the sourced table and the sum (pure, no imports)
-  posicoes.js         the purchases the user recorded and what they are worth (pure; device only)
+  posicoes.js         the purchases the user recorded and what they are worth — plus the
+                      portfolio's risk, calendar, CDI comparison and backup (pure; device only)
+  planilha.js         reads purchases pasted from a broker/B3 spreadsheet (pure, no imports)
   ordem.js            the bond list's columns and sort rule (pure, no imports)
   tema.js             light / dark / follow the device (pure, no imports)
   rota.js             where you are, written in the URL hash (pure, no imports)
@@ -176,6 +180,8 @@ server/
   datalayer.js        facade — combines cache + BCB, builds the /api payloads
   cache.js            reads the versioned dados/*.json (this is the request-time source)
   ponte.js            builds dados/ntnb.json + ntnb.md — pure functions, so verificar can test them
+  selic.js            the Copom calendar and the Selic path the DI futures embed (pure)
+  resumo.js           the daily brief: facts, request and the validator (pure; no network)
   providers/
     tesouro.js        Tesouro Transparente CSV — streaming, header-driven (collector only)
     anbima.js         free secondary-market file — enrichment, defensive
@@ -184,13 +190,14 @@ server/
     noticias.js       Google News RSS per region — request-time, best-effort
     yahoo.js          Ibovespa (^BVSP) chart API — request-time, best-effort
     b3.js             DI1 + cupom cambial + DAP from B3's public file (collector only)
-api/                  Vercel functions: titulos, detalhe, curva, macro, mercado, noticias
+api/                  Vercel functions: titulos, detalhe, curva, futuros, macro, mercado, noticias, cdi
 dados/                the committed data (bot-owned) — see "the bridge" above
 .github/
   workflows/coletar-tesouro.yml   scheduled collection + dry-run on claude/** push
   workflows/ci.yml                build + verificar + fumaça on PRs
   workflows/sonda-b3.yml          B3 reconnaissance, manual + on futuros/** push
   scripts/coletar-tesouro.mjs     the collector itself
+  scripts/gerar-resumo.mjs        the daily brief — the one script that calls a paid API
 scripts/verificar.mjs           invariantes do server/ (sem dependência)
 scripts/fumaca.mjs              monta o app num DOM e abre cada aba (jsdom)
 scripts/sonda-b3.mjs            reconhecimento das fontes da B3 (runner, sob demanda)
@@ -279,7 +286,7 @@ for free.
 
 ### The one data path
 
-The UI never fetches a source directly. `src/api.js` exposes four calls:
+The UI never fetches a source directly. `src/api.js` exposes these calls:
 
 ```
 getTitulos()         -> { categorias, destaques, macro, desatualizados, pendente, aviso }
@@ -288,7 +295,11 @@ getCurva()           -> { curvas: [real, prefixada], implicita, ... }  (LFT fica
 getMacro()           -> IPCA / Selic / CDI / PTAX do BCB (+ decisão do Copom)
 getMercado()         -> decisões Copom/Fed/BCE + câmbio + CDI × Selic
 getNoticias()        -> manchetes por região (best-effort)
+getCdi()             -> o CDI acumulado dia a dia, como índice — SEM parâmetros, de propósito
 ```
+
+`getTitulos()` also carries `resumo` (the day's AI brief, or `null`) and
+`getMercado()` carries `selicImplicita`.
 
 Each maps to same-origin `/api/*`, served **twice from the same module**:
 
@@ -1638,8 +1649,177 @@ the alert notice: nothing happened, it is just the number the person came for).
 The smoke test seeds one purchase of each kind before mounting, because an
 empty Carteira renders only the form and would pass without running the cards.
 
-There is no export or sync, and the screen says so: changing device or clearing
-browser data erases the list. The broker's statement stays the record.
+### The portfolio as a whole: risk, calendar, CDI
+
+Three readings of the whole list, all in `src/posicoes.js` and all fixture-
+tested in `verificar.mjs`:
+
+- **`riscoDaCarteira`** — duration weighted by today's value, the ±1 p.p.
+  effect summed bond by bond from each bond's own `variacaoPor1pp`, and the
+  split by indexation and by maturity year. **The LFT counts, as zero**: it is
+  part of the money and has no rate risk, so leaving it out would overstate
+  the duration of what the person holds. A bond with duration but no scenario
+  makes the whole shock `null` — never a sum with a piece missing. The bars
+  are on a 0–100% scale of the portfolio, not normalised to the largest slice.
+  The ⓘ says what the scenario is not: real and nominal rates do not move
+  together or by the same amount.
+- **`calendarioDeRecebimentos`** — what still comes in, year by year, in **two
+  columns that are never added**: prefixados in nominal reais, IPCA+ in today's
+  reais. Same rule as the total. The LFT is named outside the table.
+- **`compararComCdi`** — what the same money on the same dates would have
+  earned at the CDI, lot by lot. It is **gross against gross** and says so. One
+  lot outside the series' reach makes the whole comparison `null`: comparing
+  the portfolio with the CDI of part of it would be a wrong number that looks
+  right.
+
+**The CDI comparison is the one thing on that screen that needs the network,
+and it was built so that nothing of the person's travels.** `/api/cdi` returns
+the whole accumulated series (SGS 12 as an index starting at 1, ~3,000 days),
+identical for everyone, and the device divides two points of it.
+`getCdi()` **takes no parameters and must never grow one** — "send the dates
+and compute it on the server" is exactly the endpoint this repo forbids.
+`verificar.mjs` checks the function's arity, that `api/cdi.js` reads neither
+query nor body, and that the client URL has no query string.
+
+`App.jsx` makes the request, not `Carteira.jsx` (which still may not import
+`api.js`), and **the trigger is opening the Carteira tab, not having a
+purchase**. It was first written as "fetch when there are positions": recording
+the first purchase then fired a request — empty, but the request itself told
+the server "this device just recorded something". Now recording, deleting,
+restoring and importing make no request at all. `verificar.mjs` pins the trigger (the effect depends on the tab, not on the list); the absence of requests itself was measured in a browser session, not by a test in this repo.
+
+### Backup and spreadsheet import
+
+- **Export** writes a JSON file (`exportarPosicoes`: `app`, `versao`, the
+  purchases and nothing computed) through a Blob download. **Restore adds, never
+  replaces** (`lerBackup`): an old backup must not erase newer purchases.
+  Identical purchases are counted as repeated and skipped; a clashing id gets a
+  new one, since two lots sharing an id would both vanish on "Apagar".
+- **Import** (`src/planilha.js`) reads rows pasted from a spreadsheet. It is
+  header-driven like the CSV parsers — separator detected over the first ten
+  lines (exports open with a title line), columns found by name, pt-BR and
+  Anglo numbers — keeps only purchase rows, maps the product name to a live
+  bond, and returns everything it refused in `ignoradas` **with the reason**.
+
+  **It was written without a real B3 export to test against** — the column
+  names are the usual ones, not verified ones. That is why the screen shows a
+  preview (recognised rows, the columns it read, the rows left out) and writes
+  nothing until the person confirms; `verificar.mjs` fails if the preview step
+  disappears. If the owner supplies a real file, turn it into a fixture and
+  drop this caveat here and in the README. Sales and redemptions are not read:
+  the Carteira has no notion of selling part of a lot.
+
+Without a backup, changing device or clearing browser data still erases the
+list, and the screen says so. The broker's statement stays the record.
+
+## What the DI embeds for the Selic (`server/selic.js`)
+
+The Mercado tab shows, for the next four Copom meetings, how much of a hike or
+cut the DI futures price in, and the target that implies. It needs no new
+source: the DI1 settlement rates are already in `dados/futuros.json`.
+
+**The sum**: the CDI is modelled as a staircase — flat between meetings, one
+step on the business day after each decision. For a segment between two DI
+maturities containing one meeting, the segment's factor is
+`(1+x)^(before/252) · (1+x')^(after/252)`; the factor comes from the two
+settlement prices, the day counts from the calendar, `x` from the previous
+segment, and `x'` is what is left. `verificar.mjs` checks it against a **known
+path**: it builds, day by day, the curve a given staircase would produce and
+requires the function to return that staircase to 1e-6.
+
+Decisions that are easy to undo by accident:
+
+- **The starting CDI comes from the curve itself** when the first maturity
+  falls before the next decision takes effect — that stretch is pure CDI by the
+  market's own account. The published CDI is the fallback, not the default.
+- **Two meetings between two maturities stop the calculation.** They cannot be
+  told apart, and splitting the move would be a guess.
+- **A segment with fewer than five business days after the meeting is extended**
+  to the next maturity: half a basis point of price noise becomes tens in the
+  rate.
+- **Four meetings on screen, and a 1.5 p.p. plausibility stop**
+  (`REUNIOES_A_MOSTRAR`, `MAX_VARIACAO_PLAUSIVEL_PP` in `datalayer.js`).
+  Measured on the 10/11/2026 data: the first four read +4, +13, +12, +29 bp and
+  beyond that the results oscillate — the monthly vertices barely trade and
+  their rates are the exchange's interpolation. More rows would be showing that
+  interpolation as if it were the market.
+- **The level shown is today's target plus the accumulated move**, not the
+  implied CDI: the CDI runs ~0.10 p.p. under the target, and "13.69%" beside a
+  13.75% target would read as a cut. Without today's target the third column
+  becomes the accumulated move instead of a row of dashes. Three columns, not
+  four: accumulated and implied target say the same thing, and four do not fit
+  360px.
+- **No up/down colour.** In this app green and coral mean gain and loss; a
+  rate going up is neither.
+
+**The meeting calendar is sourced, not remembered** (`REUNIOES_COPOM`): the
+decision day of each ordinary meeting for 2026 and 2027, as announced by the
+Banco Central, read on 2026-11-11 through search results quoting the
+announcement (the BCB's own pages are outside this sandbox's allowlist).
+`CALENDARIO_ATE` and `CALENDARIO_CONFERIDO_EM` travel on the payload and the ⓘ
+prints both. **The list runs out**: the BCB publishes the next year's calendar
+each June — add it then. `verificar.mjs` warns (does not fail) when fewer than
+four meetings remain ahead, and pins that every date is a business Wednesday,
+eight per year.
+
+"Não é previsão" stays on screen, in the line under the title: a forward rate
+carries a risk premium, so the curve usually embeds more hiking (or less
+cutting) than what happens.
+
+## The daily brief: the one place prose is not computed
+
+`dados/resumo.json` holds two or three short paragraphs describing the day,
+written by a model and shown on the Painel under "gerado por IA". It is the
+only text in the app that does not come out of a sum, and everything about it
+is built around that.
+
+**How it runs.** `.github/scripts/gerar-resumo.mjs` runs in the collection
+workflow, **after** the collector and **in a separate process** — `cache.js`
+loads `dados/` once at module load, so the collector's own process still sees
+yesterday. It builds the facts, calls the API once, validates, and writes the
+file, which the workflow's existing commit step versions. `server/resumo.js`
+holds everything that is not the network call (facts, request, validator) so
+`verificar.mjs` can exercise it.
+
+- **Only public data goes in the request**: `getTitulos()`, the implied Selic
+  and the Brazil headlines. The server never knew positions, alerts or stars,
+  so they cannot leak — and the brief is the same for everyone.
+- **The facts arrive as formatted text**, each rate with its unit ("a.a. acima
+  do IPCA (taxa real)" / "a.a. nominal"), so the model never sees a real and a
+  nominal rate as the same kind of number.
+- **The validator is the guard, not the prompt** (`validarResumo`). A number
+  in the text that is not among the facts rejects the whole brief — including a
+  number the model *derived* (a sum, a rounding). So does advice wording
+  ("oportunidade", "hora de comprar"), any formatting, and a text over 160
+  words. One retry, telling the model what was refused; a second refusal means
+  no brief that day. Never loop until it passes — that teaches the text to
+  dodge the check.
+- **The screen only shows a brief for the prices on screen**: `getTitulos`
+  drops it when `dataDosPrecos` differs from the newest price date. Yesterday's
+  brief under today's numbers would be the app contradicting itself.
+- **One call per price date.** The collector runs five times a day and prices
+  change once; the script exits early when the file already covers the date.
+- **It can never fail the collection.** Both steps are `continue-on-error`,
+  run only when the secret exists (`TEM_CHAVE`, at job level because a step's
+  own `env` is not readable in its `if`) and only on the default branch. On
+  work branches a dry-run prints the facts instead.
+
+**The request** (`montarPedido`): the official SDK, model `claude-opus-5-5`,
+adaptive thinking, `effort: "medium"`, and the server-side refusal fallback
+(`client.beta.messages.create` with `betas: ["server-side-fallback-2026-07-01"]`,
+`fallbacks: "default"`). No `temperature` and no `budget_tokens` — this model
+rejects both. The script checks `stop_reason` (`refusal`, `max_tokens`) before
+reading content. Changing the model is a one-line edit of `MODELO`; re-read
+the current API documentation before touching the other parameters, since
+these shapes change faster than this file.
+
+**The key** is `ANTHROPIC_API_KEY`, a repository secret the owner adds in
+GitHub (Settings → Secrets and variables → Actions). The SDK reads it from the
+environment; it appears in no file. It must not be added to Vercel — nothing
+at request time calls the model.
+
+What the brief still cannot promise, and the ⓘ says: the numbers are checked,
+the *reading* is not. It can tie a move to a headline that did not cause it.
 
 ## Light theme
 
@@ -1993,7 +2173,12 @@ tax and custody fees except the Calculadora's one net-of-income-tax card (and
 that one still leaves the custody fee out, and needs an assumed inflation for
 an IPCA+) and the Carteira's "se vender hoje" line; terminal values are in
 today's purchasing power; the Carteira's IPCA+ face value is derived, not
-published, and its positions exist only on the device. Every
+published, and its positions exist only on the device; the CDI comparison is
+gross against gross; the portfolio's rate risk is a one-scenario
+approximation; the spreadsheet import was written without a real B3 file; the
+implied Selic is a reading of prices with a risk premium in it, not a
+forecast; the daily brief is model-written prose whose numbers are checked and
+whose reading is not. Every
 screen carries the footer disclaimer: public sources, delayed, informational
 only — **not investment advice**. If you add a feature with a similar caveat,
 state it in the UI and the README instead of implying more precision than free
@@ -2005,7 +2190,7 @@ data supports.
   params off `req.query`, 400 on a missing param, 404 when the slug is unknown,
   502 on upstream failure. Keep them thin. `titulos`, `detalhe` and `curva` use
   `s-maxage=1800, stale-while-revalidate=7200` (the base changes twice a day);
-  `macro` uses `s-maxage=3600, stale-while-revalidate=21600`.
+  `macro` and `cdi` use `s-maxage=3600, stale-while-revalidate=21600`.
 - `server/cache.js` loads the JSON via `createRequire` **on purpose**, and every
   `require()` takes a **literal path written at the call site**. Both halves
   matter:
