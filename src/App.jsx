@@ -17,7 +17,10 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { getTitulos, assinarConexao, estadoDaConexao, assinarVolta, soltarGuardados, veioDoAparelho, URL_TITULOS } from "./api.js";
 import { carregarDestaques, salvarDestaques, resolverDestaques, alternarDestaque } from "./destaques.js";
 import { carregarAlertas, salvarAlertas, alertasAtingidos } from "./alertas.js";
+import { carregarPosicoes, salvarPosicoes, resumirCarteira } from "./posicoes.js";
 import { useRota } from "./useRota.js";
+import { TEMAS, carregarTema, salvarTema, aplicarTema } from "./tema.js";
+import { Seletor } from "./components/Seletor.jsx";
 import { MarcaIcone } from "./components/MarcaIcone.jsx";
 import { Tabs, BarraInferior } from "./components/Tabs.jsx";
 import { SeloDados } from "./components/SeloDados.jsx";
@@ -29,6 +32,7 @@ import { Mercado } from "./components/Mercado.jsx";
 import { Noticias } from "./components/Noticias.jsx";
 import { Calculadora } from "./components/Calculadora.jsx";
 import { Alertas } from "./components/Alertas.jsx";
+import { Carteira } from "./components/Carteira.jsx";
 import { Detalhe } from "./components/Detalhe.jsx";
 import { PERIODO_PADRAO } from "./components/Chip.jsx";
 import { ErroBox, Skeletons } from "./components/States.jsx";
@@ -39,6 +43,10 @@ const TABS = [
   { id: "titulos", label: "Títulos" },
   { id: "curva", label: "Curva" },
   { id: "mercado", label: "Mercado" },
+  // A Carteira é a primeira do "Mais" no celular (a barra de baixo leva as
+  // quatro primeiras). Ela não desloca nenhuma das quatro porque o Painel
+  // mostra o resumo dela no topo, a um toque — ver ResumoDaCarteira.
+  { id: "carteira", label: "Carteira" },
   { id: "calculadora", label: "Calculadora" },
   { id: "noticias", label: "Notícias" },
   { id: "alertas", label: "Alertas" },
@@ -55,6 +63,20 @@ export default function App() {
   // null = nunca escolheu (cai nos padrões do catálogo); array = escolha feita.
   const [escolha, setEscolha] = useState(carregarDestaques);
   const [alertas, setAlertas] = useState(carregarAlertas);
+  // As compras registradas (src/posicoes.js). Só neste aparelho, como os
+  // alertas e as estrelas — e aqui, não na tela da Carteira, porque o Painel
+  // mostra o resumo dela.
+  const [posicoes, setPosicoes] = useState(carregarPosicoes);
+  const [falhouAoGuardar, setFalhouAoGuardar] = useState(false);
+  // Claro, escuro ou o do aparelho (src/tema.js). O efeito também roda na
+  // montagem: o index.html já pôs o atributo, mas é aqui que a cor da barra
+  // do navegador acompanha uma escolha feita à mão.
+  const [tema, setTema] = useState(carregarTema);
+  useEffect(() => aplicarTema(tema), [tema]);
+  const mudarTema = (novo) => {
+    setTema(novo);
+    salvarTema(novo);
+  };
   // null = dados da rede; { salvoEm, motivo } = o aparelho está mostrando o
   // que guardou, porque a rede ou o servidor falharam (ver src/api.js).
   const conexao = useSyncExternalStore(assinarConexao, estadoDaConexao, () => null);
@@ -148,6 +170,19 @@ export default function App() {
   // e do endereço, é o useRota.
   const irPara = irParaAba;
 
+  const totalDaCarteira = useMemo(
+    () => (posicoes.length ? resumirCarteira(posicoes, todos, { desde: dados?.historicoDesde }).total : null),
+    [posicoes, todos, dados]
+  );
+
+  const mudarPosicoes = (transformar) => {
+    const proxima = transformar(posicoes);
+    setPosicoes(proxima);
+    // Se o navegador recusar (modo privativo, espaço cheio), a tela avisa:
+    // uma compra que some ao reabrir o app é pior que um erro à vista.
+    setFalhouAoGuardar(!salvarPosicoes(proxima));
+  };
+
   const mudarAlertas = (transformar) => {
     setAlertas((atual) => {
       const proxima = transformar(atual);
@@ -228,6 +263,8 @@ export default function App() {
                   onIrParaAlertas={() => irPara("alertas")}
                   periodo={periodo}
                   onPeriodo={setPeriodo}
+                  carteira={totalDaCarteira}
+                  onIrParaCarteira={() => irPara("carteira")}
                 />
               )}
               {tab === "titulos" && (
@@ -236,6 +273,9 @@ export default function App() {
               {tab === "curva" && <Curva marcados={marcados} />}
               {tab === "mercado" && <Mercado />}
               {tab === "noticias" && <Noticias />}
+              {tab === "carteira" && (
+                <Carteira dados={dados} posicoes={posicoes} onMudar={mudarPosicoes} onOpen={abrirTitulo} falhouAoGuardar={falhouAoGuardar} />
+              )}
               {tab === "calculadora" && <Calculadora dados={dados} />}
               {tab === "alertas" && <Alertas dados={dados} alertas={alertas} onMudar={mudarAlertas} />}
             </main>
@@ -281,6 +321,10 @@ export default function App() {
             Última coleta: {dataBR(dados.atualizadoEm)} às {horaBR(dados.atualizadoEm)}.
           </>
         )}
+        {/* O TEMA MORA NO RODAPÉ: é uma escolha que se faz uma vez, e no topo
+            ela disputaria 390px com a marca e o selo de data. Aqui aparece em
+            todas as abas, no mesmo lugar. */}
+        <Seletor rotulo="Tema" opcoes={TEMAS} valor={tema} onChange={mudarTema} compacto />
       </footer>
       )}
 

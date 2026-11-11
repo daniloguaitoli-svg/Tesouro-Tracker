@@ -11,7 +11,7 @@
 // duration e o "±1 p.p.". Só a taxa não diz o que uma mudança de juros faz com
 // a posição — é a duration que responde isso, e é ela que interessa em um
 // horizonte longo.
-import { taxa, pct, anos, dataBR, sinal, num, unidadeTaxa } from "../format.js";
+import { taxa, pct, anos, dataBR, sinal, num, reais, unidadeTaxa } from "../format.js";
 import { AguardandoColeta } from "./States.jsx";
 import { PainelLateral } from "./PainelLateral.jsx";
 import { ChipsDeVariacao, PERIODOS } from "./Chip.jsx";
@@ -189,7 +189,26 @@ function AvisoDeAlertas({ atingidos, onAbrir }) {
   );
 }
 
-export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, atingidos, onIrParaAlertas, periodo, onPeriodo }) {
+// O resumo da carteira, quando há compras registradas. É o atalho para a aba
+// Carteira, que no celular fica atrás do "Mais" — o mesmo problema que os
+// alertas tinham, resolvido do mesmo jeito: o que é da pessoa aparece onde
+// ela cai ao abrir o app. Neutro, e não azul como o aviso de alerta: aqui
+// nada aconteceu, é só o número que ela veio ver. A cor vai só no resultado.
+function ResumoDaCarteira({ total, onAbrir }) {
+  if (!total) return null;
+  return (
+    <button className="resumo-carteira" onClick={onAbrir}>
+      <span className="rc-rotulo">Minha carteira</span>
+      <b className="rc-valor mono">{reais(total.valorHoje)}</b>
+      <span className={`rc-resultado mono ${sinal(total.resultado)}`}>
+        {reais(total.resultado)} ({pct(total.resultadoPct)})
+      </span>
+      <span className="aviso-seta" aria-hidden="true">›</span>
+    </button>
+  );
+}
+
+export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, atingidos, onIrParaAlertas, periodo, onPeriodo, carteira, onIrParaCarteira }) {
   // Em tela larga a coluna da direita assume a moldura (os seis indicadores) e
   // a tira de quatro some — ver .faixa-macro no CSS. O hook decide a MONTAGEM
   // da lateral, não só a visibilidade: ela busca a curva, e um celular não
@@ -202,6 +221,7 @@ export function Painel({ dados, itens, onOpen, onIrParaTitulos, onIrParaCurva, a
   const principal = (
     <div className="painel-principal">
       <AvisoDeAlertas atingidos={atingidos} onAbrir={onIrParaAlertas} />
+      <ResumoDaCarteira total={carteira} onAbrir={onIrParaCarteira} />
       <FaixaMacro macro={dados.macro} />
 
       {/* O aviso de preço velho saiu daqui: agora é o selo do topo (SeloDados),

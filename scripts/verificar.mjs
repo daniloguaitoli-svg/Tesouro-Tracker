@@ -2145,6 +2145,297 @@ console.log("\nimposto de renda no vencimento");
   conferir(/CONFERIDO_EM/.test(calcFonte), "a tela mostra a data em que a regra foi conferida");
 }
 
+// ---------------------------------------------------------------
+// O valor de face e o que um título ainda paga — a base da Carteira. O VNA do
+// IPCA+ não vem no arquivo do Tesouro: sai do PU e da taxa. O que prova que a
+// conta está certa não é ela fechar consigo mesma, é TODOS os vencimentos
+// darem o mesmo VNA — e a mesma conta devolver R$ 1.000 nos prefixados.
+console.log("\nvalor de face e recebimentos futuros");
+{
+  const tit = await datalayer.getTitulos();
+  const itens = tit.categorias.flatMap((c) => c.itens);
+  if (!itens.length) avisar("sem títulos no arquivo — valor de face não conferido");
+  else {
+    const ipca = itens.filter((t) => t.tipo.startsWith("ipca") && t.face);
+    const pre = itens.filter((t) => t.tipo.startsWith("prefixado"));
+    const faces = ipca.map((t) => t.face.valor);
+    const dispersao = faces.length ? ((Math.max(...faces) - Math.min(...faces)) / Math.min(...faces)) * 100 : null;
+    conferir(
+      faces.length >= 3 && dispersao < 0.2,
+      `os ${faces.length} IPCA+ dão o mesmo VNA: ${Math.min(...faces).toFixed(2)} a ${Math.max(...faces).toFixed(2)} (dispersão ${dispersao?.toFixed(4)}%)`
+    );
+    conferir(ipca.every((t) => t.face.unidade === "hoje"), "a face de um IPCA+ é em reais de hoje");
+    conferir(pre.every((t) => t.face?.valor === util.FACE_PREFIXADO && t.face.unidade === "nominal"), "a face de um prefixado é R$ 1.000, nominal");
+    // O CONTROLE: a conta do VNA aplicada a quem tem face conhecida.
+    const controle = pre
+      .filter((t) => t.taxa != null && t.pu)
+      .map((t) => (t.pu / util.precoPor100({ vencimentoISO: t.vencimento, comCupom: t.comCupom, cupomAnual: t.cupomAnual ?? undefined, taxaReal: t.taxa / 100, hojeISO: t.data })) * 100);
+    conferir(
+      controle.length > 0 && controle.every((v) => Math.abs(v - 1000) / 1000 < 0.0005),
+      `controle: a mesma conta devolve 1.000 nos ${controle.length} prefixados (${Math.min(...controle).toFixed(3)} a ${Math.max(...controle).toFixed(3)})`
+    );
+    conferir(itens.filter((t) => t.tipo === "selic").every((t) => t.face === null && t.recebimentos === null), "LFT: sem face e sem recebimentos — rende a Selic que houver");
+
+    const zero = itens.filter((t) => !t.comCupom && t.recebimentos);
+    conferir(zero.every((t) => t.recebimentos.pagamentos === 0 && t.recebimentos.total === t.recebimentos.principal), "sem cupom: o que se recebe é o principal, uma vez");
+    const cup = itens.filter((t) => t.comCupom && t.recebimentos);
+    conferir(
+      cup.length > 0 && cup.every((t) => perto(t.recebimentos.total, t.recebimentos.principal + t.recebimentos.cupom * t.recebimentos.pagamentos, 1e-6) && t.recebimentos.pagamentos >= 1),
+      "com cupom: principal mais um cupom por pagamento restante"
+    );
+    conferir(
+      cup.filter((t) => t.tipo.startsWith("prefixado")).every((t) => perto(t.recebimentos.cupom, 1000 * util.CUPOM_SEMESTRAL_NTNF, 1e-9)),
+      "cupom da NTN-F: R$ 1.000 × a parcela do semestre"
+    );
+
+    // Os cupons já pagos.
+    conferir(itens.every((t) => (t.comCupom ? Array.isArray(t.cuponsPagos) : t.cuponsPagos === undefined)), "cuponsPagos só nos títulos com cupom");
+    const hoje = util.hojeISO();
+    conferir(
+      cup.every((t) => t.cuponsPagos.every((c, i, l) => c.ex < c.data && c.data <= hoje && c.data < t.vencimento && (i === 0 || l[i - 1].data < c.data))),
+      "cupons pagos: em ordem, data-ex antes da data, nenhum no futuro nem no vencimento"
+    );
+    conferir(
+      cup.filter((t) => t.tipo.startsWith("prefixado")).every((t) => t.cuponsPagos.every((c) => perto(c.valor, 1000 * util.CUPOM_SEMESTRAL_NTNF, 1e-9))),
+      "cupons pagos da NTN-F têm o valor exato"
+    );
+    // O cupom de uma NTN-B é 2,9563% do VNA da data; como o VNA só cresce, o de
+    // qualquer data passada fica abaixo do de hoje e acima da metade dele.
+    const ntnb = cup.filter((t) => t.tipo.startsWith("ipca"));
+    conferir(
+      ntnb.every((t) => t.cuponsPagos.every((c) => c.valor == null || (c.valor < t.recebimentos.cupom * 1.001 && c.valor > t.recebimentos.cupom * 0.5))),
+      "cupons pagos da NTN-B: do VNA de cada data, sempre abaixo do de hoje"
+    );
+  }
+
+  // Fixture: a véspera sem preço deixa o valor null, nunca zero.
+  const serie = [
+    { date: "2026-01-05", taxa: 7, pu: 4300 },
+    { date: "2026-08-13", taxa: 7, pu: 4500 },
+    { date: "2026-08-14", taxa: 7, pu: 4370 },
+    { date: "2026-11-06", taxa: 7, pu: 4400 },
+  ];
+  const pagos = util.cuponsPagos({ tipo: "ipca-juros", vencimentoISO: "2030-08-15", cupomAnual: 0.06, serie, hojeISO: "2026-11-10" });
+  conferir(pagos.length === 2 && pagos[0].data === "2026-02-15" && pagos[1].data === "2026-08-15", `cupons dentro do alcance da série (${pagos.map((c) => c.data).join(", ")})`);
+  conferir(pagos[0].valor === null && pagos[1].valor > 100, "sem preço perto da véspera o valor é null; com preço, sai do VNA");
+  conferir(util.valorDeFace({ tipo: "ipca", vencimentoISO: "2035-05-15", comCupom: false, taxa: null, pu: 2500, dataISO: "2026-11-06" }) === null, "sem taxa não há face — null, não um chute");
+}
+
+// A carteira. As contas rodam no navegador, com o que a pessoa digitou; um
+// erro aqui é o app dizendo a alguém que ela tem mais (ou menos) do que tem.
+console.log("\ncarteira: registrar e avaliar");
+{
+  const pos = await import("../src/posicoes.js");
+  const ltn = {
+    slug: "prefixado-2029-01-01", tipo: "prefixado", vencimento: "2029-01-01", comCupom: false, data: "2026-11-06", pu: 750,
+    recebimentos: { principal: 1000, cupom: 0, pagamentos: 0, total: 1000, unidade: "nominal" },
+  };
+  const ntnf = {
+    slug: "prefixado-juros-2031-01-01", tipo: "prefixado-juros", vencimento: "2031-01-01", comCupom: true, data: "2026-11-06", pu: 900,
+    recebimentos: { principal: 1000, cupom: 48.81, pagamentos: 9, total: 1439.29, unidade: "nominal" },
+    cuponsPagos: [
+      { data: "2025-07-01", ex: "2025-06-30", valor: 48.81 },
+      { data: "2026-01-01", ex: "2025-12-30", valor: 48.81 },
+      { data: "2026-07-01", ex: "2026-06-30", valor: 48.81 },
+    ],
+  };
+  const lft = { slug: "selic-2031-03-01", tipo: "selic", vencimento: "2031-03-01", comCupom: false, data: "2026-11-06", pu: 20000, recebimentos: null };
+
+  conferir(pos.numeroBR("1.234,56") === 1234.56 && pos.numeroBR("0,25") === 0.25 && pos.numeroBR("") === null && pos.numeroBR("abc") === null, "números digitados à brasileira; vazio e texto viram null");
+
+  const bom = pos.montarLote({ slug: ltn.slug, data: "2025-02-03", quantidade: "6", valor: "3.900,00" }, ltn, "2026-11-10");
+  conferir(bom.lote?.quantidade === 6 && bom.lote.valor === 3900 && typeof bom.lote.id === "string", "compra válida vira lote");
+  const recusas = [
+    [{ data: "2026-12-01", quantidade: "1", valor: "100" }, "data no futuro"],
+    [{ data: "2029-06-01", quantidade: "1", valor: "100" }, "data depois do vencimento"],
+    [{ data: "2025-02-03", quantidade: "0", valor: "100" }, "quantidade zero"],
+    [{ data: "2025-02-03", quantidade: "1", valor: "" }, "valor vazio"],
+    [{ data: "", quantidade: "1", valor: "100" }, "sem data"],
+  ];
+  conferir(recusas.every(([c]) => typeof pos.montarLote({ slug: ltn.slug, ...c }, ltn, "2026-11-10").erro === "string"), `recusa com mensagem: ${recusas.map((r) => r[1]).join(", ")}`);
+  conferir(typeof pos.montarLote({ slug: "outro", data: "2025-02-03", quantidade: "1", valor: "100" }, ltn, "2026-11-10").erro === "string", "título que não confere com o escolhido é recusado");
+
+  // LTN: 6 títulos por 3.900; hoje 750 cada.
+  const a = pos.avaliarLote(bom.lote, ltn);
+  conferir(a.valorHoje === 4500 && a.resultado === 600 && perto(a.resultadoPct, (600 / 3900) * 100), "vale hoje = quantidade × PU; resultado = hoje − investido");
+  // 03/02/2025 -> 06/11/2026 são 641 dias: faixa de 17,5%.
+  conferir(a.dias === 641 && a.seVender.aliquota === 0.175 && perto(a.seVender.imposto, 105) && perto(a.seVender.liquido, 4395), "se vender hoje: imposto pela faixa do tempo desde a compra, só sobre o ganho");
+  conferir(a.noVencimento.valor === 6000 && a.noVencimento.unidade === "nominal", "se levar ao vencimento: R$ 1.000 por título, em reais nominais");
+  // 03/02/2025 -> 01/01/2029 passa de 720 dias: 15% de (6.000 − 3.900).
+  conferir(a.noVencimento.liquido.aliquota === 0.15 && perto(a.noVencimento.liquido.valor, 5685), "no prefixado sem cupom o líquido do vencimento sai exato");
+
+  const perda = pos.avaliarLote({ ...bom.lote, valor: 5000 }, ltn);
+  conferir(perda.resultado === -500 && perda.seVender.imposto === 0 && perda.seVender.liquido === 4500, "com prejuízo não há imposto na venda");
+  const recente = pos.avaliarLote({ ...bom.lote, data: "2026-10-20" }, ltn);
+  conferir(recente.iof === true && recente.seVender === null, "menos de 30 dias: há IOF, o líquido não sai");
+
+  // NTN-F comprada em 10/03/2025: recebeu os três cupons. Comprada NA data-ex
+  // de 30/06/2025, já não recebeu aquele.
+  const c1 = pos.avaliarLote({ id: "c", slug: ntnf.slug, data: "2025-03-10", quantidade: 3, valor: 2650 }, ntnf, { desde: "2019-01-01" });
+  conferir(perto(c1.cupons, 3 * 3 * 48.81) && perto(c1.resultado, 2700 + 439.29 - 2650), "com cupom: o resultado soma os cupons recebidos desde a compra");
+  conferir(c1.seVender === null, "com cupom: o líquido da venda não é calculado");
+  conferir(perto(c1.noVencimento.valor, 3 * 1439.29) && c1.noVencimento.pagamentos === 9 && !c1.noVencimento.liquido, "com cupom: no vencimento, principal mais os cupons que faltam, sem líquido");
+  const c2 = pos.avaliarLote({ id: "c", slug: ntnf.slug, data: "2025-06-30", quantidade: 1, valor: 900 }, ntnf, { desde: "2019-01-01" });
+  conferir(perto(c2.cupons, 2 * 48.81), "quem compra na data-ex já não recebe aquele cupom");
+  const antigo = pos.avaliarLote({ id: "c", slug: ntnf.slug, data: "2018-05-10", quantidade: 1, valor: 900 }, ntnf, { desde: "2019-01-01" });
+  conferir(!!antigo.cuponsDesconhecidos && antigo.cupons === 0, "compra anterior ao histórico: cupons desconhecidos, e a tela é avisada");
+  const semValor = { ...ntnf, cuponsPagos: [{ data: "2026-07-01", ex: "2026-06-30", valor: null }] };
+  conferir(!!pos.avaliarLote({ id: "c", slug: ntnf.slug, data: "2026-01-10", quantidade: 1, valor: 900 }, semValor, {}).cuponsDesconhecidos, "cupom de valor desconhecido não entra como zero em silêncio");
+
+  const s = pos.avaliarLote({ id: "s", slug: lft.slug, data: "2025-01-10", quantidade: 0.5, valor: 9000 }, lft);
+  conferir(s.valorHoje === 10000 && s.noVencimento === null && s.seVender != null, "LFT: vale hoje e líquido da venda, sem valor no vencimento");
+  conferir(pos.avaliarLote(bom.lote, null).semTitulo === true, "título fora da lista (vencido): sem conta, sem quebrar");
+  conferir(pos.avaliarLote(bom.lote, { ...ltn, pu: null }).valorHoje === null, "sem preço não há valor de hoje — null, não zero");
+
+  const carteira = pos.resumirCarteira(
+    [
+      { id: "1", slug: lft.slug, data: "2025-01-10", quantidade: 0.5, valor: 9000 },
+      bom.lote,
+      { ...bom.lote, id: "2", data: "2024-01-10", quantidade: 4, valor: 2400 },
+      { id: "3", slug: "ipca-2019-05-15", data: "2019-01-10", quantidade: 1, valor: 3000 },
+    ],
+    [ltn, ntnf, lft]
+  );
+  conferir(carteira.grupos.map((g) => g.slug).join() === [ltn.slug, lft.slug, "ipca-2019-05-15"].join(), "um grupo por título, na ordem do servidor; o vencido por último");
+  const g = carteira.grupos[0];
+  conferir(g.quantidade === 10 && g.investido === 6300 && g.valorHoje === 7500 && g.noVencimento.valor === 10000, "lotes do mesmo título somam");
+  conferir(g.lotes[0].lote.data === "2024-01-10", "as compras de um título em ordem de data");
+  conferir(carteira.total.investido === 15300 && carteira.total.valorHoje === 17500 && carteira.total.resultado === 2200, "o total soma investido, valor de hoje e resultado");
+  conferir(!("noVencimento" in carteira.total), "o total NÃO soma o valor no vencimento: reais nominais e reais de hoje não se somam");
+  conferir(carteira.total.foraDoTotal === 1, "o título sem preço fica fora da soma, e a tela é avisada de quantos");
+  conferir(pos.resumirCarteira([], [ltn]).total === null, "carteira vazia: sem total");
+
+  // SÓ NESTE APARELHO. O que a pessoa tem não pode ir para a rede: nem a
+  // conta nem a tela importam o cliente de /api, e ele não sabe que posições
+  // existem.
+  const posSrc = await ler("src/posicoes.js");
+  const cartSrc = await ler("src/components/Carteira.jsx");
+  const apiFonte = await ler("src/api.js");
+  conferir(!/api\.js|fetch\(|XMLHttpRequest|sendBeacon/.test(posSrc.replace(/\/\/.*$/gm, "")), "posicoes.js não fala com a rede");
+  conferir(!/api\.js|fetch\(|XMLHttpRequest|sendBeacon/.test(cartSrc.replace(/\/\/.*$/gm, "")), "a tela da Carteira não fala com a rede");
+  conferir(!/posic/i.test(apiFonte), "o cliente de /api não conhece as posições");
+  const appFonte = await ler("src/App.jsx");
+  conferir(/id: "carteira"/.test(appFonte) && /"Carteira"/.test(await ler("scripts/fumaca.mjs")), "a aba Carteira está no App e no teste de fumaça");
+  conferir(/tesouro-tracker-posicoes/.test(await ler("scripts/fumaca.mjs")), "o teste de fumaça abre a Carteira COM posições");
+}
+
+console.log("\nordem da lista de títulos");
+{
+  const o = await import("../src/ordem.js");
+  const lista = [
+    { slug: "a", vencimento: "2030-01-01", taxa: 7.2, taxaVarPP: -0.3, variacoes: { "1D": { taxaPP: -0.3 } } },
+    { slug: "b", vencimento: "2028-01-01", taxa: null, taxaVarPP: null, variacoes: {} },
+    { slug: "c", vencimento: "2035-01-01", taxa: 7.9, taxaVarPP: 0.05, variacoes: { "1D": { taxaPP: 0.05 } } },
+  ];
+  const ids = (l) => l.map((t) => t.slug).join("");
+  conferir(ids(o.ordenar(lista, o.ORDEM_PADRAO)) === "bac", "padrão: vencimento, do mais próximo ao mais distante");
+  conferir(ids(o.ordenar(lista, { por: "taxa", desc: true })) === "cab", "taxa da maior para a menor, sem dado no fim");
+  conferir(ids(o.ordenar(lista, { por: "taxa", desc: false })) === "acb", "invertida, quem não tem dado CONTINUA no fim");
+  conferir(ids(o.ordenar(lista, { por: "variacao", desc: true })) === "acb", "variação (celular): pelo tamanho do movimento, não pelo sinal");
+  conferir(ids(o.ordenar(lista, { por: "dia", desc: true })) === "cab", "coluna Dia (tabela): com sinal");
+  conferir(o.ordenar(lista, { por: "inexistente", desc: true }) === lista, "chave desconhecida devolve a lista como veio");
+  conferir(o.COLUNAS.filter((c) => c.crescente).map((c) => c.id).join() === "vencimento", "só a data começa do menor para o maior");
+  const titSrc = await ler("src/components/Titulos.jsx");
+  conferir(/useTelaLarga\(\)/.test(titSrc) && /larga \? \(\s*<Tabela/.test(titSrc), "a tabela monta só em tela larga; no celular fica a lista");
+  conferir(/aria-sort=/.test(titSrc), "o cabeçalho diz ao leitor de tela por onde a tabela está ordenada");
+}
+
+// O tema claro. Duas coisas quebram em silêncio: os dois blocos de tokens
+// divergirem (um tema para quem deixou em "auto", outro para quem escolheu à
+// mão), e uma cor ser trocada por outra de contraste insuficiente — que no
+// monitor de quem escreve o código parece ótima.
+console.log("\ntema claro e escuro");
+{
+  const css = (await ler("src/styles.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const bloco = (re) => css.match(re)?.[1] ?? null;
+  const escuro = bloco(/:root\s*\{([^}]*)\}/);
+  const claroAuto = bloco(/@media \(prefers-color-scheme: light\)\s*\{\s*:root:not\(\[data-tema="escuro"\]\)\s*\{([^}]*)\}/);
+  const claroMao = bloco(/:root\[data-tema="claro"\]\s*\{([^}]*)\}/);
+  const tokens = (b) => Object.fromEntries([...(b || "").matchAll(/(--[a-z0-9-]+|color-scheme)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+  const [E, CA, CM] = [tokens(escuro), tokens(claroAuto), tokens(claroMao)];
+  conferir(!!claroAuto && !!claroMao, "o tema claro existe para o modo automático e para a escolha à mão");
+  conferir(JSON.stringify(CA) === JSON.stringify(CM) && Object.keys(CA).length > 10, `os dois blocos do tema claro são idênticos (${Object.keys(CA).length} tokens)`);
+  // Toda cor do escuro tem a sua no claro. "Cor" = o valor é um hex ou rgba.
+  const cores = Object.keys(E).filter((k) => /^#|^rgba?\(/.test(E[k]));
+  const faltando = cores.filter((k) => !(k in CA));
+  conferir(faltando.length === 0, `toda cor do tema escuro tem par no claro${faltando.length ? ` — faltam ${faltando.join(", ")}` : ` (${cores.length})`}`);
+  conferir(CA["--on-accent"] && CA["color-scheme"] === "light" && E["color-scheme"] === "dark", "o claro redefine o texto sobre o acento e diz o esquema ao navegador");
+
+  // Nenhuma cor escrita à mão fora dos blocos de tokens.
+  const semTokens = css.replace(escuro, "").replace(claroAuto, "").replace(claroMao, "");
+  const soltas = semTokens.match(/#[0-9a-fA-F]{3,8}\b|rgba?\(/g) || [];
+  conferir(soltas.length === 0, `nenhuma cor literal fora dos tokens no styles.css${soltas.length ? ` (${soltas.slice(0, 4).join(", ")})` : ""}`);
+
+  // Contraste (WCAG): texto comum pede 4,5:1.
+  const rgb = (h) => [0, 2, 4].map((i) => parseInt(h.replace("#", "").slice(i, i + 2), 16) / 255);
+  const lum = (h) => {
+    const [r, g, b] = rgb(h).map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contraste = (a, b) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x + 0.05) / (y + 0.05);
+  };
+  const misturar = (a, b, p) => `#${rgb(a).map((c, i) => Math.round((c * p + rgb(b)[i] * (1 - p)) * 255).toString(16).padStart(2, "0")).join("")}`;
+  for (const [nome, T0] of [["escuro", E], ["claro", { ...E, ...CA }]]) {
+    const T = { ...T0, "--on-accent": T0["--on-accent"].startsWith("var(") ? T0["--bg"] : T0["--on-accent"] };
+    const pares = [
+      ["--text", "--bg"], ["--text", "--surface"], ["--muted", "--bg"], ["--muted", "--surface"], ["--muted", "--surface-2"],
+      ["--up", "--surface"], ["--up", "--bg"], ["--down", "--surface"], ["--down", "--bg"],
+      ["--accent", "--surface"], ["--accent", "--bg"], ["--accent", "--surface-2"], ["--on-accent", "--accent"], ["--warn", "--warn-bg"],
+    ];
+    const ruins = pares.map(([a, b]) => [a, b, contraste(T[a], T[b])]).filter(([, , c]) => c < 4.5);
+    // Os fundos derivados: o número verde/coral sobre o chip tingido, e o
+    // texto azul sobre o chip ativo.
+    const derivados = [
+      ["alta no chip", contraste(T["--up"], misturar(T["--up"], T["--surface"], 0.12))],
+      ["baixa no chip", contraste(T["--down"], misturar(T["--down"], T["--surface"], 0.12))],
+      ["chip ativo", contraste(T["--accent"], misturar(T["--accent"], T["--surface"], 0.16))],
+    ].filter(([, c]) => c < 4.5);
+    const pior = Math.min(...pares.map(([a, b]) => contraste(T[a], T[b])));
+    conferir(
+      ruins.length === 0 && derivados.length === 0,
+      `tema ${nome}: todo texto com contraste ≥ 4,5:1 (pior par ${pior.toFixed(2)})${ruins.length ? ` — ${ruins.map(([a, b, c]) => `${a}/${b} ${c.toFixed(2)}`).join(", ")}` : ""}${derivados.length ? ` — ${derivados.map(([n, c]) => `${n} ${c.toFixed(2)}`).join(", ")}` : ""}`
+    );
+  }
+
+  // A chave do tema e a cor da barra moram em dois lugares cada.
+  const tema = await import("../src/tema.js");
+  const html = await ler("index.html");
+  conferir(html.includes(`localStorage.getItem("${tema.CHAVE}")`), `o index.html lê a mesma chave de tema que src/tema.js (${tema.CHAVE})`);
+  conferir(tema.COR_DA_BARRA.escuro === E["--bg"] && tema.COR_DA_BARRA.claro === CA["--bg"], "a cor da barra do navegador é o --bg de cada tema");
+  conferir(
+    html.includes(`data-padrao="${E["--bg"]}"`) && html.includes(`data-padrao="${CA["--bg"]}"`),
+    "as duas <meta theme-color> do index.html trazem o --bg de cada tema"
+  );
+  // aplicarTema, com um documento de mentira.
+  const metas = [{ a: { "data-padrao": "#080b14", content: "#080b14" } }, { a: { "data-padrao": "#f3f5fa", content: "#f3f5fa" } }].map((m) => ({
+    getAttribute: (k) => m.a[k] ?? null,
+    setAttribute: (k, v) => void (m.a[k] = v),
+    a: m.a,
+  }));
+  const raiz = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; } };
+  const docFalso = { documentElement: raiz, querySelectorAll: () => metas };
+  tema.aplicarTema("claro", docFalso);
+  conferir(raiz.attrs["data-tema"] === "claro" && metas.every((m) => m.a.content === tema.COR_DA_BARRA.claro), "escolher um tema põe o atributo e acerta a barra do navegador");
+  tema.aplicarTema("auto", docFalso);
+  conferir(!("data-tema" in raiz.attrs) && metas[0].a.content === "#080b14" && metas[1].a.content === "#f3f5fa", "voltar a \"auto\" tira o atributo e devolve cada cor");
+  conferir(tema.TEMAS.map((t) => t.id).join() === "auto,claro,escuro", "três posições: auto, claro, escuro");
+}
+
+console.log("\nchaves de localStorage, as quatro");
+{
+  const chaves = {
+    alertas: (await import("../src/alertas.js")).CHAVE,
+    destaques: (await import("../src/destaques.js")).CHAVE,
+    posicoes: (await import("../src/posicoes.js")).CHAVE,
+    tema: (await import("../src/tema.js")).CHAVE,
+  };
+  conferir(new Set(Object.values(chaves)).size === 4, `chaves distintas (${Object.values(chaves).join(", ")})`);
+  const guia = await ler("CLAUDE.md");
+  for (const [nome, chave] of Object.entries(chaves)) conferir(guia.includes(chave), `CLAUDE.md documenta a chave de ${nome} (${chave})`);
+}
+
 // Casas decimais fixas por tipo de número. Um zero à direita que some não dá
 // erro nenhum — só desalinha a vírgula numa coluna de tabular-nums e faz duas
 // cotações com a mesma precisão parecerem ter precisões diferentes. É o tipo

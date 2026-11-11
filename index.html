@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#080b14" />
+    <!-- A cor da barra do navegador, uma por esquema do sistema. data-padrao
+         guarda a de cada uma: quando a pessoa escolhe um tema à mão,
+         src/tema.js põe a mesma cor nas duas, e em "auto" devolve estas. -->
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#080b14" data-padrao="#080b14" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f5fa" data-padrao="#f3f5fa" />
+    <!-- O TEMA ESCOLHIDO À MÃO, antes da primeira pintura. Sem isto o app
+         abriria no tema do sistema e só trocaria quando o JavaScript rodasse:
+         quem escolheu o claro veria a tela piscar escura a cada abertura. A
+         chave é a de src/tema.js (o verificar.mjs confere que são iguais). -->
+    <script>
+      try {
+        var t = localStorage.getItem("tesouro-tracker-tema");
+        if (t === "claro" || t === "escuro") document.documentElement.setAttribute("data-tema", t);
+      } catch (e) {}
+    </script>
     <meta name="description" content="Rastreador de títulos do Tesouro Direto. Hoje: NTN-B / Tesouro IPCA+ — taxa real, preço unitário e duration por vencimento, curva real, IPCA e Selic. Fontes públicas gratuitas (Tesouro Transparente, ANBIMA e Banco Central)." />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icone.svg" type="image/svg+xml" />

@@ -10,7 +10,9 @@
 // inválido, e os navegadores resolvem isso de formas diferentes — clicar na
 // estrela acabaria abrindo o detalhe junto.
 import { useMemo, useState } from "react";
-import { taxa, pp, anos, reais, dataBR, sinalTaxa, normalizarBusca, unidadeTaxa } from "../format.js";
+import { taxa, pp, pct, anos, reais, dataBR, sinal, sinalTaxa, normalizarBusca, unidadeTaxa } from "../format.js";
+import { useTelaLarga } from "../telaLarga.js";
+import { COLUNAS, ORDEM_PADRAO, ordenar } from "../ordem.js";
 import { Sparkline } from "./Sparkline.jsx";
 import { AguardandoColeta, Vazio } from "./States.jsx";
 import { Seletor } from "./Seletor.jsx";
@@ -37,19 +39,6 @@ const ORDENS = [
   { id: "taxa", rotulo: "Taxa" },
   { id: "variacao", rotulo: "Variação" },
 ];
-const CHAVE_DA_ORDEM = {
-  taxa: (t) => t.taxa,
-  variacao: (t) => (t.taxaVarPP == null ? null : Math.abs(t.taxaVarPP)),
-};
-function ordenar(itens, ordem) {
-  const chave = CHAVE_DA_ORDEM[ordem];
-  if (!chave) return itens; // "vencimento" é a ordem em que o servidor manda
-  return [...itens].sort((a, b) => {
-    const [x, y] = [chave(a), chave(b)];
-    if (x == null || y == null) return (x == null) - (y == null);
-    return y - x; // maior primeiro
-  });
-}
 
 const INDICES = [
   { id: "todos", rotulo: "Todos" },
@@ -93,11 +82,97 @@ function Linha({ t, onOpen, marcado, onAlternar }) {
   );
 }
 
+// A lista como TABELA, uma por família, para telas largas.
+//
+// Uma tabela por família e não uma só: a taxa de um IPCA+ é real, a de um
+// prefixado é nominal e a da Selic é um ágio — numa coluna única, ordenar
+// por taxa poria as três em fila como se fossem a mesma grandeza. As
+// larguras das colunas são fixas e iguais em todas, então as tabelas se
+// alinham na tela como se fossem uma.
+//
+// A linha inteira abre o detalhe com o ponteiro, mas quem leva o foco do
+// teclado e o nome para o leitor de tela é o botão do nome: uma <tr> com
+// onClick sozinha não se alcança por Tab.
+function Tabela({ c, ordem, onOrdenar, onOpen, marcados, onAlternar }) {
+  const ehSelic = c.id === "selic";
+  return (
+    <table className="tabela-titulos">
+      <caption className="so-leitor">{c.nome}</caption>
+      <thead>
+        <tr>
+          <th className="col-estrela">
+            <span className="so-leitor">Acompanhar</span>
+          </th>
+          <th className="col-nome" scope="col">Título</th>
+          {COLUNAS.map((col) => {
+            const ativa = ordem.por === col.id;
+            return (
+              <th key={col.id} scope="col" className={`col-${col.id}`} aria-sort={ativa ? (ordem.desc ? "descending" : "ascending") : "none"}>
+                <button className="th-ordenar" onClick={() => onOrdenar(col)} title={col.dica}>
+                  {col.rotulo}
+                  <span className="th-seta" aria-hidden="true">{ativa ? (ordem.desc ? "↓" : "↑") : ""}</span>
+                </button>
+              </th>
+            );
+          })}
+          <th className="col-spark" scope="col">45 dias</th>
+        </tr>
+      </thead>
+      <tbody>
+        {c.itens.map((t) => {
+          const marcado = marcados.has(t.slug);
+          const dia = t.variacoes?.["1D"]?.taxaPP ?? null;
+          const mes = t.variacoes?.["1M"]?.taxaPP ?? null;
+          return (
+            <tr key={t.slug} className={marcado ? "marcado" : undefined} onClick={() => onOpen(t.slug)}>
+              <td className="col-estrela" onClick={(e) => e.stopPropagation()}>
+                <button
+                  className="estrela"
+                  aria-pressed={marcado}
+                  aria-label={marcado ? `Deixar de acompanhar ${t.nome}` : `Acompanhar ${t.nome} no Painel`}
+                  title={marcado ? "Acompanhado no Painel — clique para tirar" : "Acompanhar no Painel"}
+                  onClick={() => onAlternar(t.slug)}
+                >
+                  {marcado ? "★" : "☆"}
+                </button>
+              </td>
+              <th className="col-nome" scope="row">
+                <button className="tt-nome" onClick={(e) => { e.stopPropagation(); onOpen(t.slug); }}>
+                  {t.nome}
+                </button>
+                {t.desatualizado && <span className="stale">desatualizado</span>}
+              </th>
+              <td className="col-vencimento mono">{dataBR(t.vencimento)}</td>
+              <td className="col-taxa mono tt-forte">{taxa(t.taxa, ehSelic ? 4 : 2)}</td>
+              <td className={`col-dia mono ${sinalTaxa(dia)}`}>{pp(dia)}</td>
+              <td className={`col-mes mono ${sinalTaxa(mes)}`}>{pp(mes)}</td>
+              <td className="col-pu mono">{reais(t.pu)}</td>
+              <td className="col-duration mono">{anos(t.duration?.macaulay ?? null)}</td>
+              <td className={`col-sens mono ${sinal(t.duration?.variacaoPor1pp)}`}>{pct(t.duration?.variacaoPor1pp ?? null)}</td>
+              <td className="col-spark">
+                <Sparkline points={t.spark} inverter />
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 export function Titulos({ dados, onOpen, marcados, onAlternar }) {
+  // A tabela MONTA só em tela larga (o mesmo corte da coluna do Painel): no
+  // celular dez colunas não cabem, e a lista de cartões segue sendo a tela.
+  const larga = useTelaLarga();
   const [busca, setBusca] = useState("");
   const [indice, setIndice] = useState("todos");
   const [cupom, setCupom] = useState("todos"); // "todos" | "sem" | "com"
-  const [ordem, setOrdem] = useState("vencimento");
+  const [ordem, setOrdem] = useState(ORDEM_PADRAO);
+  // O seletor do celular escolhe a grandeza e usa o sentido habitual dela; o
+  // cabeçalho da tabela inverte quando se clica de novo na mesma coluna.
+  const ordenarPeloSeletor = (por) => setOrdem({ por, desc: por !== "vencimento" });
+  const ordenarPelaColuna = (col) =>
+    setOrdem((atual) => (atual.por === col.id ? { por: col.id, desc: !atual.desc } : { por: col.id, desc: !col.crescente }));
 
   const categorias = dados.categorias || [];
   const filtradas = useMemo(() => {
@@ -126,33 +201,41 @@ export function Titulos({ dados, onOpen, marcados, onAlternar }) {
 
   return (
     <div>
-      <div className="controls">
-        <input
-          className="input"
-          type="search"
-          placeholder="Buscar por ano ou nome…"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          aria-label="Buscar vencimento"
+      {/* Em tela larga os controles ficam numa linha só, cada um com a
+          largura do que contém (ver .titulos-controles): esticados de ponta a
+          ponta em 1.200px, três posições de um seletor ficavam a um palmo
+          uma da outra. A "Ordem" some ali — o cabeçalho da tabela a faz. */}
+      <div className="titulos-controles">
+        <div className="controls">
+          <input
+            className="input"
+            type="search"
+            placeholder="Buscar por ano ou nome…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            aria-label="Buscar vencimento"
+          />
+        </div>
+        <Seletor rotulo="Índice" opcoes={INDICES} valor={indice} onChange={escolherIndice} compacto={larga} />
+        <Seletor
+          rotulo="Cupom"
+          opcoes={[
+            { id: "todos", rotulo: "Todos" },
+            { id: "sem", rotulo: "Sem" },
+            { id: "com", rotulo: "Com", desabilitada: indice === "selic" },
+          ]}
+          valor={cupom}
+          onChange={setCupom}
+          compacto={larga}
         />
+        {!larga && <Seletor rotulo="Ordem" opcoes={ORDENS} valor={ordem.por} onChange={ordenarPeloSeletor} />}
       </div>
-      <Seletor rotulo="Índice" opcoes={INDICES} valor={indice} onChange={escolherIndice} />
-      <Seletor
-        rotulo="Cupom"
-        opcoes={[
-          { id: "todos", rotulo: "Todos" },
-          { id: "sem", rotulo: "Sem" },
-          { id: "com", rotulo: "Com", desabilitada: indice === "selic" },
-        ]}
-        valor={cupom}
-        onChange={setCupom}
-      />
-      <Seletor rotulo="Ordem" opcoes={ORDENS} valor={ordem} onChange={setOrdem} />
 
       <p className="section-sub" style={{ marginTop: "var(--s3)" }}>
-        Toque na estrela para acompanhar um vencimento no Painel
+        {larga ? "Clique" : "Toque"} na estrela para acompanhar um vencimento no Painel
         {marcados.size > 0 && <> · {marcados.size} acompanhado{marcados.size > 1 ? "s" : ""}</>}.
         A escolha fica só neste aparelho.
+        {larga && " Clique no nome de uma coluna para ordenar por ela, dentro de cada família."}
       </p>
 
       {filtradas.length === 0 && <Vazio texto="Nenhum vencimento com esse filtro." />}
@@ -161,15 +244,13 @@ export function Titulos({ dados, onOpen, marcados, onAlternar }) {
         <section key={c.id}>
           <h2 className="section-title">{c.nome}</h2>
           <p className="section-sub">{c.resumo}</p>
-          {c.itens.map((t) => (
-            <Linha
-              key={t.slug}
-              t={t}
-              onOpen={onOpen}
-              marcado={marcados.has(t.slug)}
-              onAlternar={onAlternar}
-            />
-          ))}
+          {larga ? (
+            <Tabela c={c} ordem={ordem} onOrdenar={ordenarPelaColuna} onOpen={onOpen} marcados={marcados} onAlternar={onAlternar} />
+          ) : (
+            c.itens.map((t) => (
+              <Linha key={t.slug} t={t} onOpen={onOpen} marcado={marcados.has(t.slug)} onAlternar={onAlternar} />
+            ))
+          )}
         </section>
       ))}
     </div>

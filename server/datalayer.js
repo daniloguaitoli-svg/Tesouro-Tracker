@@ -26,6 +26,9 @@ import {
   variacaoNoAno,
   variacoesDoTitulo,
   percentilDoUltimo,
+  valorDeFace,
+  recebimentosFuturos,
+  cuponsPagos,
   cruzarSeries,
   retornoPeriodo,
   retornoNoAno,
@@ -84,6 +87,19 @@ function variacaoDoDia(variacoes) {
     taxaVarPP: dia?.taxaPP ?? null,
     puVarPct: dia?.puPct ?? null,
   };
+}
+
+// Os cupons já pagos de cada título com juros. A série só cresce na ponta e o
+// processo vive entre duas coletas, então a conta — um desconto de fluxo
+// inteiro por pagamento — é feita uma vez por título e por data do último
+// preço, e não a cada /api/titulos.
+const cuponsGuardados = new Map();
+function cuponsDoTitulo(slug, meta, serie) {
+  const chave = `${slug}|${serie[serie.length - 1]?.date}|${hojeISO()}`;
+  if (!cuponsGuardados.has(chave)) {
+    cuponsGuardados.set(chave, cuponsPagos({ tipo: meta.tipo, vencimentoISO: meta.vencimento, cupomAnual: meta.cupomAnual, serie }));
+  }
+  return cuponsGuardados.get(chave);
 }
 
 // Monta um item completo (metadados + taxa + PU + duration) a partir do slug.
@@ -171,6 +187,14 @@ function montarItem(slug, { comSerie = false } = {}) {
     item.rendaCupomAnualPct = null;
   }
 
+  // O QUE A CARTEIRA PRECISA SABER DO TÍTULO — e só do título: quantos a
+  // pessoa tem e quanto pagou ficam no aparelho dela e nunca chegam aqui.
+  // `face` e `recebimentos` dizem o que um título ainda paga se não for
+  // vendido; `cuponsPagos`, o que já pagou a quem o tinha em cada data.
+  item.face = valorDeFace({ tipo, vencimentoISO: vencimento, comCupom, cupomAnual: meta.cupomAnual, taxa, pu: ultimo?.pu ?? null, dataISO: ultimo?.date ?? null });
+  item.recebimentos = recebimentosFuturos({ face: item.face, vencimentoISO: vencimento, comCupom, cupomAnual: meta.cupomAnual });
+  if (comCupom) item.cuponsPagos = cuponsDoTitulo(slug, meta, serie);
+
   // Série curta para o sparkline da lista: 45 pontos é o que cabe num traço de
   // 60px e evita uma requisição por linha.
   item.spark = serie.slice(-45).map((p) => p.taxa);
@@ -209,6 +233,9 @@ export async function getTitulos() {
     fetchedAt: new Date().toISOString(),
     atualizadoEm: cache.historico().atualizadoEm,
     coletadoEm: cache.ponte().atualizadoEm,
+    // Desde quando há preço no arquivo. A Carteira usa para não somar cupons
+    // de uma compra mais antiga que o histórico — os de antes ela não conhece.
+    historicoDesde: cache.historico().desde ?? null,
     // Vazio antes da primeira coleta — a UI usa isto para explicar a espera em
     // vez de mostrar uma tela quebrada.
     pendente: todos.length === 0,

@@ -12,7 +12,7 @@
 // registro em main.jsx recarrega a página uma vez quando detecta a atualização.
 //
 // CACHE é a string de versão a subir quando os assets precachados mudarem.
-const CACHE = "tesouro-tracker-v2";
+const CACHE = "tesouro-tracker-v3";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest"];
 // O cache das respostas de /api, escrito por src/api.js (CACHE_DADOS). Está
 // aqui só para NÃO ser apagado: a ativação abaixo remove todo cache que não

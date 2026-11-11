@@ -609,3 +609,96 @@ export function percentilDoUltimo(valores, minimo = MIN_PONTOS_PERCENTIL) {
   for (let i = 0; i < v.length - 1; i++) if (v[i] < atual) abaixo++;
   return (abaixo / (v.length - 1)) * 100;
 }
+
+// ---------- O valor de face, e o que um título ainda vai pagar ----------
+
+// LTN e NTN-F valem exatamente R$ 1.000 no vencimento — é a definição do
+// título, a mesma que deixa o verificar.mjs reconstruir o PU oficial da LTN.
+export const FACE_PREFIXADO = 1000;
+
+// O valor de face de UM título na data do preço.
+//
+//   prefixado: R$ 1.000, em reais do vencimento (nominal). Exato.
+//   IPCA+:     o VNA — os R$ 1.000 de julho/2000 corrigidos pelo IPCA até a
+//              data do preço. Em reais DE HOJE; no vencimento ele valerá isso
+//              mais a inflação que houver até lá.
+//   Selic:     null. O VNA da LFT rende a Selic até o vencimento, e quanto
+//              isso dará ninguém sabe hoje.
+//
+// O VNA NÃO VEM NO ARQUIVO DO TESOURO, mas sai dos dois números que vêm: o PU
+// é o VNA vezes o preço por 100 que a taxa do dia implica, então
+// VNA = PU ÷ precoPor100 × 100. Medido em 06/11/2026: os 15 IPCA+ em oferta,
+// com e sem cupom, de 2029 a 2060, dão o mesmo VNA com 0,03% de dispersão
+// (4.774,39 a 4.775,83); a mesma conta nos prefixados devolve 1.000 com 0,01%.
+// O verificar.mjs repete as duas medidas a cada rodada.
+export function valorDeFace({ tipo, vencimentoISO, comCupom, cupomAnual, taxa, pu, dataISO }) {
+  if (!temDuration(tipo)) return null;
+  if (String(tipo).startsWith("prefixado")) return { valor: FACE_PREFIXADO, unidade: "nominal" };
+  if (taxa == null || !pu || !dataISO) return null;
+  const por100 = precoPor100({ vencimentoISO, comCupom, cupomAnual: cupomAnual ?? undefined, taxaReal: taxa / 100, hojeISO: dataISO });
+  return por100 ? { valor: (pu / por100) * 100, unidade: "hoje" } : null;
+}
+
+// O que UM título ainda paga, de hoje ao vencimento, na unidade da face:
+// o principal e, nos títulos com juros, um cupom por semestre.
+//
+// A soma NÃO é um valor presente: são os pagamentos como eles vão cair, sem
+// trazer nada a hoje. É a resposta a "quanto eu recebo se não vender" — a
+// pergunta que o preço de mercado, que desconta tudo, não responde.
+export function recebimentosFuturos({ face, vencimentoISO, comCupom, cupomAnual, hojeISO: hoje = hojeISO() }) {
+  if (!face) return null;
+  const fluxos = fluxosNTNB({ vencimentoISO, comCupom, cupomAnual: cupomAnual ?? undefined, hojeISO: hoje });
+  if (!fluxos.length) return null;
+  const cupom = comCupom ? face.valor * (Math.pow(1 + (cupomAnual ?? CUPOM_ANUAL_NTNB), 1 / 2) - 1) : 0;
+  const pagamentos = comCupom ? fluxos.length : 0;
+  return {
+    principal: face.valor,
+    cupom,
+    pagamentos,
+    total: face.valor + cupom * pagamentos,
+    unidade: face.unidade,
+  };
+}
+
+// Os cupons que um título JÁ pagou, por unidade, dentro do que a série alcança.
+// `serie` é [{ date, taxa, pu }] crescente. Cada item: { data, ex, valor }.
+//
+// `ex` é a data que decide quem recebeu: comprou ANTES dela, recebeu aquele
+// cupom (ver dataExCupom). O valor é exato nos prefixados (R$ 1.000 × a
+// parcela do semestre) e, nos IPCA+, sai do VNA implícito no último preço
+// ainda com o cupom — a véspera da data-ex. Sem preço perto dessa véspera o
+// valor é null: um cupom que se sabe que existiu, de tamanho desconhecido,
+// não pode entrar numa soma como zero.
+export function cuponsPagos({ tipo, vencimentoISO, cupomAnual, serie, hojeISO: hoje = hojeISO() }) {
+  if (!Array.isArray(serie) || !serie.length) return [];
+  const parcela = Math.pow(1 + (cupomAnual ?? CUPOM_ANUAL_NTNB), 1 / 2) - 1;
+  const prefixado = String(tipo).startsWith("prefixado");
+  const inicio = serie[0].date;
+  const pagos = [];
+  let d = dataDeISO(vencimentoISO);
+  for (;;) {
+    const data = d.toISOString().slice(0, 10);
+    d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 6, d.getUTCDate()));
+    const ex = dataExCupom(data);
+    if (ex <= inicio) break;
+    // O do vencimento vem junto com o principal: não é um cupom "já pago".
+    if (data > hoje || data >= vencimentoISO) continue;
+
+    let valor = prefixado ? FACE_PREFIXADO * parcela : null;
+    if (!prefixado) {
+      let vespera = null;
+      for (let i = serie.length - 1; i >= 0; i--) {
+        if (serie[i].date < ex) {
+          vespera = serie[i];
+          break;
+        }
+      }
+      if (vespera && vespera.date >= isoMenosDias(ex, TOLERANCIA_DA_BASE_DIAS)) {
+        const face = valorDeFace({ tipo, vencimentoISO, comCupom: true, cupomAnual, taxa: vespera.taxa, pu: vespera.pu, dataISO: vespera.date });
+        valor = face ? face.valor * parcela : null;
+      }
+    }
+    pagos.push({ data, ex, valor });
+  }
+  return pagos.reverse();
+}
