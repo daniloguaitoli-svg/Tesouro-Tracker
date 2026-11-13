@@ -21,7 +21,10 @@ import * as bcglobais from "./providers/globais.js";
 import { ibovespa, todosIndices } from "./providers/yahoo.js";
 import { todasInflacoes } from "./providers/inflacao.js";
 import { REGIOES, manchetes } from "./providers/noticias.js";
-import { caminhoDaSelic, CALENDARIO_ATE, CALENDARIO_CONFERIDO_EM } from "./selic.js";
+import { caminhoDaSelic, rotuloFocus, CALENDARIO_ATE, CALENDARIO_CONFERIDO_EM } from "./selic.js";
+import { acharEpisodios, choqueNoPrazo, familiaDoChoque } from "./episodios.js";
+import { FUTURO_DA_FAMILIA, curvaDoFuturo, taxaDoFuturo, paradoEm12Meses } from "./futuro.js";
+import { focusNoPeriodo } from "./providers/focus.js";
 import {
   variacaoPeriodo,
   variacaoNoAno,
@@ -110,6 +113,129 @@ function resumoDoDia(itens) {
   const dataDosPrecos = itens.reduce((m, t) => (t.data && t.data > m ? t.data : m), "");
   if (r.dataDosPrecos !== dataDosPrecos) return null;
   return { texto: r.texto, dataDosPrecos: r.dataDosPrecos, geradoEm: r.geradoEm, geradoPor: r.geradoPor, aviso: r.aviso };
+}
+
+// ---------- Os piores momentos do histórico ----------
+
+// O piso da curva vale aqui também (definido mais abaixo, junto das curvas):
+// é uma `const` do módulo, e só é LIDA dentro de função, depois da carga.
+
+// As janelas em que as taxas mais subiram (server/episodios.js). O histórico
+// não muda dentro de um processo — o cache o lê uma vez —, então a varredura
+// é feita na primeira chamada e nunca mais.
+let episodiosGuardados = null;
+function episodiosDoHistorico() {
+  if (!episodiosGuardados) {
+    const titulos = Object.values(cache.historico().titulos || {});
+    episodiosGuardados = acharEpisodios(titulos, { prazoMinimo: PRAZO_MINIMO_CURVA });
+  }
+  return episodiosGuardados;
+}
+
+// O que cada episódio faria com ESTE título hoje: a alta de taxa daquela
+// janela, no prazo que o título tem agora, e o efeito no preço — por
+// REPRECIFICAÇÃO do fluxo, não pela aproximação de duration: os choques daqui
+// passam de 2 p.p., onde o termo que a expansão despreza já pesa.
+//
+// { [id do episódio]: [Δ taxa em p.p., Δ preço em %] }. null para a LFT (sem
+// choque de taxa) e para título sem taxa.
+function choquesDoTitulo({ tipo, vencimento, comCupom, cupomAnual, taxa, anos }) {
+  const familia = familiaDoChoque(tipo);
+  if (!familia || taxa == null) return null;
+  const base = { vencimentoISO: vencimento, comCupom, cupomAnual };
+  const precoHoje = precoPor100({ ...base, taxaReal: taxa / 100 });
+  if (!(precoHoje > 0)) return null;
+  const saida = {};
+  for (const ep of episodiosDoHistorico()) {
+    const delta = choqueNoPrazo(ep[familia], anos);
+    if (delta == null) continue;
+    const precoDepois = precoPor100({ ...base, taxaReal: (taxa + delta) / 100 });
+    saida[ep.id] = [arred(delta, 3), arred((precoDepois / precoHoje - 1) * 100, 3)];
+  }
+  return saida;
+}
+
+// ---------- O título contra o futuro ----------
+
+// Em quantos pregões a média do prêmio é tirada. Teto, não alvo: o histórico
+// de futuros nasceu em 10/2026 e cresce um dia por coleta. O teto existe
+// para a conta não crescer para sempre — cada pregão é um fluxo inteiro
+// descontado por título.
+const PREGOES_DO_PREMIO = 60;
+// Menos que isto e "média" seria o nome de dois ou três números.
+const MIN_PREGOES_DO_PREMIO = 5;
+
+// A curva de futuros de uma família numa data, guardada por (ativo, data): a
+// mesma serve a todos os títulos da família.
+const curvasGuardadas = new Map();
+function curvaDoFuturoEm(ativo, dataISO) {
+  const chave = `${ativo}|${dataISO}`;
+  if (!curvasGuardadas.has(chave)) {
+    // A ponta curta da DAP é distorcida pelo IPCA já conhecido (ver
+    // curvasDeFuturos): mesmo piso da tela. O DI1 é limpo desde o primeiro dia.
+    const duMinimo = ativo === "DAP" ? Math.round(PRAZO_MINIMO_CURVA * 252) : 0;
+    curvasGuardadas.set(chave, curvaDoFuturo(cache.futuros(), ativo, dataISO, { duMinimo }));
+  }
+  return curvasGuardadas.get(chave);
+}
+
+let datasDeFuturos = null;
+function pregoesColetados() {
+  if (!datasDeFuturos) {
+    const datas = new Set();
+    for (const c of Object.values(cache.futuros().contratos || {})) for (const d of Object.keys(c.serie || {})) datas.add(d);
+    datasDeFuturos = [...datas].sort();
+  }
+  return datasDeFuturos;
+}
+
+// O prêmio do título sobre o futuro e o que ele rende parado em 12 meses.
+//
+// NA MESMA DATA, SEMPRE: a taxa do título é a do último preço do Tesouro, e a
+// curva é a do futuro NAQUELE dia — não a mais recente. Medido em 13/11/2026
+// com 12 pregões: casando a mesma data o desvio do prêmio fica entre 0,03 e
+// 0,15 p.p.; casando com o pregão anterior, um único dia de reprecificação
+// (26/10) abre 2,76 p.p. num Prefixado 2029. Sem futuro coletado na data do
+// preço não há leitura — null, nunca a data vizinha.
+const leiturasGuardadas = new Map();
+function contraFuturoDe(slug) {
+  const meta = cache.metaDe(slug);
+  const ativo = meta && FUTURO_DA_FAMILIA[meta.tipo];
+  if (!ativo) return null;
+  const serie = cache.serieDe(slug);
+  const ultimo = serie[serie.length - 1];
+  if (ultimo?.taxa == null) return null;
+  const chave = `${slug}|${ultimo.date}`;
+  if (leiturasGuardadas.has(chave)) return leiturasGuardadas.get(chave);
+
+  const base = { vencimentoISO: meta.vencimento, comCupom: meta.comCupom === true, cupomAnual: meta.cupomAnual ?? undefined };
+  const premioEm = (ponto) => {
+    const futuro = taxaDoFuturo({ ...base, dataISO: ponto.date, curva: curvaDoFuturoEm(ativo, ponto.date) });
+    return futuro == null ? null : { futuro, premio: ponto.taxa - futuro };
+  };
+
+  let leitura = null;
+  const hoje = premioEm(ultimo);
+  if (hoje) {
+    const coletados = new Set(pregoesColetados().slice(-PREGOES_DO_PREMIO));
+    const premios = serie
+      .filter((p) => p.taxa != null && coletados.has(p.date))
+      .map((p) => premioEm(p)?.premio)
+      .filter((v) => v != null);
+    leitura = {
+      ativo,
+      data: ultimo.date,
+      taxaFuturo: arred(hoje.futuro, 3),
+      premioPP: arred(hoje.premio, 3),
+      media:
+        premios.length >= MIN_PREGOES_DO_PREMIO
+          ? { pp: arred(premios.reduce((s, v) => s + v, 0) / premios.length, 3), pregoes: premios.length }
+          : null,
+      parado: paradoEm12Meses({ ...base, taxa: ultimo.taxa, dataISO: ultimo.date, curva: curvaDoFuturoEm(ativo, ultimo.date) }),
+    };
+  }
+  leiturasGuardadas.set(chave, leitura);
+  return leitura;
 }
 
 // Monta um item completo (metadados + taxa + PU + duration) a partir do slug.
@@ -205,6 +331,10 @@ function montarItem(slug, { comSerie = false } = {}) {
   item.recebimentos = recebimentosFuturos({ face: item.face, vencimentoISO: vencimento, comCupom, cupomAnual: meta.cupomAnual });
   if (comCupom) item.cuponsPagos = cuponsDoTitulo(slug, meta, serie);
 
+  // O que os piores momentos do histórico fariam com este título hoje. A
+  // Carteira multiplica pela quantidade, no aparelho.
+  item.choques = choquesDoTitulo({ tipo, vencimento, comCupom, cupomAnual: meta.cupomAnual ?? undefined, taxa, anos: item.anosAteVencer });
+
   // Série curta para o sparkline da lista: 45 pontos é o que cabe num traço de
   // 60px e evita uma requisição por linha.
   item.spark = serie.slice(-45).map((p) => p.taxa);
@@ -246,6 +376,12 @@ export async function getTitulos() {
     // Desde quando há preço no arquivo. A Carteira usa para não somar cupons
     // de uma compra mais antiga que o histórico — os de antes ela não conhece.
     historicoDesde: cache.historico().desde ?? null,
+    // As janelas em que as taxas mais subiram, para a Carteira repetir no que
+    // a pessoa tem. Só o cabeçalho de cada uma: o efeito em cada título já
+    // vai em `choques`, e o formato do choque por prazo não interessa à tela.
+    episodios: episodiosDoHistorico().map(({ id, horizonte, de, ate, realPP, nominalPP }) => ({
+      id, horizonte, de, ate, realPP: arred(realPP, 2), nominalPP: arred(nominalPP, 2),
+    })),
     // O resumo do dia, quando há um E ele é dos preços que estão na tela. Um
     // resumo de anteontem ao lado de preços de ontem descreveria outro dia.
     resumo: resumoDoDia(todos),
@@ -277,7 +413,11 @@ const MAX_VARIACAO_PLAUSIVEL_PP = 1.5;
 
 // PURA sobre o arquivo de futuros, para o verificar.mjs e o coletor (que a
 // usa nos fatos do resumo) chamarem sem rede. `cdiHoje` e `metaHoje` em %.
-export function selicImplicitaDe(futuros, { cdiHoje = null, metaHoje = null } = {}) {
+export function selicImplicitaDe(futuros, { cdiHoje = null, metaHoje = null, focus = null } = {}) {
+  // O que os economistas esperam para a MESMA reunião (pesquisa Focus), para
+  // ficar ao lado do que os preços embutem. A reunião é achada pelo nome que
+  // a pesquisa lhe dá ("R8/2026"), tirado do mesmo calendário da conta.
+  const doFocus = new Map((focus?.reunioes || []).map((r) => [r.reuniao, r.mediana]));
   const di = Object.values(futuros?.contratos || {}).filter((c) => c.ativo === "DI1" && c.serie);
   const dataRef = di.reduce((m, c) => {
     const ult = Object.keys(c.serie).sort().pop();
@@ -300,6 +440,7 @@ export function selicImplicitaDe(futuros, { cdiHoje = null, metaHoje = null } = 
       // CDI implícito: o CDI anda uns 0,10 p.p. abaixo da meta, e mostrar
       // "13,69%" ao lado de uma meta de 13,75% leria como corte.
       metaImplicita: metaHoje != null ? metaHoje + r.acumuladoPP : null,
+      focus: doFocus.get(rotuloFocus(r.data)) ?? null,
     });
   }
   return {
@@ -309,6 +450,8 @@ export function selicImplicitaDe(futuros, { cdiHoje = null, metaHoje = null } = 
     reunioes,
     calendarioAte: CALENDARIO_ATE,
     calendarioConferidoEm: CALENDARIO_CONFERIDO_EM,
+    // A data da pesquisa só viaja se alguma reunião da tela a usou.
+    focusDe: reunioes.some((r) => r.focus != null) ? focus?.data ?? null : null,
     fonte: "B3 — ajustes do DI1 (arquivo público UP2DATA)",
   };
 }
@@ -401,6 +544,10 @@ export async function getDetalhe(slug, tf = "1A") {
     tf,
     timeframes: TIMEFRAMES,
     item: semSerie,
+    // O título contra a curva de juros futuros, na data do preço dele: o
+    // prêmio e o que ele rende em 12 meses se a curva ficar onde está. null
+    // para a LFT e quando não há futuro coletado naquela data.
+    contraFuturo: contraFuturoDe(slug),
     pontos,
     estatisticas,
     fluxos: duration.fluxos ?? [],
@@ -479,7 +626,7 @@ function inflacaoImplicita(real, nominal) {
   const porPrazo = new Map();
   for (const p of nominal) {
     const chave = p.anos.toFixed(2);
-    const g = porPrazo.get(chave) || { anos: p.anos, soma: 0, n: 0 };
+    const g = porPrazo.get(chave) || { anos: p.anos, vencimento: p.vencimento, soma: 0, n: 0 };
     g.soma += p.taxa;
     g.n += 1;
     porPrazo.set(chave, g);
@@ -490,7 +637,7 @@ function inflacaoImplicita(real, nominal) {
       const r = interporTaxa(real, g.anos);
       if (r == null) return null;
       const taxa = ((1 + nom / 100) / (1 + r / 100) - 1) * 100;
-      return { anos: g.anos, taxa: arred(taxa, 2), nominal: arred(nom, 2), real: arred(r, 2) };
+      return { anos: g.anos, vencimento: g.vencimento, taxa: arred(taxa, 2), nominal: arred(nom, 2), real: arred(r, 2) };
     })
     .filter(Boolean)
     .sort((a, b) => a.anos - b.anos);
@@ -740,13 +887,62 @@ export async function getCurva() {
   const real = montarCurva(TIPOS_REAL);
   const prefixada = montarCurva(TIPOS_PREFIXADA);
 
+  // O FOCUS AO LADO DA IMPLÍCITA: a inflação média que a pesquisa espera no
+  // MESMO período de cada ponto (de hoje ao vencimento do prefixado). Só nos
+  // pontos que a pesquisa alcança — ela vai uns quatro anos à frente, e além
+  // disso o campo é null, não a última mediana repetida.
+  const focusIpca = cache.focus().ipca;
+  const implicitaAgora = inflacaoImplicita(real?.agora || [], prefixada?.agora || []).map((p) => {
+    const esperado = focusNoPeriodo(focusIpca?.anos, hoje, p.vencimento);
+    return { ...p, focus: esperado == null ? null : arred(esperado, 2) };
+  });
+
+  // CADA TÍTULO CONTRA O FUTURO NO MESMO PRAZO. Todos os vivos das quatro
+  // curvas, o piso inclusive: aqui não é ponto de curva, é uma linha de
+  // tabela — e quem não tem leitura (prazo fora da curva de futuros) vem com
+  // os campos null, em vez de sumir.
+  const contraFuturo = FAMILIAS_CURVA.flatMap((f) =>
+    todos
+      .filter((t) => f.tipos.includes(t.tipo) && t.vencimento > hoje)
+      .sort((a, b) => (a.vencimento < b.vencimento ? -1 : 1))
+      .map((t) => {
+        const leitura = contraFuturoDe(t.slug);
+        const doCatalogo = porSlug[t.slug] || null;
+        return {
+          slug: t.slug,
+          curva: f.id,
+          nome: doCatalogo?.nome || rotuloGenerico(t.tipo, t.vencimento),
+          vencimento: t.vencimento,
+          comCupom: t.comCupom === true,
+          taxa: t.taxa,
+          data: t.data,
+          ...(leitura || { ativo: FUTURO_DA_FAMILIA[t.tipo], taxaFuturo: null, premioPP: null, media: null, parado: null }),
+        };
+      })
+  );
+  const comLeitura = contraFuturo.filter((l) => l.premioPP != null);
+
   return {
     fetchedAt: new Date().toISOString(),
     atualizadoEm: cache.historico().atualizadoEm,
     pendente: curvas.every((c) => c.agora.length === 0),
     curvas,
+    // null enquanto não há futuro coletado na data do preço de título nenhum
+    // (antes da primeira coleta da B3, ou num dia em que ela faltou).
+    contraFuturo: comLeitura.length
+      ? {
+          linhas: contraFuturo,
+          // As datas travam juntas por construção (ver contraFuturoDe); vão no
+          // payload para a tela DIZER a data, que é o que a regra pede.
+          data: comLeitura.reduce((m, l) => (l.data > m ? l.data : m), ""),
+          pregoes: pregoesColetados().length,
+          desde: pregoesColetados()[0] ?? null,
+          fonte: cache.futuros().fonte || "B3",
+        }
+      : null,
+    focus: focusIpca?.anos?.length ? { data: focusIpca.data, anos: focusIpca.anos, fonte: cache.focus().fonte } : null,
     implicita: {
-      agora: inflacaoImplicita(real?.agora || [], prefixada?.agora || []),
+      agora: implicitaAgora,
       umMesAtras: inflacaoImplicita(real?.umMesAtras || [], prefixada?.umMesAtras || []),
       umAnoAtras: inflacaoImplicita(real?.umAnoAtras || [], prefixada?.umAnoAtras || []),
     },
@@ -1099,7 +1295,7 @@ export async function getMercado() {
     // O que o DI futuro embute para as próximas reuniões do Copom. Sai do
     // arquivo versionado de futuros, então existe mesmo com o BCB fora do ar —
     // só o nível (meta implícita) depende da meta de hoje.
-    selicImplicita: selicImplicitaDe(cache.futuros(), { cdiHoje: ind.cdi?.valor ?? null, metaHoje: ind.selic?.valor ?? null }),
+    selicImplicita: selicImplicitaDe(cache.futuros(), { cdiHoje: ind.cdi?.valor ?? null, metaHoje: ind.selic?.valor ?? null, focus: cache.focus().selic }),
     globaisAtualizadosEm: g.atualizadoEm,
     grupos: [
       // `mostrarBase`: a cotação que entrou na conta aparece embaixo do

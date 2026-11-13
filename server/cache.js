@@ -77,6 +77,20 @@ try {
   RESUMO = { geradoEm: null, dataDosPrecos: null, texto: null };
 }
 
+// A pesquisa Focus do Banco Central (server/providers/focus.js), lida pelo
+// coletor. Nasce vazia; sem ela as comparações "preços × economistas"
+// simplesmente não aparecem.
+let FOCUS;
+try {
+  FOCUS = require("../dados/focus.json");
+} catch {
+  FOCUS = { atualizadoEm: null, selic: null, ipca: null };
+}
+
+export function focus() {
+  return FOCUS;
+}
+
 export function resumo() {
   return RESUMO;
 }

@@ -214,6 +214,12 @@ function SelicImplicita({ s }) {
   // sem a meta de hoje (Banco Central fora do ar) a coluna vira o acumulado,
   // em vez de uma fileira de travessões.
   const comMeta = s.metaHoje != null;
+  // COM A PESQUISA FOCUS, a terceira coluna passa a ser ela — o que os
+  // economistas esperam para a mesma reunião — e a alta "na reunião" desce
+  // para uma segunda linha, menor, sob a meta implícita. Continuam três
+  // colunas: quatro não cabem, e a comparação que interessa é a do nível
+  // (13,79% nos preços contra 13,75% na pesquisa), lado a lado.
+  const comFocus = comMeta && s.reunioes.some((r) => r.focus != null);
   return (
     <>
       <h2 className="section-title">
@@ -241,8 +247,18 @@ function SelicImplicita({ s }) {
             do Banco Central, que vai até {dataBR(s.calendarioAte)} e pode mudar (conferido em{" "}
             {dataBR(s.calendarioConferidoEm)}).
           </p>
+          {comFocus && (
+            <p>
+              <strong>Focus</strong> é a mediana da pesquisa do Banco Central com economistas,
+              para a mesma reunião. Pesquisa não tem prêmio de risco; preço tem. Por isso a
+              distância entre as duas colunas é a leitura: o quanto do que a curva embute é o
+              mercado cobrando para correr o risco, e não o que se espera de fato. A pesquisa
+              também erra — é opinião, não resultado.
+            </p>
+          )}
           <p className="explica-fonte">
             {s.fonte}. Preços de ajuste de {dataBR(s.dataRef)}, em dias úteis/252.
+            {comFocus && s.focusDe && <> Focus: pesquisa de {dataBR(s.focusDe)}.</>}
           </p>
         </Explica>
       </h2>
@@ -250,15 +266,24 @@ function SelicImplicita({ s }) {
         Pelos preços do DI futuro de {dataBR(s.dataRef)}
         {comMeta && <>, com a meta hoje em <span className="mono">{num(s.metaHoje)}%</span></>}.{" "}
         <strong>Não é previsão</strong>: inclui prêmio de risco.
+        {comFocus && <> Ao lado, o que os economistas esperam (Focus de {dataBR(s.focusDe)}).</>}
       </p>
       <div className="rolagem">
         <table className="tbl selic-implicita">
           <thead>
-            <tr>
-              <th>Reunião</th>
-              <th className="rt">Na reunião</th>
-              <th className="rt">{comMeta ? "Meta implícita" : "Acumulado"}</th>
-            </tr>
+            {comFocus ? (
+              <tr>
+                <th>Reunião</th>
+                <th className="rt">Nos preços</th>
+                <th className="rt">Focus</th>
+              </tr>
+            ) : (
+              <tr>
+                <th>Reunião</th>
+                <th className="rt">Na reunião</th>
+                <th className="rt">{comMeta ? "Meta implícita" : "Acumulado"}</th>
+              </tr>
+            )}
           </thead>
           <tbody>
             {s.reunioes.map((r) => (
@@ -266,8 +291,21 @@ function SelicImplicita({ s }) {
                 <td className="mono">{dataBR(r.data)}</td>
                 {/* Juro que sobe não é "bom" nem "ruim" aqui: sem cor de alta
                     ou baixa, que neste app querem dizer ganho e perda. */}
-                <td className="mono rt">{pp(r.variacaoPP)}</td>
-                <td className="mono rt">{comMeta ? `${num(r.metaImplicita)}%` : pp(r.acumuladoPP)}</td>
+                {comFocus ? (
+                  <>
+                    <td className="mono rt">
+                      {num(r.metaImplicita)}%
+                      <br />
+                      <span className="linha-menor">{pp(r.variacaoPP)}</span>
+                    </td>
+                    <td className="mono rt">{r.focus == null ? "—" : `${num(r.focus)}%`}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className="mono rt">{pp(r.variacaoPP)}</td>
+                    <td className="mono rt">{comMeta ? `${num(r.metaImplicita)}%` : pp(r.acumuladoPP)}</td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>

@@ -309,6 +309,58 @@ export function riscoDaCarteira(grupos) {
   return { total, porFamilia, porAno, duration, mais1pp: efeito("variacaoPor1pp"), menos1pp: efeito("variacaoMenos1pp") };
 }
 
+// ---------- Os piores momentos, repetidos ----------
+
+// O que os piores dia, semana e mês do histórico fariam com a carteira de hoje.
+//
+// O servidor manda, para cada título, o efeito no preço de cada episódio
+// candidato (`titulo.choques`, de server/episodios.js) — a alta de taxa
+// daquela janela, na família e no prazo do título, com o título repreçado.
+// Aqui é só multiplicar pelo que a pessoa tem e somar.
+//
+// SÃO VÁRIOS CANDIDATOS POR HORIZONTE, e a escolha é feita AQUI: a pior
+// semana de quem só tem IPCA+ não é a de quem só tem Prefixado, e o servidor
+// não sabe o que há na carteira. Entre os candidatos de cada horizonte fica o
+// que mais tira dela.
+//
+// A LFT entra no total e não entra no choque (zero), como no risco de juros.
+// Um episódio em que algum título com risco não tem o número fica fora: a
+// soma com um pedaço a menos seria uma perda menor que a verdadeira.
+//
+// Devolve { momentos: [{ id, horizonte, de, ate, realPP, nominalPP, valor,
+// pct }], temReal, temNominal } — ou null quando não há o que repetir
+// (carteira vazia, só LFT, ou histórico sem episódios).
+export function pioresMomentos(grupos, episodios) {
+  const validos = (grupos || []).filter((g) => !g.semTitulo && g.valorHoje != null && g.valorHoje > 0);
+  const total = validos.reduce((s, g) => s + g.valorHoje, 0);
+  const comRisco = validos.filter((g) => familiaDe(g.titulo.tipo) !== "selic");
+  if (!(total > 0) || !comRisco.length || !episodios?.length) return null;
+
+  const piorDe = new Map();
+  for (const ep of episodios) {
+    let valor = 0;
+    let completo = true;
+    for (const g of comRisco) {
+      const precoPct = g.titulo.choques?.[ep.id]?.[1];
+      if (precoPct == null || !Number.isFinite(precoPct)) {
+        completo = false;
+        break;
+      }
+      valor += g.valorHoje * (precoPct / 100);
+    }
+    if (!completo) continue;
+    const atual = piorDe.get(ep.horizonte);
+    if (!atual || valor < atual.valor) piorDe.set(ep.horizonte, { ...ep, valor, pct: (valor / total) * 100 });
+  }
+  const momentos = ["dia", "semana", "mes"].map((h) => piorDe.get(h)).filter(Boolean);
+  if (!momentos.length) return null;
+  return {
+    momentos,
+    temReal: comRisco.some((g) => familiaDe(g.titulo.tipo) === "ipca"),
+    temNominal: comRisco.some((g) => familiaDe(g.titulo.tipo) === "prefixado"),
+  };
+}
+
 // ---------- O calendário do que ainda entra ----------
 
 // As datas de pagamento que faltam de um título: o vencimento e, com cupom,

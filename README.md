@@ -36,6 +36,7 @@ resultado em **dois arquivos pequenos, versionados neste repositório**:
 | [`dados/selic.json`](dados/selic.json) | LFT: ágio/deságio sobre a Selic (sem duration, por construção) |
 | [`dados/global.json`](dados/global.json) | Fed e BCE: taxa vigente e última decisão |
 | [`dados/historico.json`](dados/historico.json) | a série diária por vencimento, todas as famílias — o que o app usa |
+| [`dados/focus.json`](dados/focus.json) | pesquisa Focus do Banco Central: Selic esperada por reunião do Copom e IPCA esperado por ano (mediana) |
 | [`dados/resumo.json`](dados/resumo.json) | o resumo do dia, **escrito por um modelo de IA** a partir dos números acima — texto, não dado (ver abaixo) |
 
 O `ntnb.json` mantém o formato de sempre: cada família nova ganhou um arquivo
@@ -90,6 +91,7 @@ não uma tela. As taxas são **reais** (ao ano, acima do IPCA).
 | **ECB Data Portal** | taxas de depósito e de refinanciamento do BCE | API pública em CSV, sem chave — lido pelo job agendado |
 | **Google News (RSS)** | manchetes de mercado (Brasil, EUA, Europa), com link para a fonte original | RSS público, sem chave — melhor esforço |
 | **Yahoo Finance** | Ibovespa (`^BVSP`), fechamento diário | endpoint público de gráficos, sem chave — melhor esforço |
+| **Banco Central (Expectativas de Mercado)** | pesquisa Focus: mediana da Selic por reunião do Copom e do IPCA por ano | API pública (Olinda/OData), sem chave — lida pelo job agendado |
 | **ANBIMA** (mercado secundário) | taxa indicativa e bid/ask do secundário | **fora do ar hoje**: o caminho público responde 404 (ver abaixo). Sempre foi enriquecimento, nunca requisito — o app funciona inteiro sem ela, e por isso a ANBIMA não é creditada no rodapé |
 
 **Nenhuma chave de API é necessária.** Todas as fontes são gratuitas e abertas.
@@ -197,6 +199,39 @@ A partir dos contratos de DI futuro que o coletor já lê da B3, a aba Mercado
 mostra quanto de alta ou de corte os preços põem em cada uma das próximas
 quatro reuniões do Copom, e a meta que isso implica. É a leitura de preços, não
 uma previsão — ver as ressalvas.
+
+**Ao lado, o que os economistas esperam.** A pesquisa Focus do Banco Central dá
+a mediana da Selic para cada reunião, e a tabela a mostra na coluna vizinha à
+dos preços. Preço carrega prêmio de risco; pesquisa, não — a distância entre as
+duas colunas é a leitura. O mesmo vale para a inflação, na aba Curva: sob a
+inflação implícita aparece o IPCA que a pesquisa espera para cada ano e, no
+período em que as duas coisas se comparam, a média dele ao lado da implícita.
+
+## O título contra o mercado futuro (abas Curva e Detalhe)
+
+Duas leituras de cada título do Tesouro contra a curva de juros futuros da B3
+(DI futuro para o Prefixado, cupom de IPCA — DAP — para o IPCA+):
+
+- **o prêmio**: quanto o título paga acima do futuro no mesmo prazo, com os
+  preços da **mesma data** nas duas pontas, e a média disso nos pregões que o
+  app já coletou;
+- **parado, em 12 meses**: o que o título rende em um ano se a curva de futuros
+  ficar exatamente onde está — o *carrego* (a taxa correndo) mais a *rolagem*
+  (com um ano a menos de prazo, o título passa a valer a taxa de um ponto mais
+  curto da curva).
+
+Na aba Curva as duas vêm numa tabela, título a título; no Detalhe, para o
+título aberto.
+
+## Os piores momentos, repetidos na sua carteira (aba Carteira)
+
+O cenário de "1 ponto em todas as taxas" é uma régua, não um dia que existiu.
+No cartão de risco, logo abaixo dele, o app mostra o que o **pior dia, a pior
+semana e o pior mês do histórico** fariam com o que você tem hoje: a alta de
+taxa daquele período — diferente no IPCA+ e no Prefixado, diferente no curto e
+no longo — aplicada a cada título seu, que é recalculado pelo fluxo de caixa.
+A escolha do "pior" é feita no aparelho, para a sua carteira: o pior mês de
+quem só tem IPCA+ não é o de quem só tem Prefixado.
 
 ## O resumo do dia (IA, opcional)
 
@@ -377,6 +412,30 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   partir dos nomes de coluna usuais (produto, data, movimentação, quantidade,
   valor da operação). Por isso nada é gravado sem a prévia: confira as linhas
   antes de confirmar. Vendas e resgates não são lidos.
+- **Os piores momentos não são o pior possível.** São os piores que o
+  histórico do app contém (ele começa em 2019), e não são previsão. O que se
+  repete é a alta de taxa por família e por prazo, interpolada entre os
+  vencimentos que existiam na época; fora desse intervalo vale a alta da ponta
+  mais próxima. O Tesouro Selic entra como se não mexesse — numa crise de
+  verdade ele também pode cair um pouco, e a conta não vê isso.
+- **O prêmio sobre o futuro não é "barato ou caro".** Parte dele é permanente:
+  o futuro é taxa entre bancos e o título é dívida do Tesouro, a taxa do Tesouro
+  Direto aqui é a de recompra, e as duas fontes não fecham no mesmo instante do
+  dia. De um dia para o outro ele oscila por um valor do tamanho dele mesmo
+  (medido nos primeiros 12 pregões: 0,03 a 0,15 p.p.). O histórico de futuros do
+  app começou em outubro de 2026 e cresce um pregão por dia: a média só ganha
+  sentido com o tempo.
+- **"Parado, em 12 meses" é uma hipótese.** Supõe que a curva de futuros não
+  se mexa em um ano e que o título mantenha o prêmio de hoje sobre ela — o que
+  quase nunca acontece. Serve para comparar títulos entre si. É bruto de
+  imposto, é rendimento acima da inflação no IPCA+, e conta os cupons do
+  período reaplicados à taxa do próprio título.
+- **A pesquisa Focus é opinião, não resultado**, e também erra. O app usa a
+  mediana. Para comparar com a inflação implícita, tira a média composta das
+  medianas anuais entre hoje e o vencimento, usando no ano corrente a mediana do
+  ano inteiro como ritmo dos meses que faltam; além do alcance da pesquisa (uns
+  quatro anos) não há comparação, em vez de uma expectativa de longo prazo
+  inventada.
 - **A Selic implícita no DI não é previsão.** A taxa a termo carrega prêmio de
   risco, então a curva costuma embutir mais alta (ou menos corte) do que o que
   acontece. A conta supõe que o juro só muda em reunião do Copom e para em
