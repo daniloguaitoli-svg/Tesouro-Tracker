@@ -19,17 +19,21 @@
 // semana, e o resultado fica versionado em dados/focus.json com o mesmo
 // contrato do Fed e do BCE: fonte que falha mantém o valor anterior.
 //
-// O QUE NÃO FOI POSSÍVEL CONFERIR DE ONDE ISTO FOI ESCRITO: o ambiente de
-// desenvolvimento não alcança olinda.bcb.gov.br. Os nomes dos campos vêm da
-// página de dados abertos do BCB e de bibliotecas públicas que consomem a
-// mesma API, não de uma resposta vista. Por isso o parser acha os campos pelo
-// NOME, sem depender de caixa nem de ordem, e devolve erro com amostra em vez
-// de número — e o coletor loga o que veio, em dry-run inclusive: uma rodada no
-// runner confirma o formato.
+// DE ONDE ISTO FOI ESCRITO NÃO SE ALCANÇA olinda.bcb.gov.br. Os nomes dos
+// campos vieram da página de dados abertos do BCB e de bibliotecas públicas
+// que consomem a mesma API, não de uma resposta vista. Por isso o parser acha
+// os campos pelo NOME, sem depender de caixa nem de ordem, e devolve erro com
+// amostra em vez de número — e o coletor loga o que veio, em dry-run
+// inclusive. CONFERIDO NO RUNNER em 13/11/2026: as duas consultas responderam
+// na primeira tentativa, com os campos como estão aqui (16 reuniões da Selic,
+// IPCA de 2026 a 2030).
 //
 // `baseCalculo` separa duas janelas de respostas (0 e 1). A documentação que
 // se alcançou não diz qual é qual; usa-se a 0, que é a que as bibliotecas
-// tratam como padrão, e o coletor loga as duas para a diferença ficar à vista.
+// tratam como padrão, e o coletor loga as duas para a diferença ficar à
+// vista. Naquela rodada a base 1 já trazia a R2/2027 em 13,75% contra 13,5%
+// da base 0 — o que combina com a 1 ser uma janela mais curta e recente, mas
+// é a leitura de um dia, não uma confirmação.
 
 const BASE = "https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata";
 const UA = { "User-Agent": "tesouro-tracker (github actions)", Accept: "application/json" };

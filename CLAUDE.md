@@ -40,6 +40,7 @@ dados/painel.json     the Painel tab as one object: highlights + macro frame (th
 dados/painel.md       the same, as tables
 dados/historico.json  the daily series per maturity, all families — what the app reads
 dados/futuros.json    B3 futures: DI1, the clean FX coupon and the IPCA coupon, accumulated daily
+dados/focus.json      the BCB's Focus survey: expected Selic per Copom meeting, expected IPCA per year (median)
 dados/resumo.json     the day's brief, written by an AI model from the numbers above — prose, not data
 ```
 
@@ -181,6 +182,8 @@ server/
   cache.js            reads the versioned dados/*.json (this is the request-time source)
   ponte.js            builds dados/ntnb.json + ntnb.md — pure functions, so verificar can test them
   selic.js            the Copom calendar and the Selic path the DI futures embed (pure)
+  episodios.js        the worst day/week/month in the history, as a rate shock by family and term (pure)
+  futuro.js           a bond read against the futures curve: premium, carry and roll-down (pure)
   resumo.js           the daily brief: facts, request and the validator (pure; no network)
   providers/
     tesouro.js        Tesouro Transparente CSV — streaming, header-driven (collector only)
@@ -190,6 +193,7 @@ server/
     noticias.js       Google News RSS per region — request-time, best-effort
     yahoo.js          Ibovespa (^BVSP) chart API — request-time, best-effort
     b3.js             DI1 + cupom cambial + DAP from B3's public file (collector only)
+    focus.js          the BCB's Focus survey via the Olinda OData API (collector only) + the period average
 api/                  Vercel functions: titulos, detalhe, curva, futuros, macro, mercado, noticias, cdi
 dados/                the committed data (bot-owned) — see "the bridge" above
 .github/
@@ -299,7 +303,10 @@ getCdi()             -> o CDI acumulado dia a dia, como índice — SEM parâmet
 ```
 
 `getTitulos()` also carries `resumo` (the day's AI brief, or `null`) and
-`getMercado()` carries `selicImplicita`.
+`episodios` (plus `choques` on each bond); `getMercado()` carries
+`selicImplicita`, with the Focus median per meeting when collected;
+`getCurva()` carries `contraFuturo` and `focus`; `getDetalhe()` carries the
+open bond's `contraFuturo`.
 
 Each maps to same-origin `/api/*`, served **twice from the same module**:
 
@@ -1688,6 +1695,54 @@ the first purchase then fired a request — empty, but the request itself told
 the server "this device just recorded something". Now recording, deleting,
 restoring and importing make no request at all. `verificar.mjs` pins the trigger (the effect depends on the tab, not on the list); the absence of requests itself was measured in a browser session, not by a test in this repo.
 
+### Replaying the worst episodes (`server/episodios.js`)
+
+Under the ±1 p.p. cells, the risk card shows what the **worst day, week and
+month in the history** would do to today's portfolio. It exists because the
+±1 p.p. scenario's own ⓘ admits it never happened: real and nominal rates do
+not move together, and short does not move like long.
+
+**What is replayed is the shape of the rate move, not that day's price.** The
+bonds held today are not the bonds of 2020 — other terms, other rates, many
+did not exist. So the server (1) finds the windows where rates rose most and
+records, for each, Δ rate by term, one curve for IPCA+ and one for Prefixado;
+(2) applies that Δ to each **live** bond at the term it has **now** and
+reprices it by its cash flows. The device multiplies by what the person holds.
+
+- **Windows come from the data, never from a list of named crises.** For each
+  horizon (1, 5 and 21 price days) the window where the mean rate rose most.
+  Naming them would be editorialising and remembering; the rule reproduces.
+  Measured 13/11/2026: day 23→26/10/2026 (real +1.24, nominal +2.74), week
+  05→12/03/2020 (+1.67, +2.37), month 17/02→19/03/2020 (+1.69, +2.58).
+- **Three rulers per horizon — real only, nominal only, the mean of both —
+  and the device picks.** The worst month for an IPCA+-only holder
+  (20/02→24/03/2020) is not the worst for a Prefixado-only one
+  (19/11→19/12/2024), and the server cannot know what is held. Up to three
+  candidates per horizon travel (seven today); `pioresMomentos` in
+  `posicoes.js` keeps, per horizon, the one that takes most from *this*
+  portfolio. A first draft sent one window per horizon chosen by the combined
+  ruler, and would have labelled "Pior dia" a day that was not the holder's
+  worst.
+- **Exact repricing, not duration.** The shocks exceed 2 p.p., where the term
+  the expansion drops already matters. `verificar.mjs` checks the loss is
+  smaller than `D_mod × Δ` and matches `precoPor100` called from outside.
+- **Outside the term range the nearest end's shock applies** — unlike the yield
+  curve, which returns `null` rather than extrapolate. There it would be a rate
+  *level*; here it is the size of a move, nearly flat at the ends (13 to 34
+  years: under 0.1 p.p. of variation in the worst windows), and `null` would
+  sink the whole portfolio sum over its least important bond.
+- **`maxDiasCorridos` per horizon** keeps a publication gap from becoming a
+  "one-day window" with two weeks of market inside. The term floor
+  (`PRAZO_MINIMO_CURVA`) keeps near-maturity noise out of the averages.
+- **A missing number drops the episode, never shrinks it**, and the LFT counts
+  in the total and not in the shock — the same two rules as the risk card.
+- The scan is cached per process (the history is immutable in one) and costs
+  ~150 ms on a cold `getTitulos`. Only each episode's header goes on the
+  payload; the per-term shock curve stays on the server.
+
+On screen: "Não é o pior possível, nem previsão", and the ⓘ says the LFT is
+treated as immune though in a real crisis it can dip.
+
 ### Backup and spreadsheet import
 
 - **Export** writes a JSON file (`exportarPosicoes`: `app`, `versao`, the
@@ -1765,6 +1820,106 @@ eight per year.
 "Não é previsão" stays on screen, in the line under the title: a forward rate
 carries a risk premium, so the curve usually embeds more hiking (or less
 cutting) than what happens.
+
+## The bond against the futures curve (`server/futuro.js`)
+
+Two readings of each Treasury bond against B3's futures (DI1 for Prefixado, DAP
+for IPCA+; the LFT has none), on the Curva tab as a table and on Detalhe for the
+open bond (`components/TesouroFuturo.jsx` serves both).
+
+**The premium** is the bond's rate minus the rate the futures curve would give
+*that bond*. A coupon bond is not compared with the futures rate at its
+maturity: each cash flow is discounted at the futures rate for its own term,
+and the comparison is with the single rate that gives the same price
+(`taxaPelaCurva`, bisection). For a zero-coupon bond that *is* the futures rate
+at maturity — one function for both forms, and `verificar.mjs` checks the
+identity. Interpolation is flat-forward in business days, the DI market's own.
+
+- **Same date on both sides, always.** The curve used is the futures curve of
+  the bond's own price date, never the newest one. Measured 13/11/2026 over 12
+  sessions: same-date pairing keeps the premium's day-to-day deviation at
+  0.03–0.15 p.p.; pairing with the previous session, one repricing day (26/10)
+  opens 2.76 p.p. on a Prefixado 2029. No futures collected on that date → no
+  reading (`null`), never the neighbouring date. `verificar.mjs` fails if any
+  live premium exceeds 1 p.p. — that would mean mismatched dates. The Treasury
+  file's columns are named "Manhã", so its quote may not be the close; the
+  same-date pairing was chosen by measurement, not by that name.
+- **It is not "rich or cheap", and the screen says "não é sinal de compra".**
+  Part of the premium is permanent (interbank rate vs sovereign debt; the
+  Tesouro Direto buyback spread; the two sources do not close at the same
+  instant), and its daily noise is the size of the premium itself. So the mean
+  over the collected sessions travels with it (`PREGOES_DO_PREMIO = 60` cap,
+  `MIN_PREGOES_DO_PREMIO = 5` floor). The futures history began on 22/10/2026:
+  a percentile was deliberately not built on 14 points.
+- **No up/down colour on the premium**: green and coral mean gain and loss.
+- **The DAP floor applies** (`PRAZO_MINIMO_CURVA`, the distorted short end):
+  a bond maturing before the first usable vertex has no reading. Coupons that
+  fall before it are discounted flat at that vertex — a few basis points on a
+  long bond's price.
+
+**"Parado, 12 meses"** (`paradoEm12Meses`): what the bond returns in a year if
+the futures curve stays exactly where it is and the bond keeps today's premium
+over it. A year on it is a year shorter, so its rate becomes that of a shorter
+point: `taxaRolada = taxa + (futuro a um ano dali − futuro hoje)`, both futures
+rates computed flow by flow on the same curve. Carry is the return with the
+rate unchanged; roll-down is the rest. Negative roll is real: the DAP curve is
+inverted between 2035 and 2040 today.
+
+- **Coupons paid in the year are reinvested at the bond's own rate.** The first
+  version summed them without reinvesting, under a comment calling the
+  difference "hundredths". It was a full point: a Prefixado com juros at 14.6%
+  showed 13.6% of carry, making every coupon bond look worse than the
+  zero-coupon of the same maturity because of the sum alone. The side-by-side
+  table exposed it. With reinvestment, carry equals the bond's rate for any
+  bond, and `verificar.mjs` pins that on a flat curve, with and without coupon.
+- **`null` rather than a guess**: bond maturing within the horizon, or a curve
+  that does not reach today's term or the term a year from now.
+- "Hipótese, não previsão" stays on screen; for an IPCA+ the figures are real
+  ("acima da inflação"); everything is gross of tax.
+
+## The Focus survey: what economists expect, beside what prices embed
+
+`dados/focus.json` holds the median of the BCB's Focus survey: expected Selic
+per Copom meeting and expected IPCA per calendar year. It is a **collector**
+source (`providers/focus.js`, section 0b of the collector — before the
+Treasury, for the same reason as B3), with keep-previous-on-failure, and the
+file is rewritten **only when its content changes**, so `atualizadoEm` does not
+produce a commit and a deploy per run.
+
+- **Mercado**: with Focus collected, the implied-Selic table's third column
+  becomes the survey's median for the same meeting, and the per-meeting move
+  drops to a second, smaller line under the implied target. Still three
+  columns. The meeting is matched by the name the survey gives it — "R8/2026",
+  the 8th ordinary meeting of the year — derived from the position of the date
+  in `REUNIOES_COPOM` (`rotuloFocus`).
+- **Curva**: under the implied-inflation chart, a card with the yearly medians
+  and, where the periods coincide, the survey's average inflation between today
+  and the prefixado's maturity beside the implied figure (`focusNoPeriodo`:
+  geometric mean, each year weighted by the fraction inside the period).
+  **Beyond the survey's reach the field is `null`** — repeating the last median
+  would be inventing the long-run expectation. In the current year the
+  full-year median stands in for the remaining months; the ⓘ says so.
+- Without the file (the seed, until the first collection) both screens are
+  exactly as before. `verificar.mjs` exercises that path.
+
+**The API shape was not seen from the development sandbox** (the proxy refuses
+`olinda.bcb.gov.br`). Field names came from the BCB open-data page and public
+client libraries, so the parser finds fields by name, case-insensitively, and
+returns an error with a sample instead of a number; the collector logs what
+came, in dry-run too.
+
+**Confirmed on a runner on 2026-11-13** (the dry-run of the branch that added
+it): both queries answered on the first try with the fields as written —
+Selic for 16 meetings (`R8/2026` 13.75%, `R1/2027` 13.75%, `R2/2027` 13.5%…),
+IPCA for 2026–2030 (5.2195%, 4.9005%, 4%, 4%, 3.935%), survey date 2026-11-06.
+The medians come with four decimals; the screen shows two.
+
+`baseCalculo` splits two response windows (0 and 1) and the documentation
+reached does not say which is which. The app uses 0 and the collector logs
+both. In that same run base 1 read `R2/2027` 13.75% against base 0's 13.5%,
+and IPCA 2027 4.9879% against 4.9005% — consistent with 1 being a shorter,
+more recent window, but that is a reading of one day, not a confirmation. Read
+the runner log before trusting a change here.
 
 ## The daily brief: the one place prose is not computed
 
@@ -2178,7 +2333,10 @@ gross against gross; the portfolio's rate risk is a one-scenario
 approximation; the spreadsheet import was written without a real B3 file; the
 implied Selic is a reading of prices with a risk premium in it, not a
 forecast; the daily brief is model-written prose whose numbers are checked and
-whose reading is not. Every
+whose reading is not; the replayed worst episodes are the worst the history
+holds, not the worst possible, and treat the LFT as immune; the premium over
+futures is partly structural and as noisy as it is large; "parado, 12 meses"
+assumes a curve that does not move; the Focus survey is opinion. Every
 screen carries the footer disclaimer: public sources, delayed, informational
 only — **not investment advice**. If you add a feature with a similar caveat,
 state it in the UI and the README instead of implying more precision than free
