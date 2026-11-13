@@ -10,8 +10,8 @@
 // formata. O estado (a lista de lotes) mora no App, porque o Painel também
 // mostra o resumo.
 import { useMemo, useRef, useState } from "react";
-import { reais, pct, num, anos, dataBR, sinal, hojeSP } from "../format.js";
-import { resumirCarteira, montarLote, riscoDaCarteira, calendarioDeRecebimentos, compararComCdi, exportarPosicoes, lerBackup } from "../posicoes.js";
+import { reais, pct, pp, num, anos, dataBR, dataCurtaBR, sinal, hojeSP } from "../format.js";
+import { resumirCarteira, montarLote, riscoDaCarteira, pioresMomentos, calendarioDeRecebimentos, compararComCdi, exportarPosicoes, lerBackup } from "../posicoes.js";
 import { lerPlanilha } from "../planilha.js";
 import { CUSTODIA_B3_AA, CONFERIDO_EM } from "../impostos.js";
 import { AguardandoColeta } from "./States.jsx";
@@ -271,7 +271,76 @@ function NovaCompra({ titulos, onAdicionar, falhouAoGuardar }) {
 
 // O RISCO DA CARTEIRA: como ela está repartida e o que um ponto de juro faz
 // com ela. As contas são de posicoes.js; aqui é só a tela.
-function Risco({ risco }) {
+// OS PIORES MOMENTOS DO HISTÓRICO, repetidos no que a pessoa tem hoje.
+//
+// Mora no cartão de risco, logo abaixo do cenário de 1 ponto, porque é a
+// resposta ao que aquele cenário não diz: "1 ponto em tudo" nunca aconteceu;
+// isto aconteceu. A escolha das janelas e a conta são de posicoes.js e do
+// servidor; aqui é a tela.
+const ROTULO_DO_MOMENTO = { dia: "Pior dia", semana: "Pior semana", mes: "Pior mês" };
+
+function Momentos({ piores, desde }) {
+  if (!piores) return null;
+  const quando = (m) => (m.horizonte === "dia" ? dataBR(m.ate) : `${dataCurtaBR(m.de)} a ${dataBR(m.ate)}`);
+  // Só as famílias que a carteira tem: a alta do Prefixado não interessa a
+  // quem só tem IPCA+, e mostrá-la sugeriria que entrou na conta.
+  const altas = (m) =>
+    [piores.temReal && `IPCA+ ${pp(m.realPP)}`, piores.temNominal && `Prefixado ${pp(m.nominalPP)}`].filter(Boolean).join(" · ");
+  return (
+    <div className="momentos">
+      <div className="label momentos-titulo">
+        <span>Se os piores momentos se repetissem</span>
+        <Explica titulo="Os piores momentos do histórico">
+          <p>
+            O app procura, em todo o histórico de preços{desde ? <> (desde {dataBR(desde)})</> : null}, o dia,
+            a semana e o mês em que as taxas mais subiram — e mostra, de cada um, o que mais
+            tiraria da sua carteira.
+          </p>
+          <p>
+            O que se repete é a <strong>alta de taxa</strong> daquele período, não o preço: o
+            IPCA+ e o Prefixado não sobem do mesmo tamanho, e o curto não mexe como o longo.
+            Cada título seu é recalculado com a taxa de hoje mais a alta que títulos do mesmo
+            tipo e de prazo parecido tiveram naqueles dias. As altas mostradas em cada linha
+            são a média da família.
+          </p>
+          <p>
+            O Tesouro Selic entra como se não mexesse. Numa crise de verdade ele também pode
+            cair um pouco, e esta conta não vê isso.
+          </p>
+          <p>
+            Não é o pior possível — é o pior que o histórico do app contém — e não é previsão.
+            É o valor de hoje, bruto: levado ao vencimento, cada título paga o que foi
+            contratado, qualquer que seja o caminho do preço até lá.
+          </p>
+        </Explica>
+      </div>
+      {piores.momentos.map((m) => (
+        <div className="momento" key={m.id}>
+          <div className="momento-topo">
+            <div>
+              <div className="momento-nome">{ROTULO_DO_MOMENTO[m.horizonte]}</div>
+              <div className="linha-menor mono">{quando(m)}</div>
+            </div>
+            <div className="momento-valor">
+              <div className={`mono ${sinal(m.valor)}`}>{reais(m.valor)}</div>
+              <div className="linha-menor mono">{pct(m.pct)}</div>
+            </div>
+          </div>
+          {/* As altas numa linha própria, da largura do cartão: ao lado do
+              valor elas quebravam em três linhas num telefone. */}
+          <div className="linha-menor mono momento-altas">{altas(m)}</div>
+        </div>
+      ))}
+      {/* Fica NA TELA: sem isto a linha lê como "o máximo que dá para perder". */}
+      <p className="posicao-linha">
+        As altas de taxa daqueles períodos, aplicadas ao que você tem hoje. Não é o pior
+        possível, nem previsão.
+      </p>
+    </div>
+  );
+}
+
+function Risco({ risco, piores, desde }) {
   if (!risco) return null;
   return (
     <>
@@ -312,6 +381,8 @@ function Risco({ risco }) {
             <div className="label mono">{pct(risco.menos1pp?.pct ?? null)}</div>
           </div>
         </div>
+
+        <Momentos piores={piores} desde={desde} />
 
         <Reparticao titulo="Por indexador" linhas={risco.porFamilia.map((f) => ({ chave: f.id, rotulo: f.rotulo, valor: f.valor, pct: f.pct }))} />
         <Reparticao titulo="Por ano de vencimento" linhas={risco.porAno.map((a) => ({ chave: a.ano, rotulo: a.ano, valor: a.valor, pct: a.pct }))} />
@@ -564,6 +635,7 @@ export function Carteira({ dados, posicoes, onMudar, onOpen, falhouAoGuardar, cd
 
   const total = carteira.total;
   const risco = useMemo(() => riscoDaCarteira(carteira.grupos), [carteira]);
+  const piores = useMemo(() => pioresMomentos(carteira.grupos, dados.episodios), [carteira, dados.episodios]);
   const calendario = useMemo(() => calendarioDeRecebimentos(carteira.grupos, hojeSP()), [carteira]);
   // A comparação com o CDI, por título e no total. `cdi` chega do App (que é
   // quem fala com a rede): { pontos } quando há série, { erro } quando o
@@ -674,7 +746,7 @@ export function Carteira({ dados, posicoes, onMudar, onOpen, falhouAoGuardar, cd
         <Posicao key={g.slug} g={g} onOpen={onOpen} cdi={cdiDoGrupo(g)} onRemover={(id) => onMudar((l) => l.filter((x) => x.id !== id))} />
       ))}
 
-      <Risco risco={risco} />
+      <Risco risco={risco} piores={piores} desde={dados.historicoDesde} />
       <Calendario calendario={calendario} />
     </div>
   );

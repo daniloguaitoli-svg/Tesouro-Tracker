@@ -11,6 +11,7 @@ import { GraficoTaxa } from "./GraficoTaxa.jsx";
 import { ChipsDeVariacao, PERIODO_PADRAO } from "./Chip.jsx";
 import { Explica } from "./Explica.jsx";
 import { ErroBox, Loading } from "./States.jsx";
+import { ContraFuturoDoTitulo } from "./TesouroFuturo.jsx";
 import { taxa, pct, anos, dataBR, num, sinal, unidadeTaxa } from "../format.js";
 
 // Onde a taxa de hoje cai dentro do período escolhido. Mínima, média e máxima
@@ -238,6 +239,12 @@ export function Detalhe({ slug, onBack, nomeDoApp = "Tesouro Tracker", periodo =
           </div>
         </>
       )}
+
+      {/* O título contra a curva de juros futuros, depois dos cenários e antes
+          do fluxo: os cenários dizem o que acontece SE a taxa mudar; isto diz
+          onde a taxa está em relação ao mercado e o que acontece se nada
+          mudar. Some sozinho na LFT e sem futuro coletado na data do preço. */}
+      <ContraFuturoDoTitulo c={dados.contraFuturo} tipo={t.tipo} taxaDoTitulo={t.taxa} />
 
       {fluxos.length > 0 && (
         <>

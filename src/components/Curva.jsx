@@ -7,9 +7,10 @@
 import { useEffect, useState } from "react";
 import { getCurva } from "../api.js";
 import { CurvaChart, CurvaLegenda } from "./CurvaChart.jsx";
-import { taxa, anos, dataBR, num } from "../format.js";
+import { taxa, anos, dataBR, num, pp, mesBR } from "../format.js";
 import { ErroBox, Skeletons, AguardandoColeta } from "./States.jsx";
 import { CurvaFuturos } from "./CurvaFuturos.jsx";
+import { TesouroContraFuturo } from "./TesouroFuturo.jsx";
 import { Explica } from "./Explica.jsx";
 import { Seletor } from "./Seletor.jsx";
 
@@ -30,9 +31,76 @@ const idDaCurva = (indice, cupom) => `${indice}-${cupom}-cupom`;
 // cobra para assumir o risco) e diferença de liquidez entre os dois papéis. Por
 // isso costuma ficar ACIMA da inflação que o mercado de fato espera. A tela diz
 // isso — seria fácil e errado apresentar como projeção.
-function Implicita({ implicita }) {
+// A PESQUISA FOCUS AO LADO DA IMPLÍCITA. A implícita é o que os PREÇOS
+// embutem, e a tela já avisa que isso não é previsão; a pesquisa é o que os
+// economistas de fato esperam. Com as duas no mesmo cartão, "costuma ficar
+// acima do que o mercado espera" deixa de ser uma frase e vira um número.
+//
+// A comparação só é feita onde os dois períodos coincidem: a pesquisa vai uns
+// quatro anos à frente, e o servidor devolve `focus: null` nos pontos além
+// disso em vez de repetir a última mediana. Usa-se o ponto mais curto que ela
+// alcança.
+function FocusDaInflacao({ focus, agora }) {
+  if (!focus?.anos?.length) return null;
+  const p = agora.find((x) => x.focus != null);
+  const ultimoAno = focus.anos[focus.anos.length - 1].ano;
+  return (
+    <div className="card focus-inflacao">
+      <div className="label focus-titulo">
+        <span>O que os economistas esperam · Focus de {dataBR(focus.data)}</span>
+        <Explica titulo="A pesquisa Focus e a inflação implícita">
+          <p>
+            O Focus é a pesquisa do Banco Central com economistas de bancos, gestoras e
+            consultorias. Os números aqui são a mediana do IPCA esperado para cada ano.
+          </p>
+          <p>
+            Para comparar com a implícita, que é uma média do período inteiro, o app tira a
+            média composta das medianas entre hoje e o vencimento do prefixado, cada ano
+            pesado pela parte dele que cai no período. No ano corrente usa a mediana do ano
+            inteiro como se fosse o ritmo dos meses que faltam — num período de anos, esse
+            pedaço pesa pouco.
+          </p>
+          <p>
+            A pesquisa vai até {ultimoAno}. Nos prazos mais longos não há comparação: completar
+            com a última mediana seria inventar a expectativa de longo prazo.
+          </p>
+          <p>
+            A diferença entre as duas não é erro de nenhuma: preço embute o prêmio que se
+            cobra para correr o risco de a inflação surpreender, e a diferença de liquidez
+            entre os dois papéis. E a pesquisa também erra — é opinião, não resultado.
+          </p>
+          {focus.fonte && <p className="explica-fonte">{focus.fonte}.</p>}
+        </Explica>
+      </div>
+      <div className="focus-anos">
+        {focus.anos.map((a) => (
+          <div key={a.ano}>
+            <div className="cen-rotulo mono">{a.ano}</div>
+            <div className="cen-valor mono">{taxa(a.mediana)}</div>
+          </div>
+        ))}
+      </div>
+      {p ? (
+        <p className="focus-leitura">
+          Até {mesBR(p.vencimento)} os preços embutem <b className="mono">{taxa(p.taxa)}</b> ao ano; a
+          pesquisa, <b className="mono">{taxa(p.focus)}</b>. A diferença de{" "}
+          <span className="mono">{pp(p.taxa - p.focus)}</span> é prêmio de risco e de liquidez, não
+          inflação esperada.
+        </p>
+      ) : (
+        <p className="focus-leitura">
+          A pesquisa vai até {ultimoAno} e o ponto mais curto da implícita vence depois disso: não
+          há período comum para comparar.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Implicita({ implicita, focus }) {
   const agora = implicita?.agora || [];
   if (agora.length < 2) return null;
+  const comFocus = agora.some((p) => p.focus != null);
 
   const series = [
     { id: "1a", rotulo: "há um ano", pontos: implicita.umAnoAtras, cor: "var(--muted)", tracejado: true },
@@ -78,6 +146,8 @@ function Implicita({ implicita }) {
         <CurvaLegenda series={series} />
       </div>
 
+      <FocusDaInflacao focus={focus} agora={agora} />
+
       <details className="dobra">
         <summary>
           Prazo a prazo <span className="quantos">· {agora.length}</span>
@@ -90,6 +160,7 @@ function Implicita({ implicita }) {
               <th className="rt">Nominal</th>
               <th className="rt">Real</th>
               <th className="rt">Implícita</th>
+              {comFocus && <th className="rt">Focus</th>}
             </tr>
           </thead>
           <tbody>
@@ -99,6 +170,7 @@ function Implicita({ implicita }) {
                 <td className="rt mono">{taxa(p.nominal)}</td>
                 <td className="rt mono">{taxa(p.real)}</td>
                 <td className="rt mono"><b>{taxa(p.taxa)}</b></td>
+                {comFocus && <td className="rt mono">{p.focus == null ? "—" : taxa(p.focus)}</td>}
               </tr>
             ))}
           </tbody>
@@ -334,7 +406,7 @@ export function Curva({ marcados }) {
       </div>
       </details>
 
-      <Implicita implicita={dados.implicita} />
+      <Implicita implicita={dados.implicita} focus={dados.focus} />
 
       {/* O AVISO LONGO SAIU DAQUI. Ele repetia o rodapé, que já está nesta
           tela, e a convenção de dias úteis que ele trazia agora mora no ⓘ
@@ -342,6 +414,12 @@ export function Curva({ marcados }) {
           futuro continua por último: é outra fonte, com ressalva e data
           próprias, e não deve parecer coberto pela explicação de cima. */}
       <CurvaFuturos />
+
+      {/* DEPOIS das duas fontes, porque é o cruzamento delas: cada título do
+          Tesouro contra o futuro da B3 no mesmo prazo. Os números vêm no
+          payload da curva (o servidor casa as datas); se não houver futuro
+          coletado na data do preço, a seção não existe. */}
+      <TesouroContraFuturo dados={dados.contraFuturo} />
     </div>
   );
 }

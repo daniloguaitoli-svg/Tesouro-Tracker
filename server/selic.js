@@ -45,6 +45,16 @@ export const REUNIOES_COPOM = [
 export const CALENDARIO_ATE = REUNIOES_COPOM[REUNIOES_COPOM.length - 1];
 export const CALENDARIO_CONFERIDO_EM = "2026-11-11";
 
+// O nome que a pesquisa Focus dá a uma reunião: "R8/2026" é a oitava reunião
+// ordinária de 2026. Sai da POSIÇÃO da data dentro do ano no calendário acima
+// — por isso só vale para datas que estão nele. null para as demais.
+export function rotuloFocus(dataISO, reunioes = REUNIOES_COPOM) {
+  const ano = String(dataISO).slice(0, 4);
+  const doAno = reunioes.filter((m) => m.startsWith(ano));
+  const i = doAno.indexOf(dataISO);
+  return i < 0 ? null : `R${i + 1}/${ano}`;
+}
+
 // Um degrau com menos dias úteis que isto depois da reunião, dentro do
 // trecho, é ruído: meio ponto-base no preço vira dezenas na taxa. Nesse caso
 // o trecho é estendido até o vencimento seguinte.

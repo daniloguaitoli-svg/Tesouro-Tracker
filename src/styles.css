@@ -1153,3 +1153,47 @@ button.posicao-nome:focus-visible { outline: 2px solid var(--accent); outline-of
   .selic-implicita th:first-child, .selic-implicita td:first-child { padding-left: var(--s3); }
   .selic-implicita th:last-child, .selic-implicita td:last-child { padding-right: var(--s3); }
 }
+
+/* ============================================================
+   Leitura de mercado — Tesouro × futuro, Focus, piores momentos
+   ============================================================ */
+
+/* Tabela de quatro colunas que tem de caber num telefone: o respiro lateral
+   de 16px por célula custa 128px em quatro colunas. */
+.tbl-enxuta td { white-space: nowrap; vertical-align: top; }
+.tbl-enxuta th { white-space: nowrap; }
+@media (max-width: 520px) {
+  .tbl-enxuta th, .tbl-enxuta td { padding-left: var(--s2); padding-right: var(--s2); }
+  .tbl-enxuta th:first-child, .tbl-enxuta td:first-child { padding-left: var(--s3); }
+  .tbl-enxuta th:last-child, .tbl-enxuta td:last-child { padding-right: var(--s3); }
+}
+.tbl-nota { margin-top: var(--s2); }
+
+/* O Focus sob a inflação implícita: os anos numa régua de células iguais,
+   como os cenários do Detalhe, e a leitura numa frase. */
+.focus-inflacao { margin-top: var(--s3); }
+.focus-titulo { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.focus-anos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+  gap: 1px; background: var(--line); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden; margin-top: var(--s2);
+}
+.focus-anos > div { background: var(--surface); padding: var(--s2) var(--s1); text-align: center; min-width: 0; }
+.focus-leitura { margin: var(--s3) 0 0; font-size: 14px; line-height: 1.5; }
+.focus-leitura b { font-weight: 600; }
+
+/* Os piores momentos, dentro do cartão de risco: uma linha por horizonte,
+   o quando à esquerda e o quanto à direita. */
+.momentos { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); }
+.momentos-titulo { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.momento { padding: var(--s2) 0; }
+.momento-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+.momento-altas { margin-top: 2px; }
+.momento + .momento { border-top: 1px solid var(--line); }
+.momento-nome { font-size: 14px; font-weight: 500; }
+.momento-valor { text-align: right; white-space: nowrap; font-weight: 600; }
+.momento-valor .linha-menor { font-weight: 400; }
+
+/* Dois blocos de três células seguidos no Detalhe (prêmio; parado): o
+   segundo não cola no parágrafo do primeiro. */
+.section-sub + .statgrid { margin-top: var(--s3); }

@@ -2593,6 +2593,262 @@ console.log("\nresumo do dia (IA)");
   conferir(/require\("\.\.\/dados\/resumo\.json"\)/.test(await ler("server/cache.js")), "cache.js carrega dados/resumo.json com caminho literal");
 }
 
+// OS PIORES MOMENTOS DO HISTÓRICO. A escolha das janelas é conferida com um
+// histórico de mentira em que se SABE qual foi o pior dia, e a conta na
+// carteira com fixtures; depois, contra o histórico de verdade.
+console.log("\npiores momentos do histórico");
+{
+  const ep = await import("../server/episodios.js");
+  const { ehDiaUtil } = await import("../server/feriados.js");
+  // 60 pregões a partir de 02/03/2026, taxas paradas, com UM salto conhecido:
+  // no 30º pregão o real sobe 1,0 (curto) a 0,6 (longo) e o nominal 2,0.
+  const pregoes = [];
+  for (let t = Date.parse("2026-03-02T00:00Z"); pregoes.length < 60; t += 864e5) if (ehDiaUtil(new Date(t))) pregoes.push(new Date(t).toISOString().slice(0, 10));
+  const diaDoSalto = pregoes[30];
+  const titulo = (tipo, vencimento, base, salto) => ({
+    tipo, vencimento,
+    serie: Object.fromEntries(pregoes.map((d, i) => [d, [base + (i >= 30 ? salto : 0) + (i >= 45 ? -0.1 : 0), 1000]])),
+  });
+  const historico = [
+    titulo("ipca", "2030-08-15", 7, 1.0), titulo("ipca", "2040-08-15", 7, 0.8), titulo("ipca-juros", "2040-08-15", 7.1, 0.8), titulo("ipca", "2050-08-15", 7, 0.6),
+    titulo("prefixado", "2029-01-01", 14, 2.0), titulo("prefixado", "2031-01-01", 14, 2.0), titulo("prefixado-juros", "2033-01-01", 14, 2.0),
+    titulo("ipca", "2026-08-15", 7, 9), // a meses do vencimento: abaixo do piso, não pode contaminar a média
+    titulo("selic", "2031-03-01", 0.1, 5), // LFT não tem choque de taxa
+  ];
+  const achados = ep.acharEpisodios(historico, { prazoMinimo: 1.5 });
+  const dia = achados.filter((e) => e.horizonte === "dia");
+  conferir(dia.length === 1 && dia[0].ate === diaDoSalto && dia[0].de === pregoes[29], "acha o dia em que as taxas mais subiram (e as três réguas concordam: um candidato só)");
+  conferir(perto(dia[0].realPP, 0.8, 1e-9) && perto(dia[0].nominalPP, 2, 1e-9), "a alta média é por família, sem o título abaixo do piso e sem a LFT");
+  conferir(dia[0].real.length === 3 && dia[0].nominal.length === 3 && dia[0].real.every((p, i, l) => i === 0 || p.anos > l[i - 1].anos), "o formato do choque: um ponto por prazo, com e sem cupom do mesmo vencimento juntos");
+  conferir(["dia", "semana", "mes"].every((h) => achados.some((e) => e.horizonte === h)), "há candidato para os três horizontes");
+  conferir(achados.every((e) => e.de < e.ate && e.id === `${e.horizonte}-${e.ate}`), "cada episódio tem começo, fim e um id estável");
+
+  const pontos = dia[0].real;
+  conferir(perto(ep.choqueNoPrazo(pontos, pontos[0].anos), 1.0, 1e-9) && perto(ep.choqueNoPrazo(pontos, pontos[2].anos), 0.6, 1e-9), "choque no prazo: nos vértices, o do vértice");
+  const meio = (pontos[0].anos + pontos[1].anos) / 2;
+  conferir(perto(ep.choqueNoPrazo(pontos, meio), 0.9, 1e-9), "choque no prazo: entre dois vértices, interpolado");
+  conferir(perto(ep.choqueNoPrazo(pontos, 0.2), 1.0, 1e-9) && perto(ep.choqueNoPrazo(pontos, 60), 0.6, 1e-9), "fora do intervalo vale o da ponta mais próxima — não null, que derrubaria a conta da carteira");
+  conferir(ep.choqueNoPrazo([], 5) === null && ep.choqueNoPrazo(pontos, null) === null, "sem pontos ou sem prazo: null");
+
+  // Um buraco na publicação não vira "um dia": com 20 dias corridos entre dois
+  // preços, o salto que mora ali não é candidato a pior DIA.
+  const comBuraco = historico.map((t) => ({ ...t, serie: Object.fromEntries(Object.entries(t.serie).filter(([d]) => d < pregoes[20] || d >= diaDoSalto)) }));
+  conferir(!ep.acharEpisodios(comBuraco, { prazoMinimo: 1.5 }).some((e) => e.horizonte === "dia" && e.ate === diaDoSalto), "um buraco de semanas no histórico não conta como janela de um dia");
+  const soQueda = historico.map((t) => ({ ...t, serie: Object.fromEntries(pregoes.map((d, i) => [d, [10 - i * 0.01, 1000]])) }));
+  conferir(ep.acharEpisodios(soQueda, { prazoMinimo: 1.5 }).length === 0, "histórico em que a taxa só caiu não tem momento ruim a mostrar");
+  conferir(ep.familiaDoChoque("ipca-juros") === "real" && ep.familiaDoChoque("prefixado") === "nominal" && ep.familiaDoChoque("selic") === null, "IPCA+ é choque real, Prefixado nominal, LFT nenhum");
+
+  // Contra o histórico de verdade.
+  const t = await datalayer.getTitulos();
+  const itens = t.categorias.flatMap((c) => c.itens);
+  if (!itens.length) avisar("sem títulos coletados — choques não conferidos");
+  else {
+    conferir(Array.isArray(t.episodios) && ["dia", "semana", "mes"].every((h) => t.episodios.some((e) => e.horizonte === h)), `o payload traz episódios dos três horizontes (${t.episodios.map((e) => e.id).join(", ")})`);
+    conferir(t.episodios.every((e) => Object.keys(e).sort().join() === "ate,de,horizonte,id,nominalPP,realPP"), "só o cabeçalho de cada episódio vai no payload, sem a curva do choque");
+    const comRisco = itens.filter((i) => i.tipo !== "selic" && i.taxa != null);
+    conferir(comRisco.every((i) => i.choques && t.episodios.every((e) => Array.isArray(i.choques[e.id]) && i.choques[e.id].length === 2)), `todo título com risco de taxa tem o efeito de todo episódio (${comRisco.length} títulos)`);
+    conferir(itens.filter((i) => i.tipo === "selic").every((i) => i.choques === null), "a LFT não tem choque");
+    conferir(comRisco.every((i) => Object.values(i.choques).every(([pp, preco]) => (pp > 0 ? preco < 0 : preco >= 0))), "taxa que sobe é preço que cai, em todo título e todo episódio");
+    // REPRECIFICAÇÃO, não duration: com alta de taxa, a perda exata é MENOR
+    // que a linear (a convexidade ajuda) e maior que zero.
+    const longo = comRisco.filter((i) => i.duration?.modificada > 5 && Object.values(i.choques).some(([pp]) => pp > 1));
+    conferir(longo.length > 0 && longo.every((i) => Object.values(i.choques).every(([pp, preco]) => pp <= 0 || Math.abs(preco) < i.duration.modificada * pp)), "o efeito é a reprecificação do fluxo: fica aquém da conta linear de duration");
+    // E bate com precoPor100 chamado por fora.
+    const um = comRisco.find((i) => i.comCupom) || comRisco[0];
+    const [idEp, [pp1, preco1]] = Object.entries(um.choques)[0];
+    const base = { vencimentoISO: um.vencimento, comCupom: um.comCupom, cupomAnual: um.cupomAnual ?? undefined };
+    const exato = (util.precoPor100({ ...base, taxaReal: (um.taxa + pp1) / 100 }) / util.precoPor100({ ...base, taxaReal: um.taxa / 100 }) - 1) * 100;
+    conferir(perto(preco1, exato, 2e-3), `${um.slug} em ${idEp}: o efeito confere com a reprecificação feita por fora`);
+  }
+
+  // Na carteira, no aparelho.
+  const pos = await import("../src/posicoes.js");
+  const eps = [
+    { id: "dia-A", horizonte: "dia", de: "2020-03-11", ate: "2020-03-12", realPP: 1.3, nominalPP: 2.0 },
+    { id: "dia-B", horizonte: "dia", de: "2026-10-23", ate: "2026-10-26", realPP: 1.2, nominalPP: 2.7 },
+    { id: "mes-A", horizonte: "mes", de: "2020-02-17", ate: "2020-03-19", realPP: 1.7, nominalPP: 2.6 },
+  ];
+  const grupo = (tipo, valorHoje, choques) => ({ slug: tipo, valorHoje, titulo: { tipo, choques } });
+  const ipca = grupo("ipca", 6000, { "dia-A": [1.3, -10], "dia-B": [1.2, -9], "mes-A": [1.7, -13] });
+  const pre = grupo("prefixado", 3000, { "dia-A": [2.0, -4], "dia-B": [2.7, -6], "mes-A": [2.6, -5] });
+  const lft = grupo("selic", 1000, null);
+  const tudo = pos.pioresMomentos([ipca, pre, lft], eps);
+  conferir(tudo.momentos.length === 2 && tudo.momentos[0].id === "dia-A" && perto(tudo.momentos[0].valor, -600 - 120) && perto(tudo.momentos[0].pct, -7.2), "soma o efeito de cada título no valor de hoje; a LFT entra no total e não no choque");
+  conferir(pos.pioresMomentos([pre], eps).momentos[0].id === "dia-B" && pos.pioresMomentos([ipca], eps).momentos[0].id === "dia-A", "entre os candidatos fica o que mais tira DESTA carteira: o pior dia de quem só tem Prefixado não é o de quem só tem IPCA+");
+  conferir(tudo.temReal && tudo.temNominal && !pos.pioresMomentos([ipca], eps).temNominal, "a tela sabe quais famílias a carteira tem");
+  const semUm = pos.pioresMomentos([ipca, grupo("prefixado", 3000, { "dia-A": [2, -4] })], eps);
+  conferir(semUm.momentos.length === 1 && semUm.momentos[0].id === "dia-A", "episódio sem o número de algum título fica fora — não vira uma soma com um pedaço a menos");
+  conferir(pos.pioresMomentos([lft], eps) === null && pos.pioresMomentos([], eps) === null && pos.pioresMomentos([ipca], []) === null, "só LFT, carteira vazia ou histórico sem episódios: nada a repetir");
+  const cart = await ler("src/components/Carteira.jsx");
+  conferir(/Não é o pior\s+possível, nem previsão/.test(cart), "a tela diz que não é o pior possível nem previsão");
+}
+
+// O TÍTULO CONTRA O FUTURO. Conferido por identidades: numa curva plana um
+// título à mesma taxa tem prêmio zero e rolagem zero, com ou sem cupom.
+console.log("\nTesouro × futuro: prêmio e 12 meses parado");
+{
+  const fut = await import("../server/futuro.js");
+  const { diasUteis } = await import("../server/feriados.js");
+  const ref = "2026-11-11";
+  const vencs = ["2027-01-04", "2027-07-01", "2028-01-03", "2029-01-02", "2030-01-02", "2031-01-02", "2033-01-03", "2035-01-02", "2037-01-02", "2041-01-02"];
+  const arquivo = (taxaDe) => ({
+    contratos: Object.fromEntries(vencs.flatMap((v, i) => [
+      [`DI1X${i}`, { ativo: "DI1", vencimento: v, serie: { [ref]: [taxaDe(diasUteis(ref, v) / 252), 0] } }],
+      [`DAPX${i}`, { ativo: "DAP", vencimento: v, serie: { [ref]: [taxaDe(diasUteis(ref, v) / 252) - 7, 0] } }],
+    ])),
+  });
+  const plana = fut.curvaDoFuturo(arquivo(() => 14), "DI1", ref);
+  conferir(plana.length === vencs.length && plana.every((p, i, l) => i === 0 || p.du > l[i - 1].du) && plana.every((p) => p.taxa === 14), "a curva de um futuro: só aquele ativo, em ordem de prazo");
+  conferir(fut.curvaDoFuturo(arquivo(() => 14), "DAP", ref, { duMinimo: 378 }).every((p) => p.du >= 378), "o piso corta a ponta curta (a da DAP é distorcida)");
+  conferir(fut.curvaDoFuturo(arquivo(() => 14), "DI1", "2026-11-12").length === 0, "sem preço naquela data não há curva — nunca a da data vizinha");
+
+  conferir(perto(fut.fatorNoPrazo(plana, plana[3].du), plana[3].fator, 1e-12), "fator: no vértice, o do vértice");
+  conferir(fut.fatorNoPrazo(plana, plana.at(-1).du + 1) === null, "fator: além do último vencimento, null (não extrapola a ponta longa)");
+  const inclinada = fut.curvaDoFuturo(arquivo((a) => 13 + 0.3 * a), "DI1", ref);
+  const [a, b] = [inclinada[3], inclinada[4]];
+  const noMeio = fut.fatorNoPrazo(inclinada, (a.du + b.du) / 2);
+  conferir(perto(noMeio, Math.sqrt(a.fator * b.fator), 1e-12), "fator: entre dois vencimentos, taxa a termo constante (flat-forward)");
+
+  const ltn = { vencimentoISO: "2031-01-01", comCupom: false, cupomAnual: null };
+  const ntnf = { vencimentoISO: "2033-01-01", comCupom: true, cupomAnual: 0.1 };
+  conferir(perto(fut.taxaDoFuturo({ ...ltn, dataISO: ref, curva: plana }), 14, 1e-9) && perto(fut.taxaDoFuturo({ ...ntnf, dataISO: ref, curva: plana }), 14, 1e-9), "curva plana a 14%: a taxa do futuro para o título é 14%, com ou sem cupom");
+  const duLtn = diasUteis(ref, ltn.vencimentoISO);
+  const direta = (Math.pow(fut.fatorNoPrazo(inclinada, duLtn), 252 / duLtn) - 1) * 100;
+  conferir(perto(fut.taxaDoFuturo({ ...ltn, dataISO: ref, curva: inclinada }), direta, 1e-9), "sem cupom, a conta fluxo a fluxo É a taxa do futuro no vencimento");
+  const comCupom = fut.taxaDoFuturo({ ...ntnf, dataISO: ref, curva: inclinada });
+  const duNtnf = diasUteis(ref, ntnf.vencimentoISO);
+  const noVencimento = (Math.pow(fut.fatorNoPrazo(inclinada, duNtnf), 252 / duNtnf) - 1) * 100;
+  conferir(comCupom < noVencimento && comCupom > 13, "com cupom, numa curva que sobe, a taxa equivalente fica ABAIXO da do vencimento: parte do dinheiro mora em pontos mais curtos");
+  conferir(fut.taxaDoFuturo({ vencimentoISO: "2045-01-01", comCupom: false, dataISO: ref, curva: plana }) === null, "vencimento além da curva: null");
+  conferir(fut.taxaDoFuturo({ vencimentoISO: "2026-12-01", comCupom: false, dataISO: ref, curva: plana }) === null, "vencimento antes do primeiro vértice: null (o piso não é contornado)");
+
+  // 12 meses parado.
+  const p0 = fut.paradoEm12Meses({ ...ltn, taxa: 14.5, dataISO: ref, curva: plana });
+  const duAno = diasUteis(ref, fut.umAnoDepois(ref));
+  conferir(p0.ate === "2027-11-11" && perto(p0.rolagemPct, 0, 1e-9) && perto(p0.taxaRolada, 14.5, 1e-9), "curva plana: não há rolagem, e o prêmio do título (0,5 p.p.) é mantido");
+  conferir(perto(p0.carregoPct, (Math.pow(1.145, duAno / 252) - 1) * 100, 1e-9) && perto(p0.totalPct, p0.carregoPct, 1e-9), "o carrego é a taxa do título correndo pelos dias úteis do ano");
+  const p0c = fut.paradoEm12Meses({ ...ntnf, taxa: 14.5, dataISO: ref, curva: plana });
+  conferir(perto(p0c.carregoPct, p0.carregoPct, 1e-9) && perto(p0c.rolagemPct, 0, 1e-9), "COM CUPOM o carrego é o mesmo: os cupons do ano entram reaplicados à taxa do título (sem isso saía um ponto a menos)");
+  const sobe = fut.paradoEm12Meses({ ...ltn, taxa: 14.5, dataISO: ref, curva: inclinada });
+  conferir(sobe.rolagemPct > 0 && sobe.taxaRolada < 14.5 && perto(sobe.totalPct, sobe.carregoPct + sobe.rolagemPct, 1e-12), "curva que sobe com o prazo: o título encurta, a taxa cai, a rolagem é ganho");
+  const invertida = fut.curvaDoFuturo(arquivo((x) => 16 - 0.3 * x), "DI1", ref);
+  conferir(fut.paradoEm12Meses({ ...ltn, taxa: 14.5, dataISO: ref, curva: invertida }).rolagemPct < 0, "curva invertida: a rolagem é perda");
+  conferir(fut.paradoEm12Meses({ vencimentoISO: "2027-07-01", comCupom: false, taxa: 14, dataISO: ref, curva: plana }) === null, "título que vence dentro dos 12 meses: sem leitura");
+  conferir(fut.paradoEm12Meses({ ...ltn, taxa: null, dataISO: ref, curva: plana }) === null && fut.paradoEm12Meses({ ...ltn, taxa: 14, dataISO: ref, curva: [] }) === null, "sem taxa ou sem curva: null");
+  conferir(fut.umAnoDepois("2028-02-29") === "2029-03-01", "um ano depois de 29/02 é 01/03");
+  conferir(fut.FUTURO_DA_FAMILIA.ipca === "DAP" && fut.FUTURO_DA_FAMILIA["prefixado-juros"] === "DI1" && !("selic" in fut.FUTURO_DA_FAMILIA), "IPCA+ contra a DAP, Prefixado contra o DI; a LFT não tem futuro a comparar");
+
+  // O que vai para as telas, com os dados de verdade.
+  const curva = await datalayer.getCurva();
+  if (!curva.contraFuturo) avisar("sem futuro coletado na data do preço dos títulos — Tesouro × futuro não conferido");
+  else {
+    const comLeitura = curva.contraFuturo.linhas.filter((l) => l.premioPP != null);
+    conferir(comLeitura.length >= 8 && curva.contraFuturo.linhas.every((l) => l.tipo !== "selic" && ["DI1", "DAP"].includes(l.ativo)), `${comLeitura.length} títulos com leitura contra o futuro; nenhuma LFT`);
+    conferir(comLeitura.every((l) => perto(l.premioPP, l.taxa - l.taxaFuturo, 2e-3)), "o prêmio é a taxa do título menos a do futuro");
+    // A MESMA DATA nas duas pontas. O prêmio medido fica em décimos de ponto;
+    // casando datas diferentes num dia de reprecificação ele abre pontos
+    // inteiros. Um prêmio acima de 1 p.p. aqui quer dizer data trocada.
+    conferir(comLeitura.every((l) => Math.abs(l.premioPP) < 1), `nenhum prêmio passa de 1 p.p. (maior: ${Math.max(...comLeitura.map((l) => Math.abs(l.premioPP))).toFixed(2)}) — datas casadas`);
+    conferir(comLeitura.every((l) => l.data <= curva.contraFuturo.data) && /^\d{4}-\d{2}-\d{2}$/.test(curva.contraFuturo.data), "o payload diz de que data são os preços");
+    const comParado = comLeitura.filter((l) => l.parado);
+    conferir(comParado.length >= 5 && comParado.every((l) => perto(l.parado.totalPct, l.parado.carregoPct + l.parado.rolagemPct, 1e-9) && Math.abs(l.parado.carregoPct - l.taxa) < 0.3), "12 meses parado: total = carrego + rolagem, e o carrego é a taxa do título (a menos dos dias úteis do ano)");
+    const det = await datalayer.getDetalhe(comLeitura[0].slug);
+    conferir(det.contraFuturo?.premioPP === comLeitura[0].premioPP, "o Detalhe mostra o mesmo prêmio que a Curva");
+    const lft = (await datalayer.getTitulos()).categorias.flatMap((c) => c.itens).find((i) => i.tipo === "selic");
+    if (lft) conferir((await datalayer.getDetalhe(lft.slug)).contraFuturo === null, "o Detalhe de uma LFT não tem a seção");
+  }
+  const dl = (await ler("server/datalayer.js")).replace(/\/\/.*$/gm, "");
+  conferir(/curvaDoFuturoEm\(ativo, ponto\.date\)/.test(dl) && /curvaDoFuturoEm\(ativo, ultimo\.date\)/.test(dl), "a curva usada é sempre a da data do preço do título");
+  const tela = await ler("src/components/TesouroFuturo.jsx");
+  conferir((tela.match(/Não é sinal de compra/g) || []).length >= 2 && /[Hh]ipótese, não previsão/.test(tela), "as duas telas dizem 'não é sinal de compra' e 'hipótese, não previsão'");
+  conferir(!/api\.js|fetch\(/.test(tela.replace(/\/\/.*$/gm, "")), "o componente só mostra: os números chegam prontos do servidor");
+}
+
+// A PESQUISA FOCUS. O parser foi escrito sem ver uma resposta real (o ambiente
+// não alcança o BCB): por isso a fixture aqui varia caixa e ordem dos campos.
+console.log("\npesquisa Focus");
+{
+  const focus = await import("../server/providers/focus.js");
+  const selic = await import("../server/selic.js");
+  const linha = (o) => ({ Indicador: "Selic", Media: 1, DesvioPadrao: 0.1, ...o });
+  const resposta = JSON.stringify({
+    "@odata.context": "x",
+    value: [
+      linha({ Data: "2026-11-06", Reuniao: "R1/2027", Mediana: 13.75, numeroRespondentes: 110, baseCalculo: 0 }),
+      linha({ Data: "2026-11-06", Reuniao: "R8/2026", Mediana: 13.75, numeroRespondentes: 120, baseCalculo: 0 }),
+      linha({ Data: "2026-11-06", Reuniao: "R8/2026", Mediana: 14.0, numeroRespondentes: 40, baseCalculo: 1 }),
+      linha({ Data: "2026-11-06", Reuniao: "R2/2027", Mediana: 13.5, numeroRespondentes: 100, baseCalculo: 0 }),
+      linha({ Data: "2026-11-05", Reuniao: "R8/2026", Mediana: 13.5, numeroRespondentes: 120, baseCalculo: 0 }),
+      linha({ Data: "2026-11-06", Reuniao: "sem formato", Mediana: 9, baseCalculo: 0 }),
+    ],
+  });
+  const r = focus.lerRespostaFocus(resposta);
+  conferir(r.ok && r.data === "2026-11-06" && r.linhas.length === 4, "fica só a data mais recente, na base de cálculo pedida");
+  const reunioes = focus.selicPorReuniao(r.linhas);
+  conferir(reunioes.map((x) => `${x.reuniao}=${x.mediana}`).join() === "R8/2026=13.75,R1/2027=13.75,R2/2027=13.5", "Selic por reunião, em ordem; linha sem reunião legível fica de fora");
+  conferir(focus.selicPorReuniao(focus.lerRespostaFocus(resposta, { baseCalculo: 1 }).linhas)[0].mediana === 14, "a outra base de cálculo é outra pesquisa — não se mistura");
+  const outraCaixa = JSON.stringify({ value: [{ data: "2026-11-06T00:00:00", REUNIAO: "r3/2027", mediana: "13.25", NumeroRespondentes: "90" }] });
+  const rc = focus.lerRespostaFocus(outraCaixa);
+  conferir(rc.ok && focus.selicPorReuniao(rc.linhas)[0]?.reuniao === "R3/2027" && focus.selicPorReuniao(rc.linhas)[0].mediana === 13.25, "os campos são achados pelo nome, sem depender de caixa; número em texto vira número");
+  const ruim = [focus.lerRespostaFocus("<html>erro</html>"), focus.lerRespostaFocus('{"value":[]}'), focus.lerRespostaFocus('{"value":[{"Outro":1}]}')];
+  conferir(ruim.every((x) => x.ok === false && typeof x.motivo === "string" && x.linhas.length === 0), "resposta que não se entende vira erro com motivo — nunca um número");
+  conferir(typeof ruim[0].amostra === "string" && ruim[0].amostra.includes("html"), "o erro leva uma amostra do que veio, para o log do coletor");
+
+  const ipca = JSON.stringify({
+    value: [
+      { Indicador: "IPCA", IndicadorDetalhe: null, Data: "2026-11-06", DataReferencia: "2027", Mediana: 4.2, baseCalculo: 0 },
+      { Indicador: "IPCA", IndicadorDetalhe: null, Data: "2026-11-06", DataReferencia: "2026", Mediana: 4.55, baseCalculo: 0 },
+      { Indicador: "IPCA", IndicadorDetalhe: "Administrados", Data: "2026-11-06", DataReferencia: "2028", Mediana: 9, baseCalculo: 0 },
+      { Indicador: "IPCA", IndicadorDetalhe: null, Data: "2026-11-06", DataReferencia: "2028", Mediana: 3.8, baseCalculo: 0 },
+    ],
+  });
+  const anos = focus.ipcaPorAno(focus.lerRespostaFocus(ipca).linhas);
+  conferir(anos.map((x) => `${x.ano}=${x.mediana}`).join() === "2026=4.55,2027=4.2,2028=3.8", "IPCA por ano, em ordem, sem as linhas de detalhamento");
+
+  conferir(focus.partesDaReuniao("R8/2026")?.ordem === 8 && focus.partesDaReuniao("R8/2026").ano === 2026 && focus.partesDaReuniao("8/2026") === null, "o nome da reunião é lido como ordem/ano");
+  conferir(selic.rotuloFocus("2026-12-09") === "R8/2026" && selic.rotuloFocus("2027-01-27") === "R1/2027" && selic.rotuloFocus("2026-12-10") === null, "a data da reunião vira o nome que a pesquisa lhe dá — pela posição no calendário do ano");
+
+  // A média do período.
+  const plano = [2026, 2027, 2028, 2029].map((ano) => ({ ano, mediana: 4 }));
+  conferir(perto(focus.focusNoPeriodo(plano, "2026-11-13", "2029-06-30"), 4, 1e-9), "mesma mediana em todos os anos: a média do período é ela");
+  const dois = [{ ano: 2027, mediana: 2 }, { ano: 2028, mediana: 6 }];
+  conferir(perto(focus.focusNoPeriodo(dois, "2027-01-01", "2029-01-01"), (Math.sqrt(1.02 * 1.06) - 1) * 100, 1e-9), "dois anos inteiros: média GEOMÉTRICA, não a soma dividida por dois");
+  // De 02/07/2027 ao fim do ano são 183 dos 365 dias de 2027.
+  const fracao = 183 / 365;
+  conferir(perto(focus.focusNoPeriodo(dois, "2027-07-02", "2029-01-01"), (Math.pow(Math.pow(1.02, fracao) * 1.06, 1 / (1 + fracao)) - 1) * 100, 1e-9), "ano pela metade pesa pela fração dele que cai no período");
+  conferir(focus.focusNoPeriodo(dois, "2027-01-01", "2030-01-01") === null, "período que passa do alcance da pesquisa: null, não a última mediana repetida");
+  conferir(focus.focusNoPeriodo(dois, "2028-01-01", "2028-01-01") === null && focus.focusNoPeriodo(null, "2027-01-01", "2028-01-01") === null, "sem período ou sem pesquisa: null");
+
+  // Na tela da Selic: a mediana ao lado da reunião certa.
+  const { ehDiaUtil, diasUteis } = await import("../server/feriados.js");
+  const ref = "2026-11-10";
+  const vertices = ["2026-12-01", "2027-01-04", "2027-02-01", "2027-04-01"].map((v) => [v, 13.65 + 0.1 * (diasUteis(ref, v) / 252)]);
+  const contratos = Object.fromEntries(vertices.map(([v, taxaDoVertice], i) => [`DI1F${i}`, { ativo: "DI1", vencimento: v, serie: { [ref]: [taxaDoVertice, 0] } }]));
+  const tela = datalayer.selicImplicitaDe({ contratos }, { cdiHoje: 13.65, metaHoje: 13.75, focus: { data: "2026-11-06", reunioes: [{ reuniao: "R8/2026", mediana: 13.75 }, { reuniao: "R2/2027", mediana: 13.25 }] } });
+  const de = (d) => tela.reunioes.find((x) => x.data === d);
+  conferir(de("2026-12-09")?.focus === 13.75 && tela.focusDe === "2026-11-06", "a mediana da pesquisa vai na reunião certa, e a data da pesquisa viaja junto");
+  conferir(tela.reunioes.filter((x) => x.data === "2027-01-27").every((x) => x.focus === null), "reunião que a pesquisa não cobre fica null");
+  conferir(datalayer.selicImplicitaDe({ contratos }, { cdiHoje: 13.65, metaHoje: 13.75 }).focusDe === null, "sem pesquisa a tabela fica como era");
+  conferir(ehDiaUtil(new Date("2026-12-09T00:00:00Z")), "(a reunião usada na fixture é dia útil)");
+
+  // A fonte e o caminho até a tela.
+  conferir([focus.URL_FOCUS_SELIC, focus.URL_FOCUS_IPCA].every((u) => u.startsWith("https://olinda.bcb.gov.br/olinda/servico/Expectativas/") && u.includes("$format=json") && u.includes("Data%20desc")), "as duas consultas pedem JSON, das linhas mais novas para as mais velhas");
+  const semente = JSON.parse(await ler("dados/focus.json"));
+  conferir("selic" in semente && "ipca" in semente && "atualizadoEm" in semente, "dados/focus.json existe com os campos que o coletor escreve");
+  conferir(/require\("\.\.\/dados\/focus\.json"\)/.test(await ler("server/cache.js")), "cache.js carrega dados/focus.json com caminho literal");
+  const coletor = await ler(".github/scripts/coletar-tesouro.mjs");
+  conferir(coletor.indexOf("0b. Pesquisa Focus") > 0 && coletor.indexOf("0b. Pesquisa Focus") < coletor.indexOf("1. Varredura do CSV"), "o coletor lê o Focus ANTES do Tesouro: uma queda de um não leva o outro");
+  conferir(/if \(!mudou\)/.test(coletor.slice(coletor.indexOf("0b. Pesquisa Focus"), coletor.indexOf("1. Varredura do CSV"))), "focus.json só é regravado quando o conteúdo muda (sem commit por carimbo de hora)");
+  conferir(/git add[^\n]*dados\/focus\.json/.test(await ler(".github/workflows/coletar-tesouro.yml")), "o workflow versiona dados/focus.json");
+  const fontes = [];
+  for (const dir of ["src", "src/components", "api"]) for (const f of await readdir(join(RAIZ, dir))) if (/\.(js|jsx)$/.test(f)) fontes.push(`${dir}/${f}`);
+  const comOlinda = [];
+  for (const f of fontes) if (/olinda\.bcb/.test(await ler(f))) comOlinda.push(f);
+  conferir(comOlinda.length === 0, "a pesquisa é lida pelo coletor: nem a tela nem as funções da Vercel chamam o BCB por ela");
+  const curvaTela = await ler("src/components/Curva.jsx");
+  conferir(/prêmio de risco e de liquidez, não\s+inflação esperada/.test(curvaTela), "a Curva diz que a distância entre preço e pesquisa é prêmio, não inflação esperada");
+}
+
 console.log("\nordem da lista de títulos");
 {
   const o = await import("../src/ordem.js");

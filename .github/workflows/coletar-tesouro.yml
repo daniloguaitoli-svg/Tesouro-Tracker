@@ -148,6 +148,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dados/historico.json dados/ntnb.json dados/ntnb.md dados/prefixado.json dados/selic.json dados/global.json dados/painel.json dados/painel.md dados/futuros.json dados/resumo.json
+          git add dados/historico.json dados/ntnb.json dados/ntnb.md dados/prefixado.json dados/selic.json dados/global.json dados/painel.json dados/painel.md dados/futuros.json dados/focus.json dados/resumo.json
           git diff --staged --quiet || git commit -m "Dados: coleta automatica das NTN-B"
           git push

@@ -23,6 +23,7 @@
 //   dados/prefixado.json  LTN + NTN-F (taxas NOMINAIS)
 //   dados/selic.json      LFT (ágio/deságio sobre a Selic, sem duration)
 //   dados/global.json     Fed e BCE: taxa vigente e última decisão
+//   dados/focus.json      pesquisa Focus do BCB: Selic por reunião e IPCA por ano
 //   dados/painel.json     o retrato da aba Painel: destaques + moldura macro
 //   dados/painel.md       o mesmo, em tabela
 //
@@ -50,6 +51,7 @@ import {
   arred,
 } from "../../server/ponte.js";
 import { lerGlobais } from "../../server/providers/globais.js";
+import { lerFocus, lerRespostaFocus, selicPorReuniao, ipcaPorAno } from "../../server/providers/focus.js";
 import { lerFuturos } from "../../server/providers/b3.js";
 import { REGIOES, baixarFeed, extrairItens, descartadosDoFeed } from "../../server/providers/noticias.js";
 import { ibovespa } from "../../server/providers/yahoo.js";
@@ -192,6 +194,77 @@ try {
   }
 } catch {
   /* antes da primeira coleta não há o que estar parado */
+}
+
+// ---------- 0b. Pesquisa Focus (dados/focus.json) ----------
+//
+// O que os economistas esperam para a Selic (reunião a reunião) e para o IPCA
+// (ano a ano), para a tela pôr ao lado do que os preços embutem. A pesquisa
+// sai uma vez por semana; ler a cada coleta é sobra, e é o que garante que a
+// semana nova entre no mesmo dia.
+//
+// AQUI EM CIMA PELO MESMO MOTIVO DA B3: é fonte independente, e lá embaixo
+// uma queda do Tesouro (que sai cedo e verde) a levaria junto. E com o mesmo
+// contrato do Fed e do BCE: o que falhar mantém o valor anterior do arquivo,
+// e nenhuma falha daqui derruba a coleta.
+//
+// SÓ GRAVA QUANDO MUDA. `atualizadoEm` é de quando o CONTEÚDO mudou, não de
+// quando o job rodou — senão cada coleta geraria um commit e um deploy por
+// causa de um carimbo de hora.
+const ARQ_FOCUS = join(DIR, "focus.json");
+try {
+  let focusAnterior = { atualizadoEm: null, selic: null, ipca: null };
+  try {
+    focusAnterior = JSON.parse(await readFile(ARQ_FOCUS, "utf-8"));
+  } catch {
+    /* primeira execução */
+  }
+  const lido = await lerFocus();
+  if (lido.selic) {
+    console.log(
+      `\nFocus Selic (pesquisa de ${lido.selic.data}): ${lido.selic.reunioes.length} reuniões — ` +
+        lido.selic.reunioes.slice(0, 6).map((r) => `${r.reuniao} ${r.mediana}%`).join(" · ")
+    );
+  }
+  if (lido.ipca) {
+    console.log(`Focus IPCA (pesquisa de ${lido.ipca.data}): ` + lido.ipca.anos.map((a) => `${a.ano} ${a.mediana}%`).join(" · "));
+  }
+  for (const e of lido.erros) console.warn(`Focus FALHA ${e} — mantido o valor anterior`);
+
+  // A OUTRA BASE DE CÁLCULO, só no log. A documentação alcançada não diz qual
+  // das duas (0 ou 1) é a janela de 30 dias e qual é a de 5; o app usa a 0.
+  // Com as duas lado a lado no log dá para ver o tamanho da diferença — e
+  // trocar, se um dia ficar claro que a outra é a que o relatório publica.
+  try {
+    const s1 = lerRespostaFocus(lido.bruto.selic, { baseCalculo: 1 });
+    const i1 = lerRespostaFocus(lido.bruto.ipca, { baseCalculo: 1 });
+    if (s1.ok) console.log("Focus Selic, base de cálculo 1: " + selicPorReuniao(s1.linhas).slice(0, 6).map((r) => `${r.reuniao} ${r.mediana}%`).join(" · "));
+    if (i1.ok) console.log("Focus IPCA, base de cálculo 1: " + ipcaPorAno(i1.linhas).map((a) => `${a.ano} ${a.mediana}%`).join(" · "));
+  } catch {
+    /* é só log */
+  }
+
+  const selic = lido.selic ?? focusAnterior.selic ?? null;
+  const ipca = lido.ipca ?? focusAnterior.ipca ?? null;
+  const mudou = JSON.stringify({ selic, ipca }) !== JSON.stringify({ selic: focusAnterior.selic ?? null, ipca: focusAnterior.ipca ?? null });
+  if (!mudou) {
+    console.log("Focus: sem mudança — focus.json mantido como estava");
+  } else if (seco) {
+    console.log("--dry-run: focus.json teria sido atualizado");
+  } else {
+    const focusNovo = {
+      atualizadoEm: new Date().toISOString(),
+      fonte: "Banco Central do Brasil — Expectativas de Mercado (Focus)",
+      nota: "Mediana das expectativas. `selic` é por reunião do Copom (R1 é a primeira reunião ordinária do ano); `ipca` é por ano-calendário, em % no ano.",
+      selic,
+      ipca,
+    };
+    await mkdir(DIR, { recursive: true });
+    await writeFile(ARQ_FOCUS, JSON.stringify(focusNovo, null, 1) + "\n", "utf-8");
+    console.log("gravado dados/focus.json");
+  }
+} catch (e) {
+  console.warn(`Focus FALHA: ${e.message} — focus.json mantido como estava`);
 }
 
 console.log(URL_CSV);
