@@ -1,7 +1,152 @@
 {
- "atualizadoEm": null,
+ "atualizadoEm": "2026-11-14T00:54:51.380Z",
  "fonte": "Banco Central do Brasil — Expectativas de Mercado (Focus)",
  "nota": "Mediana das expectativas. `selic` é por reunião do Copom (R1 é a primeira reunião ordinária do ano); `ipca` é por ano-calendário, em % no ano.",
- "selic": null,
- "ipca": null
+ "selic": {
+  "data": "2026-11-06",
+  "reunioes": [
+   {
+    "reuniao": "R8/2026",
+    "ordem": 8,
+    "ano": 2026,
+    "mediana": 13.75,
+    "respondentes": 144
+   },
+   {
+    "reuniao": "R1/2027",
+    "ordem": 1,
+    "ano": 2027,
+    "mediana": 13.75,
+    "respondentes": 139
+   },
+   {
+    "reuniao": "R2/2027",
+    "ordem": 2,
+    "ano": 2027,
+    "mediana": 13.5,
+    "respondentes": 139
+   },
+   {
+    "reuniao": "R3/2027",
+    "ordem": 3,
+    "ano": 2027,
+    "mediana": 13.5,
+    "respondentes": 139
+   },
+   {
+    "reuniao": "R4/2027",
+    "ordem": 4,
+    "ano": 2027,
+    "mediana": 13.5,
+    "respondentes": 139
+   },
+   {
+    "reuniao": "R5/2027",
+    "ordem": 5,
+    "ano": 2027,
+    "mediana": 13.25,
+    "respondentes": 139
+   },
+   {
+    "reuniao": "R6/2027",
+    "ordem": 6,
+    "ano": 2027,
+    "mediana": 13,
+    "respondentes": 138
+   },
+   {
+    "reuniao": "R7/2027",
+    "ordem": 7,
+    "ano": 2027,
+    "mediana": 12.75,
+    "respondentes": 138
+   },
+   {
+    "reuniao": "R8/2027",
+    "ordem": 8,
+    "ano": 2027,
+    "mediana": 12.5,
+    "respondentes": 144
+   },
+   {
+    "reuniao": "R1/2028",
+    "ordem": 1,
+    "ano": 2028,
+    "mediana": 12.25,
+    "respondentes": 126
+   },
+   {
+    "reuniao": "R2/2028",
+    "ordem": 2,
+    "ano": 2028,
+    "mediana": 12,
+    "respondentes": 126
+   },
+   {
+    "reuniao": "R3/2028",
+    "ordem": 3,
+    "ano": 2028,
+    "mediana": 12,
+    "respondentes": 126
+   },
+   {
+    "reuniao": "R4/2028",
+    "ordem": 4,
+    "ano": 2028,
+    "mediana": 11.75,
+    "respondentes": 126
+   },
+   {
+    "reuniao": "R5/2028",
+    "ordem": 5,
+    "ano": 2028,
+    "mediana": 11.5,
+    "respondentes": 124
+   },
+   {
+    "reuniao": "R6/2028",
+    "ordem": 6,
+    "ano": 2028,
+    "mediana": 11.375,
+    "respondentes": 122
+   },
+   {
+    "reuniao": "R7/2028",
+    "ordem": 7,
+    "ano": 2028,
+    "mediana": 11.25,
+    "respondentes": 19
+   }
+  ]
+ },
+ "ipca": {
+  "data": "2026-11-06",
+  "anos": [
+   {
+    "ano": 2026,
+    "mediana": 5.2195,
+    "respondentes": 146
+   },
+   {
+    "ano": 2027,
+    "mediana": 4.9005,
+    "respondentes": 146
+   },
+   {
+    "ano": 2028,
+    "mediana": 4,
+    "respondentes": 133
+   },
+   {
+    "ano": 2029,
+    "mediana": 4,
+    "respondentes": 122
+   },
+   {
+    "ano": 2030,
+    "mediana": 3.935,
+    "respondentes": 114
+   }
+  ]
+ }
 }
