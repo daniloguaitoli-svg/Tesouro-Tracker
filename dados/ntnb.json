@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-11-14T21:34:27.837Z",
+ "atualizadoEm": "2026-11-15T02:48:24.786Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
   "tesouro": "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv",
@@ -120,11 +120,11 @@
    "puCompra": 4295.88,
    "puVenda": 4403.1,
    "duration": {
-    "macaulayAnos": 6.433,
-    "modificada": 5.971,
-    "convexidade": 48.266,
-    "variacaoPrecoMais1pp": -5.73,
-    "variacaoPrecoMenos1pp": 6.21
+    "macaulayAnos": 6.644,
+    "modificada": 6.167,
+    "convexidade": 49.852,
+    "variacaoPrecoMais1pp": -5.92,
+    "variacaoPrecoMenos1pp": 6.42
    },
    "pontosNaSerie": 1962
   },
@@ -168,11 +168,11 @@
    "puCompra": 4238.33,
    "puVenda": 4340.91,
    "duration": {
-    "macaulayAnos": 7.484,
-    "modificada": 6.951,
-    "convexidade": 66.498,
-    "variacaoPrecoMais1pp": -6.62,
-    "variacaoPrecoMenos1pp": 7.28
+    "macaulayAnos": 7.733,
+    "modificada": 7.182,
+    "convexidade": 68.712,
+    "variacaoPrecoMais1pp": -6.84,
+    "variacaoPrecoMenos1pp": 7.53
    },
    "pontosNaSerie": 196
   },
@@ -240,11 +240,11 @@
    "puCompra": 4088.47,
    "puVenda": 4178.58,
    "duration": {
-    "macaulayAnos": 10.451,
-    "modificada": 9.719,
-    "convexidade": 143.001,
-    "variacaoPrecoMais1pp": -9,
-    "variacaoPrecoMenos1pp": 10.43
+    "macaulayAnos": 10.812,
+    "modificada": 10.055,
+    "convexidade": 147.938,
+    "variacaoPrecoMais1pp": -9.32,
+    "variacaoPrecoMenos1pp": 10.79
    },
    "pontosNaSerie": 1962
   },
@@ -336,11 +336,11 @@
    "puCompra": 3962.41,
    "puVenda": 4045.92,
    "duration": {
-    "macaulayAnos": 12.273,
-    "modificada": 11.413,
-    "convexidade": 221.309,
-    "variacaoPrecoMais1pp": -10.31,
-    "variacaoPrecoMenos1pp": 12.52
+    "macaulayAnos": 12.71,
+    "modificada": 11.82,
+    "convexidade": 229.192,
+    "variacaoPrecoMais1pp": -10.67,
+    "variacaoPrecoMenos1pp": 12.97
    },
    "pontosNaSerie": 1685
   },
