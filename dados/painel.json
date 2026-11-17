@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-11-17T05:07:42.666Z",
+ "atualizadoEm": "2026-11-17T19:55:24.407Z",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "sobre": "Retrato da aba Painel do Tesouro Tracker: os vencimentos acompanhados e a moldura macro (IPCA, Ibovespa, câmbio, CDI e Selic).",
  "sobreAcompanhados": "São os vencimentos marcados como destaque no catálogo do repositório. A estrela do app é escolhida por aparelho (localStorage) e o servidor não a conhece — se a seleção do celular for outra, esta lista não a reflete.",
@@ -20,14 +20,14 @@
    "nome": "Tesouro Prefixado 2029",
    "vencimento": "2029-01-01",
    "comCupom": false,
-   "taxa": 14.85,
+   "taxa": 14.75,
    "taxaSignifica": "juros nominais ao ano (a inflação do período corre por conta do investidor)",
-   "pu": 746.95,
-   "data": "2026-11-13",
+   "pu": 748.73,
+   "data": "2026-11-16",
    "duration": {
     "macaulayAnos": 2.099,
-    "modificada": 1.828,
-    "convexidade": 4.932,
+    "modificada": 1.829,
+    "convexidade": 4.941,
     "variacaoPrecoMais1pp": -1.8,
     "variacaoPrecoMenos1pp": 1.85
    }
@@ -39,8 +39,8 @@
    "comCupom": false,
    "taxa": 0.11,
    "taxaSignifica": "ágio/deságio sobre a Selic (não é uma taxa cheia; pode ser negativo)",
-   "pu": 20211.26,
-   "data": "2026-11-13",
+   "pu": 20221.61,
+   "data": "2026-11-16",
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -54,14 +54,14 @@
    "nome": "Tesouro IPCA+ 2032",
    "vencimento": "2032-08-15",
    "comCupom": false,
-   "taxa": 7.73,
+   "taxa": 7.75,
    "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 3119.36,
-   "data": "2026-11-13",
+   "pu": 3117.36,
+   "data": "2026-11-16",
    "duration": {
     "macaulayAnos": 5.706,
-    "modificada": 5.297,
-    "convexidade": 32.974,
+    "modificada": 5.296,
+    "convexidade": 32.962,
     "variacaoPrecoMais1pp": -5.13,
     "variacaoPrecoMenos1pp": 5.46
    }
@@ -71,14 +71,14 @@
    "nome": "Tesouro IPCA+ 2035",
    "vencimento": "2035-05-15",
    "comCupom": false,
-   "taxa": 7.77,
+   "taxa": 7.78,
    "taxaSignifica": "juros reais ao ano ACIMA do IPCA",
-   "pu": 2539.08,
-   "data": "2026-11-13",
+   "pu": 2538.17,
+   "data": "2026-11-16",
    "duration": {
     "macaulayAnos": 8.433,
-    "modificada": 7.825,
-    "convexidade": 68.484,
+    "modificada": 7.824,
+    "convexidade": 68.472,
     "variacaoPrecoMais1pp": -7.48,
     "variacaoPrecoMenos1pp": 8.17
    }
@@ -91,29 +91,29 @@
    "data": "2026-10-01"
   },
   "ibovespa": {
-   "pontos": 169295,
-   "var12mPct": 7.33,
-   "var12mDesde": "2025-11-14",
-   "var1semPct": -1.71,
-   "data": "2026-11-16"
+   "pontos": 169588,
+   "var12mPct": 8.02,
+   "var12mDesde": "2025-11-17",
+   "var1semPct": -1.02,
+   "data": "2026-11-17"
   },
   "eurbrl": {
-   "valor": 6.3102,
-   "varDiaPct": 1.23,
-   "var12mPct": 2.61,
-   "var1semPct": 2.2,
-   "data": "2026-11-16"
+   "valor": 6.3659,
+   "varDiaPct": 0.88,
+   "var12mPct": 3.35,
+   "var1semPct": 2.15,
+   "data": "2026-11-17"
   },
   "usdbrl": {
-   "valor": 5.7324,
-   "varDiaPct": 1.43,
-   "var12mPct": 8.26,
-   "var1semPct": 3.95,
-   "data": "2026-11-16"
+   "valor": 5.7851,
+   "varDiaPct": 0.92,
+   "var12mPct": 8.93,
+   "var1semPct": 3.6,
+   "data": "2026-11-17"
   },
   "cdi": {
    "pctAoAno": 13.65,
-   "data": "2026-11-13"
+   "data": "2026-11-16"
   },
   "selic": {
    "metaPctAoAno": 13.75,
