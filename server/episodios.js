@@ -22,11 +22,16 @@
 //
 // AS JANELAS SAEM DO DADO, NÃO DE UMA LISTA DE CRISES COM NOME. Dar nome
 // ("a crise de tal ano") seria editorializar e lembrar de cabeça; a regra é
-// reproduzível: para cada horizonte (1, 5 e 21 pregões), a janela em que a
-// taxa média mais subiu. São três réguas — só IPCA+, só Prefixado, e a média
-// das duas — porque a pior janela de quem só tem IPCA+ não é a de quem só tem
-// Prefixado. O aparelho escolhe, entre as candidatas, a que mais dói NA
-// carteira que está nele.
+// reproduzível: para cada horizonte (1, 5 e 21 pregões), as janelas em que as
+// taxas mais subiram — pela média de cada família e no prazo de cada título
+// vivo (ver acharEpisodios). A pior janela de quem só tem IPCA+ não é a de
+// quem só tem Prefixado, nem a de quem tem o curto a de quem tem o longo. O
+// aparelho escolhe, entre as candidatas, a que mais dói NA carteira que está
+// nele.
+//
+// QUEM FAZ A BUSCA É O COLETOR, que versiona o resultado em
+// dados/episodios.json; o servidor só refaz a conta na hora quando o arquivo
+// não é do histórico que ele tem (a semente, ou dev sem coleta).
 //
 // O QUE ISTO NÃO É, e a tela diz: não é o pior possível (o histórico começa
 // onde começa), não é previsão, e trata o Tesouro Selic como imune — em
@@ -46,107 +51,182 @@ export const HORIZONTES = [
 // vencimento só.
 const MIN_TITULOS = 3;
 
-const MS_ANO = 365.25 * 86400000;
-
 export function familiaDoChoque(tipo) {
   if (String(tipo).startsWith("ipca")) return "real";
   if (String(tipo).startsWith("prefixado")) return "nominal";
   return null; // LFT: sem choque de taxa
 }
 
+// Os títulos vivos numa data, com a família e o prazo de cada um: são os
+// ALVOS da busca — para cada um deles, a janela em que a taxa NO PRAZO DELE
+// mais subiu vira candidata (ver acharEpisodios).
+export function alvosDe(titulos, hojeISO) {
+  const vistos = new Map();
+  for (const t of titulos || []) {
+    const familia = familiaDoChoque(t.tipo);
+    if (!familia || !(t.vencimento > hojeISO)) continue;
+    const anos = anosUteisEntre(hojeISO, t.vencimento);
+    // Com e sem cupom do mesmo vencimento têm o mesmo prazo: um alvo só.
+    vistos.set(`${familia}|${anos.toFixed(3)}`, { familia, anos });
+  }
+  return [...vistos.values()];
+}
+
+// Pontos de um mesmo prazo (com e sem cupom do mesmo vencimento) viram um só,
+// pela média: senão a curva do choque teria dois valores no mesmo x.
+function agrupar(pontos) {
+  const porPrazo = new Map();
+  for (const p of pontos) {
+    const chave = p.anos.toFixed(3);
+    const g = porPrazo.get(chave) || { anos: p.anos, soma: 0, n: 0 };
+    g.soma += p.deltaPP;
+    g.n++;
+    porPrazo.set(chave, g);
+  }
+  return [...porPrazo.values()].map((g) => ({ anos: g.anos, deltaPP: g.soma / g.n })).sort((x, y) => x.anos - y.anos);
+}
+
 // `titulos`: [{ tipo, vencimento, serie: { "AAAA-MM-DD": [taxa, pu] } }], o
 // formato de dados/historico.json (vencidos inclusive: em 2020 eram eles que
 // estavam vivos). `prazoMinimo` é o piso da curva — abaixo dele a taxa
-// anualizada de um título perto de vencer é ruído, não mercado.
+// anualizada de um título perto de vencer é ruído, não mercado. `alvos` é o
+// de alvosDe(): os títulos de hoje.
+//
+// QUAIS JANELAS VIRAM CANDIDATAS, por horizonte:
+//   - as três réguas de família: a maior alta média do IPCA+, a do Prefixado
+//     e a da média das duas;
+//   - para cada alvo, a janela em que a alta NO PRAZO DELE foi maior.
+// A segunda lista é o que faz "pior dia" querer dizer o pior dia de quem
+// tem aquele título. Só as réguas de família não bastavam: a média mistura o
+// curto e o longo, e o dia em que a ponta longa mais subiu — o pior para quem
+// tem um IPCA+ 2050 — pode não ser o de maior média. Para um título só, a
+// maior alta no prazo dele É a maior perda dele (o preço cai sempre que a
+// taxa sobe). Para uma carteira com vários, o pior é uma soma ponderada e não
+// precisa coincidir com o pior de nenhum título; mas as candidatas cobrem
+// cada título e cada família, e o aparelho fica com a que mais tira dela.
 //
 // Devolve [{ id, horizonte, de, ate, realPP, nominalPP, real, nominal }],
 // onde `real` e `nominal` são [{ anos, deltaPP }] em ordem de prazo.
-export function acharEpisodios(titulos, { prazoMinimo = 1.5 } = {}) {
-  const lista = (titulos || [])
-    .map((t) => ({ ...t, familia: familiaDoChoque(t.tipo), venceEm: Date.parse(`${t.vencimento}T00:00:00Z`) }))
-    .filter((t) => t.familia && t.serie);
+export function acharEpisodios(titulos, { prazoMinimo = 1.5, alvos = [] } = {}) {
+  const lista = (titulos || []).map((t) => ({ ...t, familia: familiaDoChoque(t.tipo) })).filter((t) => t.familia && t.serie);
   const datas = [...new Set(lista.flatMap((t) => Object.keys(t.serie)))].sort();
   const ms = datas.map((d) => Date.parse(`${d}T00:00:00Z`));
 
-  // A alta média de cada família numa janela. O prazo aqui é contado em dias
-  // corridos de propósito: só decide quem passa do piso, e esta função roda
-  // por todo o histórico — a conta em dias úteis fica para os vencedores.
-  const medir = (i, k) => {
-    const d0 = datas[i - k];
-    const d1 = datas[i];
-    const soma = { real: 0, nominal: 0 };
-    const n = { real: 0, nominal: 0 };
-    for (const t of lista) {
-      if ((t.venceEm - ms[i]) / MS_ANO < prazoMinimo) continue;
-      const a = t.serie[d0]?.[0];
-      const b = t.serie[d1]?.[0];
-      if (a == null || b == null) continue;
-      soma[t.familia] += b - a;
-      n[t.familia]++;
+  // Os títulos vivos e acima do piso em cada data de fim, com o prazo em dias
+  // úteis/252 — a régua em que o título de hoje vai ser interpolado. As três
+  // janelas que terminam na mesma data usam a mesma lista, então ela é feita
+  // uma vez por data.
+  const prazosGuardados = new Map();
+  const prazosEm = (i) => {
+    if (!prazosGuardados.has(i)) {
+      const d1 = datas[i];
+      const vivos = [];
+      for (const t of lista) {
+        if (!(t.vencimento > d1) || t.serie[d1]?.[0] == null) continue;
+        const anos = anosUteisEntre(d1, t.vencimento);
+        if (anos >= prazoMinimo) vivos.push({ t, anos });
+      }
+      prazosGuardados.set(i, vivos);
     }
-    if (n.real < MIN_TITULOS || n.nominal < MIN_TITULOS) return null;
-    return { i, k, real: soma.real / n.real, nominal: soma.nominal / n.nominal };
+    return prazosGuardados.get(i);
   };
 
+  // A janela que termina em `i` e tem `k` pregões: a alta de cada título vivo,
+  // a média de cada família (por título) e, se pedida, a curva do choque.
+  const janela = (i, k, { comCurva = false } = {}) => {
+    const d0 = datas[i - k];
+    const d1 = datas[i];
+    const pontos = { real: [], nominal: [] };
+    for (const { t, anos } of prazosEm(i)) {
+      const a = t.serie[d0]?.[0];
+      if (a == null) continue;
+      pontos[t.familia].push({ anos, deltaPP: t.serie[d1][0] - a });
+    }
+    if (pontos.real.length < MIN_TITULOS || pontos.nominal.length < MIN_TITULOS) return null;
+    const media = (l) => l.reduce((s, p) => s + p.deltaPP, 0) / l.length;
+    const j = { i, k, de: d0, ate: d1, realPP: media(pontos.real), nominalPP: media(pontos.nominal) };
+    if (comCurva) {
+      j.real = agrupar(pontos.real);
+      j.nominal = agrupar(pontos.nominal);
+    }
+    return j;
+  };
+
+  // Cada régua dá um número por janela; ganha a janela com o MAIOR, e só se
+  // ele for positivo — uma régua em que nenhuma janela subiu não tem momento
+  // ruim a mostrar.
   const reguas = [
-    (j) => j.real,
-    (j) => j.nominal,
-    (j) => (j.real + j.nominal) / 2,
+    { chave: "real", precisaCurva: false, valor: (j) => j.realPP },
+    { chave: "nominal", precisaCurva: false, valor: (j) => j.nominalPP },
+    { chave: "media", precisaCurva: false, valor: (j) => (j.realPP + j.nominalPP) / 2 },
+    ...alvos.map((a) => ({
+      chave: `${a.familia}|${a.anos.toFixed(3)}`,
+      precisaCurva: true,
+      valor: (j) => choqueNoPrazo(j[a.familia], a.anos),
+    })),
   ];
+  const precisaCurva = reguas.some((r) => r.precisaCurva);
 
   const episodios = [];
   for (const h of HORIZONTES) {
-    const melhores = reguas.map(() => null);
+    const melhores = new Map(); // chave da régua -> { i, valor }
     for (let i = h.pregoes; i < datas.length; i++) {
       if ((ms[i] - ms[i - h.pregoes]) / 86400000 > h.maxDiasCorridos) continue;
-      const j = medir(i, h.pregoes);
+      const j = janela(i, h.pregoes, { comCurva: precisaCurva });
       if (!j) continue;
-      reguas.forEach((r, q) => {
-        if (!melhores[q] || r(j) > r(melhores[q])) melhores[q] = j;
-      });
+      for (const r of reguas) {
+        const v = r.valor(j);
+        if (v == null || !(v > 0)) continue;
+        const atual = melhores.get(r.chave);
+        if (!atual || v > atual.valor) melhores.set(r.chave, { i, valor: v });
+      }
     }
-    const vistos = new Set();
-    for (const j of melhores) {
-      // Uma janela em que a taxa média CAIU não é um momento ruim: histórico
-      // curto demais para ter um, e aí não há episódio a mostrar.
-      if (!j || vistos.has(j.i) || !((j.real + j.nominal) / 2 > 0)) continue;
-      vistos.add(j.i);
-      episodios.push(montar(lista, datas[j.i - j.k], datas[j.i], h, j, prazoMinimo));
+    // Várias réguas costumam eleger a mesma janela: entra uma vez só.
+    const fins = [...new Set([...melhores.values()].map((m) => m.i))].sort((a, b) => a - b);
+    for (const i of fins) {
+      const j = janela(i, h.pregoes, { comCurva: true });
+      episodios.push({
+        id: `${h.id}-${j.ate}`,
+        horizonte: h.id,
+        de: j.de,
+        ate: j.ate,
+        realPP: j.realPP,
+        nominalPP: j.nominalPP,
+        real: j.real,
+        nominal: j.nominal,
+      });
     }
   }
   return episodios;
 }
 
-// O formato do choque na janela vencedora: Δ taxa por prazo, por família.
-// Aqui o prazo é em dias úteis/252, a régua do resto do app, porque é nele
-// que o título de hoje vai ser interpolado.
-function montar(lista, de, ate, horizonte, j, prazoMinimo) {
-  const porFamilia = { real: new Map(), nominal: new Map() };
-  for (const t of lista) {
-    const a = t.serie[de]?.[0];
-    const b = t.serie[ate]?.[0];
-    if (a == null || b == null || !(t.vencimento > ate)) continue;
-    const anos = anosUteisEntre(ate, t.vencimento);
-    if (anos < prazoMinimo) continue;
-    // Com e sem cupom do mesmo vencimento caem no mesmo prazo: entram como
-    // média, senão a curva do choque teria dois valores no mesmo x.
-    const chave = anos.toFixed(3);
-    const g = porFamilia[t.familia].get(chave) || { anos, soma: 0, n: 0 };
-    g.soma += b - a;
-    g.n++;
-    porFamilia[t.familia].set(chave, g);
-  }
-  const pontos = (m) => [...m.values()].map((g) => ({ anos: g.anos, deltaPP: g.soma / g.n })).sort((x, y) => x.anos - y.anos);
+// O arquivo que o coletor versiona (dados/episodios.json). A busca varre o
+// histórico inteiro — milhares de janelas — e o resultado só muda quando o
+// histórico muda; fazê-la a cada partida a frio de uma função da Vercel era
+// pagar a conta na hora do request. `base` é o `atualizadoEm` do
+// historico.json da MESMA coleta: é por ele que o servidor sabe que os dois
+// arquivos falam do mesmo histórico.
+export function montarArquivoDeEpisodios({ titulos, hojeISO, prazoMinimo, base, agora }) {
   return {
-    id: `${horizonte.id}-${ate}`,
-    horizonte: horizonte.id,
-    de,
-    ate,
-    realPP: j.real,
-    nominalPP: j.nominal,
-    real: pontos(porFamilia.real),
-    nominal: pontos(porFamilia.nominal),
+    geradoEm: agora,
+    base,
+    hoje: hojeISO,
+    prazoMinimo,
+    nota:
+      "As janelas do histórico em que as taxas mais subiram, por horizonte (1, 5 e 21 pregões): as maiores altas médias de cada família " +
+      "e, para cada título vivo em `hoje`, a maior alta no prazo dele. `real` e `nominal` são a alta (p.p.) por prazo (anos úteis/252).",
+    episodios: acharEpisodios(titulos, { prazoMinimo, alvos: alvosDe(titulos, hojeISO) }),
   };
+}
+
+// Os episódios do arquivo, se ele for do mesmo histórico que o servidor tem
+// (mesma `base`) e da mesma régua (mesmo piso); senão null, e quem chama
+// calcula na hora. Na semente, ou em dev com um histórico mais novo que o
+// arquivo, é o que acontece.
+export function episodiosDoArquivo(arquivo, { base, prazoMinimo }) {
+  if (!arquivo || !Array.isArray(arquivo.episodios) || !arquivo.episodios.length) return null;
+  if (!base || arquivo.base !== base || arquivo.prazoMinimo !== prazoMinimo) return null;
+  return arquivo.episodios;
 }
 
 // O choque de um episódio num prazo qualquer: interpolação linear entre os

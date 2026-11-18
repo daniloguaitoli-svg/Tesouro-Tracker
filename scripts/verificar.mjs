@@ -2618,6 +2618,39 @@ console.log("\npiores momentos do histórico");
   const achados = ep.acharEpisodios(historico, { prazoMinimo: 1.5 });
   const dia = achados.filter((e) => e.horizonte === "dia");
   conferir(dia.length === 1 && dia[0].ate === diaDoSalto && dia[0].de === pregoes[29], "acha o dia em que as taxas mais subiram (e as três réguas concordam: um candidato só)");
+
+  // O PIOR DE CADA TÍTULO É CANDIDATO. Num segundo histórico, o dia 30 tem a
+  // maior alta MÉDIA (o curto dispara) e o dia 40 a maior alta na ponta
+  // LONGA. Só pelas réguas de família, o 40 nem aparece — e quem tem o longo
+  // veria como "pior dia" um dia que não é o pior dele.
+  const doisSaltos = (tipo, vencimento, base, s30, s40) => ({
+    tipo, vencimento,
+    serie: Object.fromEntries(pregoes.map((d, i) => [d, [base + (i >= 30 ? s30 : 0) + (i >= 40 ? s40 : 0), 1000]])),
+  });
+  const h2 = [
+    doisSaltos("ipca", "2029-08-15", 7, 2.0, 0), doisSaltos("ipca", "2032-08-15", 7, 2.0, 0), doisSaltos("ipca", "2050-08-15", 7, 0.1, 1.0),
+    doisSaltos("prefixado", "2029-01-01", 14, 2.0, 0), doisSaltos("prefixado", "2031-01-01", 14, 2.0, 0), doisSaltos("prefixado", "2035-01-01", 14, 0.1, 1.0),
+  ];
+  const soReguas = ep.acharEpisodios(h2, { prazoMinimo: 1.5 }).filter((e) => e.horizonte === "dia").map((e) => e.ate);
+  const alvos2 = ep.alvosDe(h2, pregoes[59]);
+  const comAlvos = ep.acharEpisodios(h2, { prazoMinimo: 1.5, alvos: alvos2 }).filter((e) => e.horizonte === "dia").map((e) => e.ate);
+  conferir(soReguas.join() === pregoes[30], "(controle) só pelas réguas de família, o dia da ponta longa não é candidato");
+  conferir(comAlvos.includes(pregoes[30]) && comAlvos.includes(pregoes[40]), "com os títulos de hoje como alvos, o pior dia da ponta longa também é candidato");
+  conferir(alvos2.length === 6 && alvos2.every((a) => ["real", "nominal"].includes(a.familia) && a.anos > 0), "os alvos são os títulos vivos, com família e prazo");
+  conferir(ep.alvosDe([...h2, { tipo: "selic", vencimento: "2031-03-01" }, { tipo: "ipca", vencimento: "2020-01-01" }], pregoes[59]).length === 6, "LFT e título vencido não são alvo");
+
+  // O arquivo do coletor só vale se for do mesmo histórico.
+  const arqEp = ep.montarArquivoDeEpisodios({ titulos: historico, hojeISO: pregoes[59], prazoMinimo: 1.5, base: "B1", agora: "A" });
+  conferir(arqEp.base === "B1" && arqEp.prazoMinimo === 1.5 && arqEp.episodios.length >= 1, "o arquivo de episódios diz de que histórico e de que piso é");
+  conferir(ep.episodiosDoArquivo(arqEp, { base: "B1", prazoMinimo: 1.5 }) === arqEp.episodios, "arquivo do mesmo histórico: usado");
+  conferir(ep.episodiosDoArquivo(arqEp, { base: "B2", prazoMinimo: 1.5 }) === null && ep.episodiosDoArquivo(arqEp, { base: "B1", prazoMinimo: 2 }) === null, "arquivo de outro histórico ou de outro piso: ignorado (a conta é feita na hora)");
+  conferir(ep.episodiosDoArquivo({ base: "B1", episodios: [] }, { base: "B1", prazoMinimo: 1.5 }) === null && ep.episodiosDoArquivo(null, { base: "B1", prazoMinimo: 1.5 }) === null, "semente vazia: ignorada");
+  conferir(/require\("\.\.\/dados\/episodios\.json"\)/.test(await ler("server/cache.js")), "cache.js carrega dados/episodios.json com caminho literal");
+  const semente = JSON.parse(await ler("dados/episodios.json"));
+  conferir(Array.isArray(semente.episodios) && "base" in semente && "prazoMinimo" in semente, "dados/episodios.json existe com os campos que o coletor escreve");
+  const col = await ler(".github/scripts/coletar-tesouro.mjs");
+  conferir(/montarArquivoDeEpisodios\(/.test(col) && /writeFile\(join\(DIR, "episodios\.json"\)/.test(col) && /base: historico\.atualizadoEm/.test(col), "o coletor grava episodios.json amarrado ao historico.json da mesma coleta");
+  conferir(/git add[^\n]*dados\/episodios\.json/.test(await ler(".github/workflows/coletar-tesouro.yml")), "o workflow versiona dados/episodios.json");
   conferir(perto(dia[0].realPP, 0.8, 1e-9) && perto(dia[0].nominalPP, 2, 1e-9), "a alta média é por família, sem o título abaixo do piso e sem a LFT");
   conferir(dia[0].real.length === 3 && dia[0].nominal.length === 3 && dia[0].real.every((p, i, l) => i === 0 || p.anos > l[i - 1].anos), "o formato do choque: um ponto por prazo, com e sem cupom do mesmo vencimento juntos");
   conferir(["dia", "semana", "mes"].every((h) => achados.some((e) => e.horizonte === h)), "há candidato para os três horizontes");
@@ -2699,7 +2732,16 @@ console.log("\nTesouro × futuro: prêmio e 12 meses parado");
   });
   const plana = fut.curvaDoFuturo(arquivo(() => 14), "DI1", ref);
   conferir(plana.length === vencs.length && plana.every((p, i, l) => i === 0 || p.du > l[i - 1].du) && plana.every((p) => p.taxa === 14), "a curva de um futuro: só aquele ativo, em ordem de prazo");
-  conferir(fut.curvaDoFuturo(arquivo(() => 14), "DAP", ref, { duMinimo: 378 }).every((p) => p.du >= 378), "o piso corta a ponta curta (a da DAP é distorcida)");
+  conferir(fut.curvaDoFuturo(arquivo(() => 14), "DAP", ref, { anosMinimo: 1.5 }).every((p) => p.du / 252 >= 1.5), "o piso corta a ponta curta (a da DAP é distorcida), na régua da tela: anos úteis");
+  // A tela (curvasDeFuturos) e o prêmio leem o arquivo pela MESMA função: os
+  // vértices da curva desenhada são os da curva usada no desconto.
+  const arqReal = arquivo((x) => 13 + 0.3 * x);
+  const desenhada = datalayer.curvasDeFuturos(arqReal).curvas.find((c) => c.id === "di-pre").agora.map((p) => p.vencimento);
+  const doPremio = fut.pontosDoFuturo(arqReal, "DI1", ref).map((p) => p.vencimento);
+  conferir(desenhada.join() === doPremio.join(), "a curva que a tela desenha e a do prêmio são os mesmos vértices");
+  conferir(fut.datasColetadas(arqReal).join() === ref, "as datas coletadas saem de uma função só");
+  const dl0 = (await ler("server/datalayer.js")).replace(/\/\/.*$/gm, "");
+  conferir(!/for \(const (\[, c\]|c) of [^\n]*contratos[^\n]*\) for \(const d of Object\.keys/.test(dl0), "o datalayer não tem laço próprio sobre as datas do arquivo de futuros");
   conferir(fut.curvaDoFuturo(arquivo(() => 14), "DI1", "2026-11-12").length === 0, "sem preço naquela data não há curva — nunca a da data vizinha");
 
   conferir(perto(fut.fatorNoPrazo(plana, plana[3].du), plana[3].fator, 1e-12), "fator: no vértice, o do vértice");
@@ -2748,10 +2790,40 @@ console.log("\nTesouro × futuro: prêmio e 12 meses parado");
     // A MESMA DATA nas duas pontas. O prêmio medido fica em décimos de ponto;
     // casando datas diferentes num dia de reprecificação ele abre pontos
     // inteiros. Um prêmio acima de 1 p.p. aqui quer dizer data trocada.
-    conferir(comLeitura.every((l) => Math.abs(l.premioPP) < 1), `nenhum prêmio passa de 1 p.p. (maior: ${Math.max(...comLeitura.map((l) => Math.abs(l.premioPP))).toFixed(2)}) — datas casadas`);
-    conferir(comLeitura.every((l) => l.data <= curva.contraFuturo.data) && /^\d{4}-\d{2}-\d{2}$/.test(curva.contraFuturo.data), "o payload diz de que data são os preços");
+    // DATAS CASADAS, conferido pela CONTA e não pelo tamanho do prêmio: a taxa
+    // do futuro de cada linha tem de ser a que a curva DA DATA DO PREÇO dela
+    // dá ao título. (Uma versão anterior conferia "prêmio < 1 p.p." nos dados
+    // de verdade — um fato de mercado, que um pregão agitado derrubaria, e
+    // com ele o CI de todo PR.)
+    const cacheMod = await import("../server/cache.js");
+    const historicoBruto = cacheMod.historico().titulos;
+    const casadas = comLeitura.every((l) => {
+      const meta = historicoBruto[l.slug];
+      const curvaDaData = fut.curvaDoFuturo(cacheMod.futuros(), l.ativo, l.data, { anosMinimo: l.ativo === "DAP" ? datalayer.PRAZO_MINIMO_CURVA : 0 });
+      const esperado = fut.taxaDoFuturo({ vencimentoISO: meta.vencimento, comCupom: meta.comCupom === true, cupomAnual: meta.cupomAnual ?? undefined, dataISO: l.data, curva: curvaDaData });
+      return esperado != null && perto(l.taxaFuturo, esperado, 1e-3);
+    });
+    conferir(casadas, "cada linha usa a curva de futuros da data do PREÇO dela — a mesma data nas duas pontas");
+    const datasDasLinhas = new Set(comLeitura.map((l) => l.data));
+    conferir(
+      curva.contraFuturo.dataMaisRecente === [...datasDasLinhas].sort().pop() &&
+        (datasDasLinhas.size === 1 ? curva.contraFuturo.data === comLeitura[0].data : curva.contraFuturo.data === null),
+      "o cabeçalho só diz uma data quando todas as linhas são dela"
+    );
+    // O carrego é a taxa do título correndo pelos dias úteis do ano — com ou
+    // sem cupom, porque os cupons são reaplicados à taxa dele. Identidade, não
+    // ordem de grandeza.
+    const { diasUteis: du } = await import("../server/feriados.js");
     const comParado = comLeitura.filter((l) => l.parado);
-    conferir(comParado.length >= 5 && comParado.every((l) => perto(l.parado.totalPct, l.parado.carregoPct + l.parado.rolagemPct, 1e-9) && Math.abs(l.parado.carregoPct - l.taxa) < 0.3), "12 meses parado: total = carrego + rolagem, e o carrego é a taxa do título (a menos dos dias úteis do ano)");
+    conferir(
+      comParado.length >= 5 &&
+        comParado.every(
+          (l) =>
+            perto(l.parado.totalPct, l.parado.carregoPct + l.parado.rolagemPct, 1e-9) &&
+            perto(l.parado.carregoPct, (Math.pow(1 + l.taxa / 100, du(l.data, l.parado.ate) / 252) - 1) * 100, 1e-6)
+        ),
+      "12 meses parado: total = carrego + rolagem, e o carrego é exatamente a taxa do título nos dias úteis do ano"
+    );
     const det = await datalayer.getDetalhe(comLeitura[0].slug);
     conferir(det.contraFuturo?.premioPP === comLeitura[0].premioPP, "o Detalhe mostra o mesmo prêmio que a Curva");
     const lft = (await datalayer.getTitulos()).categorias.flatMap((c) => c.itens).find((i) => i.tipo === "selic");
@@ -2838,6 +2910,17 @@ console.log("\npesquisa Focus");
   conferir(/require\("\.\.\/dados\/focus\.json"\)/.test(await ler("server/cache.js")), "cache.js carrega dados/focus.json com caminho literal");
   const coletor = await ler(".github/scripts/coletar-tesouro.mjs");
   conferir(coletor.indexOf("0b. Pesquisa Focus") > 0 && coletor.indexOf("0b. Pesquisa Focus") < coletor.indexOf("1. Varredura do CSV"), "o coletor lê o Focus ANTES do Tesouro: uma queda de um não leva o outro");
+  // Um limite lido ANTES da linha da sua `const` lança ReferenceError; dentro
+  // de um try/catch o erro some e o alarme nunca dispara. Foi o que aconteceu
+  // com o dos futuros parados até 11/2026. Cada limite tem de ser declarado
+  // antes do primeiro uso.
+  const semComentarios = coletor.replace(/\/\/.*$/gm, "");
+  for (const nome of ["LIMITE_DIAS_FONTE_FORA", "LIMITE_DIAS_FOCUS"]) {
+    const decl = semComentarios.indexOf(`const ${nome} =`);
+    const uso = semComentarios.search(new RegExp(`\\b${nome}\\b(?! =)`));
+    conferir(decl >= 0 && decl < uso, `${nome} é declarado antes do primeiro uso (senão o alarme fica mudo)`);
+  }
+  conferir(/if \(dias > LIMITE_DIAS_FOCUS\) focusParado = /.test(coletor) && /if \(\(futurosParado \|\| focusParado\) && !seco\) process\.exit\(1\)/.test(coletor), "uma pesquisa Focus parada há mais que o limite faz o job falhar — no fim, depois de o Tesouro gravar");
   conferir(/if \(!mudou\)/.test(coletor.slice(coletor.indexOf("0b. Pesquisa Focus"), coletor.indexOf("1. Varredura do CSV"))), "focus.json só é regravado quando o conteúdo muda (sem commit por carimbo de hora)");
   conferir(/git add[^\n]*dados\/focus\.json/.test(await ler(".github/workflows/coletar-tesouro.yml")), "o workflow versiona dados/focus.json");
   const fontes = [];

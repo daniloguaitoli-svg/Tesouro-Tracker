@@ -24,6 +24,7 @@
 //   dados/selic.json      LFT (ágio/deságio sobre a Selic, sem duration)
 //   dados/global.json     Fed e BCE: taxa vigente e última decisão
 //   dados/focus.json      pesquisa Focus do BCB: Selic por reunião e IPCA por ano
+//   dados/episodios.json  os piores dia, semana e mês do histórico, para a Carteira
 //   dados/painel.json     o retrato da aba Painel: destaques + moldura macro
 //   dados/painel.md       o mesmo, em tabela
 //
@@ -55,7 +56,8 @@ import { lerFocus, lerRespostaFocus, selicPorReuniao, ipcaPorAno } from "../../s
 import { lerFuturos } from "../../server/providers/b3.js";
 import { REGIOES, baixarFeed, extrairItens, descartadosDoFeed } from "../../server/providers/noticias.js";
 import { ibovespa } from "../../server/providers/yahoo.js";
-import { getMacro } from "../../server/datalayer.js";
+import { getMacro, PRAZO_MINIMO_CURVA } from "../../server/datalayer.js";
+import { montarArquivoDeEpisodios } from "../../server/episodios.js";
 import { variacaoPeriodo } from "../../server/util.js";
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -65,6 +67,20 @@ const DIR = join(RAIZ, "dados");
 // fim e o diff diário é de umas poucas linhas, em vez de reescrever tudo.
 const DESDE = process.env.TESOURO_DESDE || "2019-01-01";
 const seco = process.argv.includes("--dry-run");
+
+// Quantos dias o dado versionado pode ficar sem renovar antes de a fonte fora
+// do ar virar defeito de verdade. Mesmo número e mesma ideia do
+// LIMITE_DIAS_BLOQUEIO do coletor do CEPEA nos repositórios irmãos: manter os
+// quatro iguais vale mais que afinar cada um.
+//
+// DECLARADO AQUI EM CIMA, ANTES DO PRIMEIRO USO, e isso é a correção de um
+// defeito: ele morava na seção do Tesouro, mais abaixo, e a checagem dos
+// futuros parados (seção 0) o lia antes da declaração. Uma `const` lida antes
+// da linha dela lança ReferenceError — e aquela leitura estava dentro de um
+// try/catch que engolia o erro como "antes da primeira coleta". Resultado: o
+// alarme de futuros parados NUNCA podia disparar. O verificar.mjs confere a
+// ordem.
+const LIMITE_DIAS_FONTE_FORA = 3;
 
 console.log(`Coletando do Tesouro Transparente desde ${DESDE}${seco ? " (dry-run: nada será gravado)" : ""}`);
 
@@ -267,17 +283,31 @@ try {
   console.warn(`Focus FALHA: ${e.message} — focus.json mantido como estava`);
 }
 
+// UMA PESQUISA CONGELADA NÃO PODE FICAR VERDE PARA SEMPRE — a mesma regra dos
+// futuros parados, logo acima. Manter o valor anterior quando a fonte falha é
+// o certo para um dia; para sempre, é a tela mostrando a pesquisa de semanas
+// atrás ao lado dos preços de hoje, sem ninguém saber. A pesquisa sai uma vez
+// por semana (a data dela é a da sexta), então o limite é de duas semanas:
+// uma publicação perdida passa, duas não. Cobrado no FIM, como o dos futuros,
+// para não derrubar a coleta do Tesouro.
+const LIMITE_DIAS_FOCUS = 14;
+let focusParado = null;
+try {
+  const arq = JSON.parse(await readFile(ARQ_FOCUS, "utf-8"));
+  const ultima = [arq.selic?.data, arq.ipca?.data].filter(Boolean).sort().pop();
+  if (ultima) {
+    const dias = (Date.now() - Date.parse(`${ultima.slice(0, 10)}T00:00:00Z`)) / 86400000;
+    if (dias > LIMITE_DIAS_FOCUS) focusParado = { ultima, dias };
+  }
+} catch {
+  /* antes da primeira coleta não há o que estar parado */
+}
+
 console.log(URL_CSV);
 
 // ---------- 1. Varredura do CSV ----------
 
 const series = new Map(); // slug -> { tipo, vencimento, comCupom, serie, ultimo }
-
-// Quantos dias o dado versionado pode ficar sem renovar antes de a fonte fora
-// do ar virar defeito de verdade. Mesmo número e mesma ideia do
-// LIMITE_DIAS_BLOQUEIO do coletor do CEPEA nos repositórios irmãos: manter os
-// quatro iguais vale mais que afinar cada um.
-const LIMITE_DIAS_FONTE_FORA = 3;
 
 // Há quantos dias a última coleta BEM-SUCEDIDA gravou o arquivo. Ausência de
 // arquivo (primeira execução) conta como infinito: aí uma fonte fora do ar é
@@ -541,10 +571,22 @@ const painel = montarPainel({
 });
 const painelMd = markdownDoPainel(painel);
 
+// Os piores momentos do histórico, achados aqui e não na função da Vercel: a
+// busca varre o histórico inteiro e só muda quando ele muda. `base` amarra o
+// arquivo a ESTE historico.json — o servidor ignora um arquivo de outra base.
+const episodios = montarArquivoDeEpisodios({
+  titulos: Object.values(historico.titulos),
+  hojeISO: hojeISO(),
+  prazoMinimo: PRAZO_MINIMO_CURVA,
+  base: historico.atualizadoEm,
+  agora,
+});
+
 if (seco) {
   console.log(`\n--dry-run: nada gravado.`);
   console.log(`historico.json teria ${Object.keys(historico.titulos).length} vencimentos`);
   console.log(`ntnb.json teria ${soIpca.length} · prefixado.json ${soPrefixado.length} · selic.json ${soSelic.length}`);
+  console.log(`episodios.json teria ${episodios.episodios.length} janelas: ${episodios.episodios.map((e) => e.id).join(", ")}`);
   console.log(`painel.json teria ${painel.acompanhados.length} acompanhados e moldura: ${Object.entries(painel.moldura).filter(([, v]) => v).map(([k]) => k).join(", ") || "(vazia)"}`);
   console.log(`\n----- prévia de dados/ntnb.md -----\n${md.split("\n").slice(0, 14).join("\n")}`);
 } else {
@@ -557,16 +599,25 @@ if (seco) {
   await writeFile(join(DIR, "ntnb.md"), md, "utf-8");
   await writeFile(join(DIR, "painel.json"), JSON.stringify(painel, null, 1) + "\n", "utf-8");
   await writeFile(join(DIR, "painel.md"), painelMd, "utf-8");
-  console.log(`\ngravados dados/: historico, ntnb(.json/.md), prefixado, selic, global, painel(.json/.md)`);
+  await writeFile(join(DIR, "episodios.json"), JSON.stringify(episodios, null, 1) + "\n", "utf-8");
+  console.log(`\ngravados dados/: historico, ntnb(.json/.md), prefixado, selic, global, painel(.json/.md), episodios`);
 }
 
-// A cobrança da bandeira acima, depois de tudo gravado. Sai 1 e manda e-mail:
-// a esta altura já não é tempo, é defeito.
+// A cobrança das bandeiras acima, depois de tudo gravado. Sai 1 e manda
+// e-mail: a esta altura já não é tempo, é defeito. As duas são avaliadas
+// antes de sair, para um e-mail dizer tudo o que está parado.
 if (futurosParado && !seco) {
   console.error(
     `\nFUTUROS PARADOS: a última data em dados/futuros.json é ${futurosParado.ultima}, ` +
       `${futurosParado.dias.toFixed(1)} dia(s) atrás (limite ${LIMITE_DIAS_FONTE_FORA}). ` +
       "A coleta do Tesouro acima seguiu normalmente — isto é só a metade da B3."
   );
-  process.exit(1);
 }
+if (focusParado && !seco) {
+  console.error(
+    `\nFOCUS PARADO: a pesquisa mais recente em dados/focus.json é de ${focusParado.ultima}, ` +
+      `${focusParado.dias.toFixed(1)} dia(s) atrás (limite ${LIMITE_DIAS_FOCUS}). ` +
+      "Confira no log da seção 0b o que a API de Expectativas devolveu."
+  );
+}
+if ((futurosParado || focusParado) && !seco) process.exit(1);

@@ -36,6 +36,7 @@ resultado em **dois arquivos pequenos, versionados neste repositório**:
 | [`dados/selic.json`](dados/selic.json) | LFT: ágio/deságio sobre a Selic (sem duration, por construção) |
 | [`dados/global.json`](dados/global.json) | Fed e BCE: taxa vigente e última decisão |
 | [`dados/historico.json`](dados/historico.json) | a série diária por vencimento, todas as famílias — o que o app usa |
+| [`dados/episodios.json`](dados/episodios.json) | os piores dia, semana e mês do histórico: a alta de taxa por família e por prazo em cada janela candidata |
 | [`dados/focus.json`](dados/focus.json) | pesquisa Focus do Banco Central: Selic esperada por reunião do Copom e IPCA esperado por ano (mediana) |
 | [`dados/resumo.json`](dados/resumo.json) | o resumo do dia, **escrito por um modelo de IA** a partir dos números acima — texto, não dado (ver abaixo) |
 
@@ -230,8 +231,11 @@ No cartão de risco, logo abaixo dele, o app mostra o que o **pior dia, a pior
 semana e o pior mês do histórico** fariam com o que você tem hoje: a alta de
 taxa daquele período — diferente no IPCA+ e no Prefixado, diferente no curto e
 no longo — aplicada a cada título seu, que é recalculado pelo fluxo de caixa.
-A escolha do "pior" é feita no aparelho, para a sua carteira: o pior mês de
-quem só tem IPCA+ não é o de quem só tem Prefixado.
+As janelas candidatas são as maiores altas médias do IPCA+ e do Prefixado e,
+para cada título que existe hoje, a maior alta no prazo dele. A escolha do
+"pior" entre elas é feita no aparelho, para a sua carteira: o pior mês de
+quem só tem IPCA+ não é o de quem só tem Prefixado, nem o de quem tem o curto
+o de quem tem o longo.
 
 ## O resumo do dia (IA, opcional)
 
@@ -416,7 +420,9 @@ Este app é deliberadamente explícito sobre o que **não** sabe:
   histórico do app contém (ele começa em 2019), e não são previsão. O que se
   repete é a alta de taxa por família e por prazo, interpolada entre os
   vencimentos que existiam na época; fora desse intervalo vale a alta da ponta
-  mais próxima. O Tesouro Selic entra como se não mexesse — numa crise de
+  mais próxima. Para um título só, é exatamente o pior que o histórico tem; com
+  vários, o pior é uma soma, e pode haver uma janela fora das candidatas que
+  tire um pouco mais. O Tesouro Selic entra como se não mexesse — numa crise de
   verdade ele também pode cair um pouco, e a conta não vê isso.
 - **O prêmio sobre o futuro não é "barato ou caro".** Parte dele é permanente:
   o futuro é taxa entre bancos e o título é dívida do Tesouro, a taxa do Tesouro

@@ -40,6 +40,7 @@ dados/painel.json     the Painel tab as one object: highlights + macro frame (th
 dados/painel.md       the same, as tables
 dados/historico.json  the daily series per maturity, all families — what the app reads
 dados/futuros.json    B3 futures: DI1, the clean FX coupon and the IPCA coupon, accumulated daily
+dados/episodios.json  the worst day/week/month windows in the history, as rate shocks by family and term
 dados/focus.json      the BCB's Focus survey: expected Selic per Copom meeting, expected IPCA per year (median)
 dados/resumo.json     the day's brief, written by an AI model from the numbers above — prose, not data
 ```
@@ -927,6 +928,16 @@ stops being silent: when the newest date in `dados/futuros.json` falls more than
 after the Treasury half has been written — charging it earlier would be one
 source knocking out the other, the exact defect being fixed.
 
+**That alarm never fired until 11/2026, and the reason is worth knowing.**
+`LIMITE_DIAS_FONTE_FORA` was declared in the Treasury section, *below* the
+futures check that reads it. Reading a `const` before its line throws a
+ReferenceError — and the read sat inside a `try/catch` that swallowed it as
+"before the first collection". So `futurosParado` was always `null`. It was
+found on 18/11/2026 with the futures history frozen on 12/11 (B3 answering
+HTTP 400 for `InstrumentsConsolidatedFile`) and six green runs. The constant
+now sits at the top of the collector, and `verificar.mjs` checks that every
+`LIMITE_*` is declared before its first use.
+
 **The legacy portal is dead; do not go back to it.** `TxRef1.asp` returns 404,
 `lum-ajustes-do-pregao` redirects or returns an empty body, and
 `SistemaPregao_excel1.asp` either hangs or lands on `Erro.asp`. The live path is
@@ -1709,20 +1720,25 @@ records, for each, Δ rate by term, one curve for IPCA+ and one for Prefixado;
 (2) applies that Δ to each **live** bond at the term it has **now** and
 reprices it by its cash flows. The device multiplies by what the person holds.
 
-- **Windows come from the data, never from a list of named crises.** For each
-  horizon (1, 5 and 21 price days) the window where the mean rate rose most.
+- **Windows come from the data, never from a list of named crises.**
   Naming them would be editorialising and remembering; the rule reproduces.
   Measured 13/11/2026: day 23→26/10/2026 (real +1.24, nominal +2.74), week
   05→12/03/2020 (+1.67, +2.37), month 17/02→19/03/2020 (+1.69, +2.58).
-- **Three rulers per horizon — real only, nominal only, the mean of both —
-  and the device picks.** The worst month for an IPCA+-only holder
-  (20/02→24/03/2020) is not the worst for a Prefixado-only one
-  (19/11→19/12/2024), and the server cannot know what is held. Up to three
-  candidates per horizon travel (seven today); `pioresMomentos` in
-  `posicoes.js` keeps, per horizon, the one that takes most from *this*
-  portfolio. A first draft sent one window per horizon chosen by the combined
-  ruler, and would have labelled "Pior dia" a day that was not the holder's
-  worst.
+- **Candidates per horizon: three family rulers plus one per live bond, and
+  the device picks.** The rulers are the largest mean rise of IPCA+, of
+  Prefixado and of both; then, for each bond alive today (`alvosDe`), the
+  window where the rise **at that bond's term** was largest. The second list
+  exists because the family mean mixes short and long: the day the long end
+  rose most — the worst for an IPCA+ 2050 holder — need not be the day of the
+  largest mean, and with the rulers alone it was never a candidate, so "Pior
+  dia" understated that holder's worst (review of 11/2026; `verificar.mjs`
+  has a fixture where only the per-bond candidate catches it). For a single
+  bond the largest rise at its term *is* its largest loss; for a portfolio the
+  worst is a weighted sum and can still fall outside the candidates, and the
+  ⓘ says so. Eight candidates travel today; `pioresMomentos` in `posicoes.js`
+  keeps, per horizon, the one that takes most from *this* portfolio.
+- **Each ruler only counts windows where its own value rose.** A ruler whose
+  best window is a fall has no bad moment to show.
 - **Exact repricing, not duration.** The shocks exceed 2 p.p., where the term
   the expansion drops already matters. `verificar.mjs` checks the loss is
   smaller than `D_mod × Δ` and matches `precoPor100` called from outside.
@@ -1736,9 +1752,18 @@ reprices it by its cash flows. The device multiplies by what the person holds.
   (`PRAZO_MINIMO_CURVA`) keeps near-maturity noise out of the averages.
 - **A missing number drops the episode, never shrinks it**, and the LFT counts
   in the total and not in the shock — the same two rules as the risk card.
-- The scan is cached per process (the history is immutable in one) and costs
-  ~150 ms on a cold `getTitulos`. Only each episode's header goes on the
-  payload; the per-term shock curve stays on the server.
+- **The collector runs the scan, not the request.** It writes
+  `dados/episodios.json` in the same run as `historico.json`, tied to it by
+  `base` (the history's `atualizadoEm`) and `prazoMinimo`; the server uses
+  the file only when both match (`episodiosDoArquivo`) and otherwise runs the
+  scan itself, once per process — the seed until the first collection, or dev
+  with a newer history. Done at request time it cost ~150 ms on every cold
+  start of `/api/titulos` and `/api/detalhe` (~470 ms with the per-bond
+  candidates). Only each episode's header goes on the payload; the per-term
+  shock curve stays on the server.
+- **The repriced shocks are cached** per bond, price date and day
+  (`choquesGuardados`), like the coupons paid: eight repricings per bond
+  were being redone on every `/api/titulos`.
 
 On screen: "Não é o pior possível, nem previsão", and the ⓘ says the LFT is
 treated as immune though in a real crisis it can dip.
@@ -1840,10 +1865,24 @@ identity. Interpolation is flat-forward in business days, the DI market's own.
   sessions: same-date pairing keeps the premium's day-to-day deviation at
   0.03–0.15 p.p.; pairing with the previous session, one repricing day (26/10)
   opens 2.76 p.p. on a Prefixado 2029. No futures collected on that date → no
-  reading (`null`), never the neighbouring date. `verificar.mjs` fails if any
-  live premium exceeds 1 p.p. — that would mean mismatched dates. The Treasury
+  reading (`null`), never the neighbouring date. `verificar.mjs` checks it by
+  recomputing each row's futures rate from the curve of *that row's* price
+  date — an identity, not a market size. (It used to require every live
+  premium under 1 p.p.: a market fact, which one turbulent session would have
+  broken, turning every PR's CI red for a reason unrelated to the diff.) The Treasury
   file's columns are named "Manhã", so its quote may not be the close; the
   same-date pairing was chosen by measurement, not by that name.
+- **The header states one date only when there is one.** Each row is
+  priced on its own last price date; when they differ (a bond out of offer, a
+  partial publication) `contraFuturo.data` is `null`, the header says "a do
+  último preço de cada título" and the odd row shows its date. A single date
+  over rows of different days was the mismatched-date reading this section
+  exists to prevent.
+- **One reader of `dados/futuros.json`.** `datasColetadas` and
+  `pontosDoFuturo` in `server/futuro.js` are used by the Curva's futures
+  block (`curvasDeFuturos`) and by the premium alike, and the DAP floor is the
+  same `PRAZO_MINIMO_CURVA` in years on both. Two hand-written loops with
+  slightly different filters would draw one curve and price on another.
 - **It is not "rich or cheap", and the screen says "não é sinal de compra".**
   Part of the premium is permanent (interbank rate vs sovereign debt; the
   Tesouro Direto buyback spread; the two sources do not close at the same
@@ -1885,6 +1924,13 @@ source (`providers/focus.js`, section 0b of the collector — before the
 Treasury, for the same reason as B3), with keep-previous-on-failure, and the
 file is rewritten **only when its content changes**, so `atualizadoEm` does not
 produce a commit and a deploy per run.
+
+**Keep-previous has a deadline.** If the newest survey date in the file is more
+than `LIMITE_DIAS_FOCUS` (14) days old, the collector exits 1 at the very end,
+beside the futures alarm and after the Treasury has been written. The survey's
+date is a Friday and it is published weekly, so one missed week passes and two
+do not. Without it, a changed API would have frozen the file with every run
+green and the screens showing a weeks-old survey beside today's prices.
 
 - **Mercado**: with Focus collected, the implied-Selic table's third column
   becomes the survey's median for the same meeting, and the per-meeting move

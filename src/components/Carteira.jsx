@@ -269,8 +269,6 @@ function NovaCompra({ titulos, onAdicionar, falhouAoGuardar }) {
   );
 }
 
-// O RISCO DA CARTEIRA: como ela está repartida e o que um ponto de juro faz
-// com ela. As contas são de posicoes.js; aqui é só a tela.
 // OS PIORES MOMENTOS DO HISTÓRICO, repetidos no que a pessoa tem hoje.
 //
 // Mora no cartão de risco, logo abaixo do cenário de 1 ponto, porque é a
@@ -281,7 +279,14 @@ const ROTULO_DO_MOMENTO = { dia: "Pior dia", semana: "Pior semana", mes: "Pior m
 
 function Momentos({ piores, desde }) {
   if (!piores) return null;
-  const quando = (m) => (m.horizonte === "dia" ? dataBR(m.ate) : `${dataCurtaBR(m.de)} a ${dataBR(m.ate)}`);
+  // O começo da janela vai sem o ano quando é o mesmo do fim ("05/03 a
+  // 12/03/2020") e com ele quando a janela atravessa o réveillon — senão
+  // "10/12 a 10/01/2020" leria como dezembro de 2020, depois do fim.
+  const quando = (m) => {
+    if (m.horizonte === "dia") return dataBR(m.ate);
+    const inicio = m.de.slice(0, 4) === m.ate.slice(0, 4) ? dataCurtaBR(m.de) : dataBR(m.de);
+    return `${inicio} a ${dataBR(m.ate)}`;
+  };
   // Só as famílias que a carteira tem: a alta do Prefixado não interessa a
   // quem só tem IPCA+, e mostrá-la sugeriria que entrou na conta.
   const altas = (m) =>
@@ -292,9 +297,10 @@ function Momentos({ piores, desde }) {
         <span>Se os piores momentos se repetissem</span>
         <Explica titulo="Os piores momentos do histórico">
           <p>
-            O app procura, em todo o histórico de preços{desde ? <> (desde {dataBR(desde)})</> : null}, o dia,
-            a semana e o mês em que as taxas mais subiram — e mostra, de cada um, o que mais
-            tiraria da sua carteira.
+            O app procura, em todo o histórico de preços{desde ? <> (desde {dataBR(desde)})</> : null}, os
+            dias, as semanas e os meses em que as taxas mais subiram: na média do IPCA+, na do
+            Prefixado e no prazo de cada título que existe hoje. Entre essas candidatas, mostra
+            a que mais tiraria da sua carteira.
           </p>
           <p>
             O que se repete é a <strong>alta de taxa</strong> daquele período, não o preço: o
@@ -302,6 +308,11 @@ function Momentos({ piores, desde }) {
             Cada título seu é recalculado com a taxa de hoje mais a alta que títulos do mesmo
             tipo e de prazo parecido tiveram naqueles dias. As altas mostradas em cada linha
             são a média da família.
+          </p>
+          <p>
+            Para um título só, isso é exatamente o pior que o histórico tem. Com vários, o
+            pior é uma soma, e pode haver uma janela fora das candidatas que tire um pouco
+            mais — as candidatas cobrem o pior de cada título que você tem.
           </p>
           <p>
             O Tesouro Selic entra como se não mexesse. Numa crise de verdade ele também pode
@@ -340,6 +351,8 @@ function Momentos({ piores, desde }) {
   );
 }
 
+// O RISCO DA CARTEIRA: como ela está repartida e o que um ponto de juro faz
+// com ela. As contas são de posicoes.js; aqui é só a tela.
 function Risco({ risco, piores, desde }) {
   if (!risco) return null;
   return (

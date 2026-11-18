@@ -47,20 +47,47 @@ export const FUTURO_DA_FAMILIA = {
   "prefixado-juros": "DI1",
 };
 
-// A curva de um futuro numa data: [{ du, taxa, fator }], em ordem de prazo.
-// `duMinimo` corta a ponta curta (a da DAP é distorcida pelo IPCA já
-// conhecido — ver PRAZO_MINIMO_CURVA no datalayer).
-export function curvaDoFuturo(arquivo, ativo, dataISO, { duMinimo = 0 } = {}) {
+// ---------- Leitura de dados/futuros.json ----------
+//
+// As duas funções abaixo são O jeito de ler o arquivo de futuros: a tela da
+// Curva (curvasDeFuturos, no datalayer) e as contas deste módulo passam por
+// elas. Antes cada lado tinha o seu laço sobre os contratos, com filtros
+// parecidos e não iguais — e duas leituras do mesmo arquivo que divergem em
+// silêncio desenham uma curva e calculam o prêmio sobre outra.
+
+// Todas as datas com algum preço no arquivo, em ordem.
+export function datasColetadas(arquivo) {
+  const datas = new Set();
+  for (const c of Object.values(arquivo?.contratos || {})) for (const d of Object.keys(c.serie || {})) datas.add(d);
+  return [...datas].sort();
+}
+
+// Os contratos de um ativo VIVOS numa data e com taxa nela:
+// [{ ticker, vencimento, taxa, pu }], em ordem de vencimento. Vivo quer dizer
+// vencendo depois da data — a curva de um mês atrás é feita do que estava
+// vivo um mês atrás.
+export function pontosDoFuturo(arquivo, ativo, dataISO) {
+  if (!dataISO) return [];
   const pontos = [];
-  for (const c of Object.values(arquivo?.contratos || {})) {
+  for (const [ticker, c] of Object.entries(arquivo?.contratos || {})) {
     if (c.ativo !== ativo || !(c.vencimento > dataISO)) continue;
     const taxa = c.serie?.[dataISO]?.[0];
     if (taxa == null || !Number.isFinite(taxa)) continue;
-    const du = diasUteis(dataISO, c.vencimento);
-    if (du <= 0 || du < duMinimo) continue;
-    pontos.push({ du, taxa, fator: Math.pow(1 + taxa / 100, du / DIAS_UTEIS_ANO) });
+    pontos.push({ ticker, vencimento: c.vencimento, taxa, pu: c.serie[dataISO][1] ?? null });
   }
-  return pontos.sort((a, b) => a.du - b.du);
+  return pontos.sort((a, b) => (a.vencimento < b.vencimento ? -1 : a.vencimento > b.vencimento ? 1 : 0));
+}
+
+// A curva de um futuro numa data, para descontar fluxo: [{ du, taxa, fator }],
+// em ordem de prazo. `anosMinimo` corta a ponta curta (a da DAP é distorcida
+// pelo IPCA já conhecido) com a MESMA régua da tela — anos úteis/252 contra
+// PRAZO_MINIMO_CURVA —, para a curva do prêmio ser a curva que se vê.
+export function curvaDoFuturo(arquivo, ativo, dataISO, { anosMinimo = 0 } = {}) {
+  return pontosDoFuturo(arquivo, ativo, dataISO)
+    .map((p) => ({ du: diasUteis(dataISO, p.vencimento), taxa: p.taxa }))
+    .filter((p) => p.du > 0 && p.du / DIAS_UTEIS_ANO >= anosMinimo)
+    .map((p) => ({ ...p, fator: Math.pow(1 + p.taxa / 100, p.du / DIAS_UTEIS_ANO) }))
+    .sort((a, b) => a.du - b.du);
 }
 
 // O fator de capitalização da curva até `du` dias úteis.

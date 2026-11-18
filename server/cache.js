@@ -91,6 +91,20 @@ export function focus() {
   return FOCUS;
 }
 
+// Os piores momentos do histórico (server/episodios.js), achados pelo coletor
+// a cada coleta. Nasce vazio; o datalayer só usa o arquivo se ele for do
+// mesmo histórico (`base`), e senão faz a busca na hora.
+let EPISODIOS;
+try {
+  EPISODIOS = require("../dados/episodios.json");
+} catch {
+  EPISODIOS = { base: null, episodios: [] };
+}
+
+export function episodios() {
+  return EPISODIOS;
+}
+
 export function resumo() {
   return RESUMO;
 }

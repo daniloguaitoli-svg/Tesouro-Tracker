@@ -22,15 +22,6 @@ const indiceDaCurva = (id) => (id.startsWith("pre") ? "pre" : "ipca");
 const cupomDaCurva = (id) => (id.includes("com-cupom") ? "com" : "sem");
 const idDaCurva = (indice, cupom) => `${indice}-${cupom}-cupom`;
 
-// A inflação implícita (breakeven): o que o mercado precisa que a inflação seja
-// para o prefixado empatar com o IPCA+ de mesmo prazo. Acima disso o IPCA+
-// ganha, abaixo o prefixado ganha — é a conta que decide entre as duas famílias,
-// e o app tinha os dois lados dela sem nunca fazer a subtração.
-//
-// NÃO é previsão de inflação: embute prêmio de risco (quem compra prefixado
-// cobra para assumir o risco) e diferença de liquidez entre os dois papéis. Por
-// isso costuma ficar ACIMA da inflação que o mercado de fato espera. A tela diz
-// isso — seria fácil e errado apresentar como projeção.
 // A PESQUISA FOCUS AO LADO DA IMPLÍCITA. A implícita é o que os PREÇOS
 // embutem, e a tela já avisa que isso não é previsão; a pesquisa é o que os
 // economistas de fato esperam. Com as duas no mesmo cartão, "costuma ficar
@@ -97,6 +88,15 @@ function FocusDaInflacao({ focus, agora }) {
   );
 }
 
+// A inflação implícita (breakeven): o que o mercado precisa que a inflação seja
+// para o prefixado empatar com o IPCA+ de mesmo prazo. Acima disso o IPCA+
+// ganha, abaixo o prefixado ganha — é a conta que decide entre as duas famílias,
+// e o app tinha os dois lados dela sem nunca fazer a subtração.
+//
+// NÃO é previsão de inflação: embute prêmio de risco (quem compra prefixado
+// cobra para assumir o risco) e diferença de liquidez entre os dois papéis. Por
+// isso costuma ficar ACIMA da inflação que o mercado de fato espera. A tela diz
+// isso — seria fácil e errado apresentar como projeção.
 function Implicita({ implicita, focus }) {
   const agora = implicita?.agora || [];
   if (agora.length < 2) return null;

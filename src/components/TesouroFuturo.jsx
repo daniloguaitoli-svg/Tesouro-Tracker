@@ -105,10 +105,17 @@ export function TesouroContraFuturo({ dados }) {
           útil, e um único pregão de reprecificação vale mais que o prêmio
           inteiro. "Não é sinal de compra" também: é a ressalva que muda a
           leitura do número. */}
+      {/* Uma data no cabeçalho SÓ quando todas as linhas são dela. Quando um
+          título tem o último preço mais velho, cada linha usa a data do preço
+          dela (o servidor casa assim), e a linha que destoa diz qual é. */}
       <p className="section-sub">
-        Cada título contra o {NOME_DO_FUTURO[ativo] || "futuro"} no mesmo prazo, com os preços de{" "}
-        {dataBR(dados.data)} nas duas pontas. <strong>Não é sinal de compra</strong>: parte da
-        diferença é permanente.
+        Cada título contra o {NOME_DO_FUTURO[ativo] || "futuro"} no mesmo prazo,{" "}
+        {dados.data ? (
+          <>com os preços de {dataBR(dados.data)} nas duas pontas.</>
+        ) : (
+          <>com os preços da mesma data nas duas pontas — a do último preço de cada título.</>
+        )}{" "}
+        <strong>Não é sinal de compra</strong>: parte da diferença é permanente.
       </p>
       <Seletor
         rotulo="Índice"
@@ -151,7 +158,10 @@ export function TesouroContraFuturo({ dados }) {
                 <td>
                   <span className="mono">{l.vencimento.slice(0, 4)}</span>
                   <br />
-                  <span className="linha-menor">{l.comCupom ? "com cupom" : "sem cupom"}</span>
+                  <span className="linha-menor">
+                    {l.comCupom ? "com cupom" : "sem cupom"}
+                    {!dados.data && l.data && l.data !== dados.dataMaisRecente && <> · preço de {dataBR(l.data)}</>}
+                  </span>
                 </td>
                 {leitura === "premio" ? (
                   <>

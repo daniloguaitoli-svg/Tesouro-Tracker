@@ -22,8 +22,8 @@ import { ibovespa, todosIndices } from "./providers/yahoo.js";
 import { todasInflacoes } from "./providers/inflacao.js";
 import { REGIOES, manchetes } from "./providers/noticias.js";
 import { caminhoDaSelic, rotuloFocus, CALENDARIO_ATE, CALENDARIO_CONFERIDO_EM } from "./selic.js";
-import { acharEpisodios, choqueNoPrazo, familiaDoChoque } from "./episodios.js";
-import { FUTURO_DA_FAMILIA, curvaDoFuturo, taxaDoFuturo, paradoEm12Meses } from "./futuro.js";
+import { acharEpisodios, alvosDe, episodiosDoArquivo, choqueNoPrazo, familiaDoChoque } from "./episodios.js";
+import { FUTURO_DA_FAMILIA, datasColetadas, pontosDoFuturo, curvaDoFuturo, taxaDoFuturo, paradoEm12Meses } from "./futuro.js";
 import { focusNoPeriodo } from "./providers/focus.js";
 import {
   variacaoPeriodo,
@@ -117,17 +117,28 @@ function resumoDoDia(itens) {
 
 // ---------- Os piores momentos do histórico ----------
 
-// O piso da curva vale aqui também (definido mais abaixo, junto das curvas):
-// é uma `const` do módulo, e só é LIDA dentro de função, depois da carga.
-
-// As janelas em que as taxas mais subiram (server/episodios.js). O histórico
-// não muda dentro de um processo — o cache o lê uma vez —, então a varredura
-// é feita na primeira chamada e nunca mais.
+// As janelas em que as taxas mais subiram (server/episodios.js).
+//
+// QUEM FAZ A BUSCA É O COLETOR (dados/episodios.json): ela varre o histórico
+// inteiro, e feita aqui custava ~150 ms em toda partida a frio das funções de
+// /api/titulos e /api/detalhe — a conta só muda quando o histórico muda. O
+// arquivo só vale se for do MESMO histórico que o cache tem (`base`); senão
+// — a semente, antes da primeira coleta, ou dev com um histórico mais novo —
+// a busca é feita aqui, uma vez por processo.
+//
+// O piso da curva (PRAZO_MINIMO_CURVA) é declarado mais abaixo, junto das
+// curvas: é uma `const` do módulo, e só é LIDA dentro de função, depois da
+// carga.
 let episodiosGuardados = null;
 function episodiosDoHistorico() {
   if (!episodiosGuardados) {
-    const titulos = Object.values(cache.historico().titulos || {});
-    episodiosGuardados = acharEpisodios(titulos, { prazoMinimo: PRAZO_MINIMO_CURVA });
+    const historico = cache.historico();
+    episodiosGuardados =
+      episodiosDoArquivo(cache.episodios(), { base: historico.atualizadoEm, prazoMinimo: PRAZO_MINIMO_CURVA }) ??
+      (() => {
+        const titulos = Object.values(historico.titulos || {});
+        return acharEpisodios(titulos, { prazoMinimo: PRAZO_MINIMO_CURVA, alvos: alvosDe(titulos, hojeISO()) });
+      })();
   }
   return episodiosGuardados;
 }
@@ -139,7 +150,17 @@ function episodiosDoHistorico() {
 //
 // { [id do episódio]: [Δ taxa em p.p., Δ preço em %] }. null para a LFT (sem
 // choque de taxa) e para título sem taxa.
-function choquesDoTitulo({ tipo, vencimento, comCupom, cupomAnual, taxa, anos }) {
+//
+// GUARDADO por título, data do preço e dia: são oito repreçamentos por
+// título, e /api/titulos monta todos a cada request — o mesmo padrão dos
+// cupons pagos logo acima. O dia entra na chave porque o prazo encurta.
+const choquesGuardados = new Map();
+function choquesDoTitulo({ slug, data, tipo, vencimento, comCupom, cupomAnual, taxa, anos }) {
+  const chave = `${slug}|${data}|${hojeISO()}`;
+  if (!choquesGuardados.has(chave)) choquesGuardados.set(chave, calcularChoques({ tipo, vencimento, comCupom, cupomAnual, taxa, anos }));
+  return choquesGuardados.get(chave);
+}
+function calcularChoques({ tipo, vencimento, comCupom, cupomAnual, taxa, anos }) {
   const familia = familiaDoChoque(tipo);
   if (!familia || taxa == null) return null;
   const base = { vencimentoISO: vencimento, comCupom, cupomAnual };
@@ -173,19 +194,15 @@ function curvaDoFuturoEm(ativo, dataISO) {
   if (!curvasGuardadas.has(chave)) {
     // A ponta curta da DAP é distorcida pelo IPCA já conhecido (ver
     // curvasDeFuturos): mesmo piso da tela. O DI1 é limpo desde o primeiro dia.
-    const duMinimo = ativo === "DAP" ? Math.round(PRAZO_MINIMO_CURVA * 252) : 0;
-    curvasGuardadas.set(chave, curvaDoFuturo(cache.futuros(), ativo, dataISO, { duMinimo }));
+    const anosMinimo = ativo === "DAP" ? PRAZO_MINIMO_CURVA : 0;
+    curvasGuardadas.set(chave, curvaDoFuturo(cache.futuros(), ativo, dataISO, { anosMinimo }));
   }
   return curvasGuardadas.get(chave);
 }
 
 let datasDeFuturos = null;
 function pregoesColetados() {
-  if (!datasDeFuturos) {
-    const datas = new Set();
-    for (const c of Object.values(cache.futuros().contratos || {})) for (const d of Object.keys(c.serie || {})) datas.add(d);
-    datasDeFuturos = [...datas].sort();
-  }
+  if (!datasDeFuturos) datasDeFuturos = datasColetadas(cache.futuros());
   return datasDeFuturos;
 }
 
@@ -333,7 +350,7 @@ function montarItem(slug, { comSerie = false } = {}) {
 
   // O que os piores momentos do histórico fariam com este título hoje. A
   // Carteira multiplica pela quantidade, no aparelho.
-  item.choques = choquesDoTitulo({ tipo, vencimento, comCupom, cupomAnual: meta.cupomAnual ?? undefined, taxa, anos: item.anosAteVencer });
+  item.choques = choquesDoTitulo({ slug, data: item.data, tipo, vencimento, comCupom, cupomAnual: meta.cupomAnual ?? undefined, taxa, anos: item.anosAteVencer });
 
   // Série curta para o sparkline da lista: 45 pontos é o que cabe num traço de
   // 60px e evita uma requisição por linha.
@@ -658,7 +675,7 @@ function inflacaoImplicita(real, nominal) {
 // o vencimento chegando — o mesmo motivo pelo qual títulos vencidos ficam fora
 // do arquivo-ponte. Vale para as TRÊS curvas, senão a de hoje e a de um ano
 // atrás não começariam no mesmo lugar, que é justamente o que se quer comparar.
-const PRAZO_MINIMO_CURVA = 1.5;
+export const PRAZO_MINIMO_CURVA = 1.5;
 
 // ---------- /api/futuros ----------
 
@@ -679,15 +696,11 @@ const PRAZO_MINIMO_CURVA = 1.5;
 // chegaria à tela sem um teste sequer. O verificar passa duas datas de
 // mentira aqui e confere a seleção, a ordenação e o vértice.
 export function curvasDeFuturos(arquivo) {
-  const contratos = Object.entries(arquivo?.contratos || {});
-
   // Todas as datas já coletadas, para achar "hoje" e "um mês atrás" dentro do
   // que existe. A B3 serve poucos meses e o histórico nasce da primeira
   // coleta, então pedir uma data que ainda não foi coletada é o caso NORMAL no
   // começo — e tem de devolver nada, não um erro.
-  const datas = new Set();
-  for (const [, c] of contratos) for (const d of Object.keys(c.serie || {})) datas.add(d);
-  const ordenadas = [...datas].sort();
+  const ordenadas = datasColetadas(arquivo);
   const ultima = ordenadas[ordenadas.length - 1] || null;
 
   // A data coletada mais próxima de 30 dias atrás, nunca a mais recente: sem
@@ -701,44 +714,34 @@ export function curvasDeFuturos(arquivo) {
 
   // Um ponto por contrato vivo NAQUELA data, com a taxa daquele dia. Mesma
   // regra da curva dos títulos: a curva de um mês atrás é feita do que estava
-  // vivo um mês atrás, não do que está vivo hoje.
-  const pontosEm = (dataISO, filtro, prazo) => {
-    if (!dataISO) return [];
-    return contratos
-      .filter(([, c]) => filtro(c) && c.vencimento > dataISO && c.serie?.[dataISO]?.[0] != null)
-      .map(([ticker, c]) => ({
-        slug: ticker,
-        nome: ticker,
-        vencimento: c.vencimento,
-        anos: prazo(dataISO, c.vencimento),
-        taxa: c.serie[dataISO][0],
-        pu: c.serie[dataISO][1] ?? null,
+  // vivo um mês atrás, não do que está vivo hoje. A leitura do arquivo é a de
+  // server/futuro.js, a mesma que o prêmio do Tesouro × futuro usa.
+  const pontosEm = (dataISO, ativo, prazo) =>
+    pontosDoFuturo(arquivo, ativo, dataISO)
+      .map((p) => ({
+        slug: p.ticker,
+        nome: p.ticker,
+        vencimento: p.vencimento,
+        anos: prazo(dataISO, p.vencimento),
+        taxa: p.taxa,
+        pu: p.pu,
         // CurvaChart separa por família e pede o campo; aqui não há cupom, e
         // um ponto sem a chave cairia num grupo só, calado.
         comCupom: false,
       }))
       .sort((a, b) => a.anos - b.anos);
-  };
 
   const prazoUtil = (de, ate) => anosUteisEntre(de, ate);
   const prazoCorrido = (de, ate) => dias(de, ate) / 360;
-
-  const ehDI = (c) => c.ativo === "DI1";
-  const ehFRC = (c) => c.ativo === "FRC";
-  const ehDAP = (c) => c.ativo === "DAP";
 
   // O vértice curto: o DDI mais curto vivo na data. Não é ponto de curva — a
   // taxa dele é cupom SUJO, contaminada pela variação cambial desde a PTAX do
   // dia anterior — mas sem ele a tela não tem como dizer por que a curva em
   // USD começa onde começa.
   const verticeEm = (dataISO) => {
-    if (!dataISO) return null;
-    const vivos = contratos
-      .filter(([, c]) => c.ativo === "DDI" && c.vencimento > dataISO && c.serie?.[dataISO]?.[0] != null)
-      .sort((a, b) => a[1].vencimento.localeCompare(b[1].vencimento));
-    if (!vivos.length) return null;
-    const [ticker, c] = vivos[0];
-    return { slug: ticker, vencimento: c.vencimento, dias: dias(dataISO, c.vencimento), taxaSuja: c.serie[dataISO][0] };
+    const [curto] = pontosDoFuturo(arquivo, "DDI", dataISO);
+    if (!curto) return null;
+    return { slug: curto.ticker, vencimento: curto.vencimento, dias: dias(dataISO, curto.vencimento), taxaSuja: curto.taxa };
   };
 
   // O PISO DA PONTA CURTA DA DAP, e por que ele existe.
@@ -757,7 +760,7 @@ export function curvasDeFuturos(arquivo) {
   // Os excluídos não somem: viajam em `curtos` para a tela poder dizer o que
   // ficou de fora e por quê — mesmo tratamento do vértice sujo do DDI.
   const dentroDoPiso = (p) => p.anos >= PRAZO_MINIMO_CURVA;
-  const curtosEm = (dataISO) => pontosEm(dataISO, ehDAP, prazoUtil).filter((p) => !dentroDoPiso(p));
+  const curtosEm = (dataISO) => pontosEm(dataISO, "DAP", prazoUtil).filter((p) => !dentroDoPiso(p));
 
   // `curto` é o rótulo do seletor da tela: três posições numa peça só não
   // comportam "Cupom de IPCA (juro real)" a 360px. Diz a moeda da curva e o
@@ -769,8 +772,8 @@ export function curvasDeFuturos(arquivo) {
       curto: "Pré (DI)",
       sufixo: "% a.a.",
       convencao: "dias úteis/252, exponencial",
-      agora: pontosEm(ultima, ehDI, prazoUtil),
-      umMesAtras: pontosEm(umMes, ehDI, prazoUtil),
+      agora: pontosEm(ultima, "DI1", prazoUtil),
+      umMesAtras: pontosEm(umMes, "DI1", prazoUtil),
     },
     {
       id: "cupom-limpo",
@@ -778,8 +781,8 @@ export function curvasDeFuturos(arquivo) {
       curto: "Dólar (FRC)",
       sufixo: "% a.a. US$",
       convencao: "dias corridos/360, linear",
-      agora: pontosEm(ultima, ehFRC, prazoCorrido),
-      umMesAtras: pontosEm(umMes, ehFRC, prazoCorrido),
+      agora: pontosEm(ultima, "FRC", prazoCorrido),
+      umMesAtras: pontosEm(umMes, "FRC", prazoCorrido),
       vertice: verticeEm(ultima),
     },
     {
@@ -792,8 +795,8 @@ export function curvasDeFuturos(arquivo) {
       // duas, senão a comparação exige uma tradução que a tela não deu.
       sufixo: "% a.a. + IPCA",
       convencao: "dias úteis/252, exponencial",
-      agora: pontosEm(ultima, ehDAP, prazoUtil).filter(dentroDoPiso),
-      umMesAtras: pontosEm(umMes, ehDAP, prazoUtil).filter(dentroDoPiso),
+      agora: pontosEm(ultima, "DAP", prazoUtil).filter(dentroDoPiso),
+      umMesAtras: pontosEm(umMes, "DAP", prazoUtil).filter(dentroDoPiso),
       curtos: curtosEm(ultima),
     },
   ];
@@ -932,9 +935,15 @@ export async function getCurva() {
     contraFuturo: comLeitura.length
       ? {
           linhas: contraFuturo,
-          // As datas travam juntas por construção (ver contraFuturoDe); vão no
-          // payload para a tela DIZER a data, que é o que a regra pede.
-          data: comLeitura.reduce((m, l) => (l.data > m ? l.data : m), ""),
+          // Cada linha casa o título com o futuro da data do PREÇO DELE (ver
+          // contraFuturoDe). Quase sempre todas têm a mesma, e aí `data` a
+          // diz; quando um título tem o último preço mais velho (saiu de
+          // oferta, publicação parcial), `data` é null e a tela diz que a data
+          // é a de cada título, marcando as que destoam da mais recente. Uma
+          // data só no cabeçalho, nesse caso, atribuiria a uma linha o dia de
+          // outra — a leitura de datas trocadas que a seção existe para evitar.
+          data: new Set(comLeitura.map((l) => l.data)).size === 1 ? comLeitura[0].data : null,
+          dataMaisRecente: comLeitura.reduce((m, l) => (l.data > m ? l.data : m), ""),
           pregoes: pregoesColetados().length,
           desde: pregoesColetados()[0] ?? null,
           fonte: cache.futuros().fonte || "B3",
