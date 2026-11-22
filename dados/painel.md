@@ -1,6 +1,6 @@
 # Painel — Tesouro Tracker
 
-Retrato gerado automaticamente em 2026-11-21T18:03:48.415Z.
+Retrato gerado automaticamente em 2026-11-22T00:26:35.032Z.
 
 ## Acompanhados de perto
 
@@ -20,7 +20,7 @@ Retrato gerado automaticamente em 2026-11-21T18:03:48.415Z.
 | EUR/BRL | 6.4672 | 4.98% | 4.09% | 19/11/2026 |
 | USD/BRL | 5.8889 | 10.39% | 4.89% | 19/11/2026 |
 | CDI | 13.65% a.a. | — | — | 19/11/2026 |
-| Selic (meta) | 13.75% a.a. | — | — | 21/11/2026 |
+| Selic (meta) | 13.75% a.a. | — | — | 22/11/2026 |
 
 ## Ressalvas
 
