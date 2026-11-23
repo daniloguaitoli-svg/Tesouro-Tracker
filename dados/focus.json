@@ -1,16 +1,16 @@
 {
- "atualizadoEm": "2026-11-16T21:05:43.836Z",
+ "atualizadoEm": "2026-11-23T22:43:43.242Z",
  "fonte": "Banco Central do Brasil — Expectativas de Mercado (Focus)",
  "nota": "Mediana das expectativas. `selic` é por reunião do Copom (R1 é a primeira reunião ordinária do ano); `ipca` é por ano-calendário, em % no ano.",
  "selic": {
-  "data": "2026-11-13",
+  "data": "2026-11-19",
   "reunioes": [
    {
     "reuniao": "R8/2026",
     "ordem": 8,
     "ano": 2026,
     "mediana": 13.75,
-    "respondentes": 144
+    "respondentes": 145
    },
    {
     "reuniao": "R1/2027",
@@ -65,28 +65,28 @@
     "reuniao": "R8/2027",
     "ordem": 8,
     "ano": 2027,
-    "mediana": 12.75,
+    "mediana": 13,
     "respondentes": 144
    },
    {
     "reuniao": "R1/2028",
     "ordem": 1,
     "ano": 2028,
-    "mediana": 12.5,
+    "mediana": 12.75,
     "respondentes": 126
    },
    {
     "reuniao": "R2/2028",
     "ordem": 2,
     "ano": 2028,
-    "mediana": 12.25,
+    "mediana": 12.5,
     "respondentes": 126
    },
    {
     "reuniao": "R3/2028",
     "ordem": 3,
     "ano": 2028,
-    "mediana": 12,
+    "mediana": 12.25,
     "respondentes": 126
    },
    {
@@ -100,52 +100,52 @@
     "reuniao": "R5/2028",
     "ordem": 5,
     "ano": 2028,
-    "mediana": 11.75,
+    "mediana": 12,
     "respondentes": 125
    },
    {
     "reuniao": "R6/2028",
     "ordem": 6,
     "ano": 2028,
-    "mediana": 11.5,
-    "respondentes": 123
+    "mediana": 11.625,
+    "respondentes": 124
    },
    {
     "reuniao": "R7/2028",
     "ordem": 7,
     "ano": 2028,
     "mediana": 11.5,
-    "respondentes": 61
+    "respondentes": 83
    }
   ]
  },
  "ipca": {
-  "data": "2026-11-13",
+  "data": "2026-11-19",
   "anos": [
    {
     "ano": 2026,
-    "mediana": 5.1082,
-    "respondentes": 146
+    "mediana": 5.1505,
+    "respondentes": 147
    },
    {
     "ano": 2027,
-    "mediana": 5,
+    "mediana": 5.1214,
     "respondentes": 146
    },
    {
     "ano": 2028,
     "mediana": 4,
-    "respondentes": 133
+    "respondentes": 134
    },
    {
     "ano": 2029,
     "mediana": 4,
-    "respondentes": 122
+    "respondentes": 123
    },
    {
     "ano": 2030,
-    "mediana": 3.935,
-    "respondentes": 114
+    "mediana": 3.95,
+    "respondentes": 116
    }
   ]
  }
