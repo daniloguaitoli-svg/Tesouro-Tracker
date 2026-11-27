@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-11-27T02:56:31.881Z",
+ "atualizadoEm": "2026-11-27T20:02:08.697Z",
  "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
@@ -16,14 +16,14 @@
    "vencimento": "2027-03-01",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-11-25",
+   "data": "2026-11-26",
    "anosAteVencer": 0.246,
    "taxa": 0.03,
    "taxaCompra": 0.03,
    "taxaVenda": 0.04,
-   "pu": 20374.84,
-   "puCompra": 20374.84,
-   "puVenda": 20363.87,
+   "pu": 20385.18,
+   "puCompra": 20385.18,
+   "puVenda": 20374.23,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -31,7 +31,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 1446,
+   "pontosNaSerie": 1447,
    "secundario": {
     "fonte": "ANBIMA — mercado secundário",
     "taxaIndicativa": 0.03,
@@ -47,14 +47,14 @@
    "vencimento": "2028-03-01",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-11-25",
+   "data": "2026-11-26",
    "anosAteVencer": 1.25,
    "taxa": 0.04,
    "taxaCompra": 0.04,
    "taxaVenda": 0.05,
-   "pu": 20366.42,
-   "puCompra": 20366.42,
-   "puVenda": 20353.42,
+   "pu": 20376.19,
+   "puCompra": 20376.19,
+   "puVenda": 20363.19,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -62,7 +62,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 452,
+   "pontosNaSerie": 453,
    "secundario": {
     "fonte": "ANBIMA — mercado secundário",
     "taxaIndicativa": 0.0425,
@@ -78,14 +78,14 @@
    "vencimento": "2029-03-01",
    "comCupom": false,
    "destaque": false,
-   "data": "2026-11-25",
+   "data": "2026-11-26",
    "anosAteVencer": 2.234,
    "taxa": 0.06,
    "taxaCompra": 0.06,
    "taxaVenda": 0.07,
-   "pu": 20351.18,
-   "puCompra": 20351.18,
-   "puVenda": 20336.17,
+   "pu": 20360.78,
+   "puCompra": 20360.78,
+   "puVenda": 20345.77,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -93,7 +93,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 968,
+   "pontosNaSerie": 969,
    "secundario": {
     "fonte": "ANBIMA — mercado secundário",
     "taxaIndicativa": 0.0582,
@@ -109,14 +109,14 @@
    "vencimento": "2031-03-01",
    "comCupom": false,
    "destaque": true,
-   "data": "2026-11-25",
+   "data": "2026-11-26",
    "anosAteVencer": 4.218,
    "taxa": 0.11,
    "taxaCompra": 0.11,
    "taxaVenda": 0.12,
-   "pu": 20281.78,
-   "puCompra": 20281.78,
-   "puVenda": 20262.76,
+   "pu": 20290.88,
+   "puCompra": 20290.88,
+   "puVenda": 20271.86,
    "duration": {
     "macaulayAnos": null,
     "modificada": null,
@@ -124,7 +124,7 @@
     "variacaoPrecoMais1pp": null,
     "variacaoPrecoMenos1pp": null
    },
-   "pontosNaSerie": 452,
+   "pontosNaSerie": 453,
    "secundario": {
     "fonte": "ANBIMA — mercado secundário",
     "taxaIndicativa": 0.1131,
