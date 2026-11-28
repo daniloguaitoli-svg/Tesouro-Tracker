@@ -1,5 +1,5 @@
 {
- "atualizadoEm": "2026-11-27T20:02:08.697Z",
+ "atualizadoEm": "2026-11-28T02:47:06.105Z",
  "nota": "LFT é pós-fixada: `taxa` aqui é o ágio/deságio sobre a Selic (pode ser negativo), não uma taxa cheia; `duration` é null por construção.",
  "geradoPor": "Tesouro-Tracker/.github/workflows/coletar-tesouro.yml",
  "fontes": {
